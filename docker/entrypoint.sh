@@ -30,7 +30,12 @@ sys.exit("PostgreSQL not ready in time")
 PY
 
 echo "Running database migrations..."
-alembic upgrade head
+if [ ! -f /app/alembic/env.py ]; then
+  echo "ERROR: /app/alembic missing — rebuild api image after git pull"
+  ls -la /app
+  exit 1
+fi
+alembic -c /app/alembic.ini upgrade head
 
 echo "Starting API server..."
 exec uvicorn backend.app.main:app --host 0.0.0.0 --port 8000

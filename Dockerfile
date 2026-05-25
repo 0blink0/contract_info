@@ -22,7 +22,8 @@ RUN pip install --upgrade pip \
         -i "${PIP_INDEX_URL}" --trusted-host "${PIP_TRUSTED_HOST}" \
         -r requirements-prod.txt
 
-COPY alembic.ini alembic/ ./
+COPY alembic.ini ./
+COPY alembic ./alembic
 COPY backend/ ./backend/
 COPY templates/ ./templates/
 COPY docker/entrypoint.sh /entrypoint.sh
