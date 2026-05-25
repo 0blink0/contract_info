@@ -4,6 +4,8 @@ __pycache__/
 .env
 uploads/*
 !uploads/.gitkeep
+exports/*
+!exports/.gitkeep
 .pytest_cache/
 out.json
 

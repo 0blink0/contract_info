@@ -1,0 +1,24 @@
+{
+  "product_elements": {
+    "基金全称": {"value": "正仁1号私募证券投资基金", "confidence": "high", "source": "rule"},
+    "基金简称": {"value": "正仁1号", "confidence": "high", "source": "rule"},
+    "管理人": {"value": "海南正仁量化私募基金管理有限公司", "confidence": "high", "source": "rule"},
+    "托管人": {"value": "国泰君安证券股份有限公司", "confidence": "high", "source": "rule"},
+    "成立日期": {"value": "2020/3/23", "confidence": "medium", "source": "rule"}
+  },
+  "fee_rates": [
+    {
+      "基金名称": "正仁1号私募证券投资基金",
+      "运营费类型": "管理费",
+      "计费频率": "按年",
+      "rate_annual_pct": "1.5"
+    },
+    {
+      "基金名称": "正仁1号私募证券投资基金",
+      "运营费类型": "托管费",
+      "计费频率": "按年",
+      "rate_annual_pct": "0.25"
+    }
+  ],
+  "_meta": {}
+}

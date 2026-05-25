@@ -27,3 +27,11 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def templates_dir() -> Path:
+    return PROJECT_ROOT / "templates"
+
+
+def exports_dir() -> Path:
+    return PROJECT_ROOT / "exports"

@@ -13,6 +13,7 @@ from backend.app.services.extract_service import (
     persist_extract,
     persist_extract_from_path,
 )
+from backend.app.services.export_service import export_from_file_id, export_from_json, persist_export
 from backend.app.services.parse_service import persist_parse
 
 
@@ -104,6 +105,33 @@ def extract_cmd(
             "fee_rates": fee[:3],
         }
         click.echo(json.dumps(preview, ensure_ascii=False, indent=2))
+
+
+@main.command("export")
+@click.option("--file-id", default=None, help="Export from DB extraction_result.")
+@click.option("--from-json", "from_json", default=None, type=click.Path(exists=True, dir_okay=False))
+@click.option("--persist", is_flag=True, help="Save paths and status to PostgreSQL.")
+def export_cmd(file_id: str | None, from_json: str | None, persist: bool) -> None:
+    import uuid
+
+    warnings: list = []
+    if from_json:
+        fid = uuid.UUID(file_id) if file_id else uuid.uuid4()
+        product_path, fee_path, warnings = export_from_json(from_json, fid)
+    elif file_id:
+        if persist:
+            product_path, fee_path = persist_export(uuid.UUID(file_id))
+            click.echo(f"product={product_path}")
+            click.echo(f"fee={fee_path}")
+            return
+        product_path, fee_path, warnings = export_from_file_id(uuid.UUID(file_id))
+    else:
+        click.echo("Provide --file-id or --from-json", err=True)
+        sys.exit(1)
+
+    click.echo(f"product={product_path}")
+    click.echo(f"fee={fee_path}")
+    click.echo(f"warnings={len(warnings)}")
 
 
 if __name__ == "__main__":

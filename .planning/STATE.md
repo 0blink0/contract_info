@@ -5,7 +5,7 @@
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 
 **Core value:** 上传 docx → 可导入 Excel  
-**Current focus:** Phase 3 — Excel 模板填充（context 已就绪）  
+**Current focus:** Phase 4 — 后端 API（下一步）  
 **Project root:** `contract_info/`
 
 ## Current Position
@@ -13,8 +13,8 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 | Field | Value |
 |-------|-------|
 | Milestone | v1.initial |
-| Phase | 3 |
-| Status | planned — ready to execute |
+| Phase | 3 (complete) |
+| Status | executed — DB export 需 Docker |
 
 ## Progress
 
@@ -27,8 +27,9 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 - [x] Phase 2 plan — `02-01-PLAN.md`, `02-02-PLAN.md`, `02-RESEARCH.md`
 - [x] Phase 2 execute — 抽取管道、CLI、pytest
 - [x] Phase 3 discuss — `03-CONTEXT.md`
-- [x] Phase 3 plan — `03-01-PLAN.md`, `03-02-PLAN.md`, `03-RESEARCH.md`
-- [ ] Phase 3–5 execute
+- [x] Phase 3 plan — `03-01-PLAN.md`, `03-02-PLAN.md`
+- [x] Phase 3 execute — export CLI + templates
+- [ ] Phase 4 plan
 
 ## Notes
 

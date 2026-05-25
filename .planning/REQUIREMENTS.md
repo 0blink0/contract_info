@@ -20,9 +20,9 @@
 
 ### Excel Export
 
-- [ ] **XLS-01**: 基于 `example/产品要素-2.xlsx` 模板填充「产品要素模板」sheet
-- [ ] **XLS-02**: 基于 `example/产品运营费率导入模板-1.xlsx` 填充费率 sheet
-- [ ] **XLS-03**: 用户可下载生成的 xlsx；文件路径或 blob 与 DB 记录关联
+- [x] **XLS-01**: 基于 `templates/产品要素-2.xlsx` 模板填充「产品要素模板」sheet
+- [x] **XLS-02**: 基于 `templates/产品运营费率导入模板-1.xlsx` 填充费率 sheet
+- [x] **XLS-03**: 生成 xlsx 路径写入 DB；Phase 4 提供下载 API
 
 ### API & Frontend
 
@@ -77,9 +77,9 @@
 | EXT-03 | Phase 2 | Complete* |
 | EXT-04 | Phase 2 | Complete* |
 | DEV-02 | Phase 2 (02-02) | Complete* |
-| XLS-01 | Phase 3 | Pending |
-| XLS-02 | Phase 3 | Pending |
-| XLS-03 | Phase 3 | Pending |
+| XLS-01 | Phase 3 | Complete* |
+| XLS-02 | Phase 3 | Complete* |
+| XLS-03 | Phase 3 | Complete* |
 | API-01 | Phase 4 | Pending |
 | API-02 | Phase 4 | Pending |
 | API-03 | Phase 4 | Pending |
