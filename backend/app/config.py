@@ -17,6 +17,12 @@ class Settings(BaseSettings):
         "postgresql+psycopg2://postgres:contract_info_dev@localhost:5433/contract_info"
     )
 
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    llm_model: str = "gpt-4o-mini"
+    llm_timeout: int = 120
+    llm_max_retries: int = 1
+
 
 @lru_cache
 def get_settings() -> Settings:

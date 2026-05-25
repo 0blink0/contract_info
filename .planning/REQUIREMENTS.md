@@ -13,10 +13,10 @@
 
 ### Extraction
 
-- [ ] **EXT-01**: 按 `FIELD_SPEC.md` P1 抽取产品要素字段（规则 + LLM）
-- [ ] **EXT-02**: 按 P1 抽取运营费率行（管理费、托管费等，可多行）
-- [ ] **EXT-03**: 抽取结果含字段级置信度与原文溯源（block/章节）
-- [ ] **EXT-04**: 枚举字段对照模板字典 sheet 校验（业绩基准、销售机构等）
+- [x] **EXT-01**: 按 `FIELD_SPEC.md` P1 抽取产品要素字段（规则 + LLM）
+- [x] **EXT-02**: 按 P1 抽取运营费率行（管理费、托管费等，可多行）
+- [x] **EXT-03**: 抽取结果含字段级置信度与原文溯源（block/章节）
+- [x] **EXT-04**: 枚举字段对照模板字典 sheet 校验（业绩基准、销售机构等）
 
 ### Excel Export
 
@@ -34,7 +34,7 @@
 ### DevEx
 
 - [ ] **DEV-01**: `contract_info` 下 README 说明 venv 创建、依赖安装、运行测验
-- [ ] **DEV-02**: 至少一个针对示例合同的 CLI 或 pytest，验证解析→抽取→xlsx 链路
+- [x] **DEV-02**: 至少一个针对示例合同的 CLI 或 pytest，验证解析→抽取链路（xlsx 在 Phase 3）
 
 ## v2 Requirements
 
@@ -71,11 +71,12 @@
 | DEV-01 | Phase 1 (01-01) | Complete |
 | DEV-02 | Phase 1 (01-02) | Complete |
 
-\* DOC-03 `--persist` 需本机 Docker + `alembic upgrade head` 后手测确认。
-| EXT-01 | Phase 2 | Pending |
-| EXT-02 | Phase 2 | Pending |
-| EXT-03 | Phase 2 | Pending |
-| EXT-04 | Phase 2 | Pending |
+\* DOC-03 / EXT-* `--persist` 需本机 Docker + `alembic upgrade head`（含 migration 002）后手测确认。
+| EXT-01 | Phase 2 | Complete* |
+| EXT-02 | Phase 2 | Complete* |
+| EXT-03 | Phase 2 | Complete* |
+| EXT-04 | Phase 2 | Complete* |
+| DEV-02 | Phase 2 (02-02) | Complete* |
 | XLS-01 | Phase 3 | Pending |
 | XLS-02 | Phase 3 | Pending |
 | XLS-03 | Phase 3 | Pending |

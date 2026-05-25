@@ -7,6 +7,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_DIR = PROJECT_ROOT / "example"
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "llm: requires OPENAI_API_KEY")
+    config.addinivalue_line("markers", "integration: requires DATABASE_URL")
+
+
 @pytest.fixture(scope="session")
 def project_root() -> Path:
     return PROJECT_ROOT

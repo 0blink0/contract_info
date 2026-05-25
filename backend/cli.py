@@ -7,6 +7,12 @@ import click
 from backend.app.config import PROJECT_ROOT
 from backend.app.parse import parse_docx
 from backend.app.parse.schemas import document_to_dict
+from backend.app.services.extract_service import (
+    extract_from_docx_path,
+    extract_from_file_id,
+    persist_extract,
+    persist_extract_from_path,
+)
 from backend.app.services.parse_service import persist_parse
 
 
@@ -46,6 +52,58 @@ def parse_cmd(docx_path: str, persist: bool, out: str | None) -> None:
             indent=2,
         )
         click.echo(preview)
+
+
+@main.command("extract")
+@click.argument("docx_path", required=False, type=click.Path(exists=True, dir_okay=False))
+@click.option("--file-id", default=None, help="Extract from persisted parse_json by UUID.")
+@click.option("--persist", is_flag=True, help="Save extraction to PostgreSQL.")
+@click.option("--out", type=click.Path(dir_okay=False), default=None, help="Write JSON to file.")
+def extract_cmd(
+    docx_path: str | None,
+    file_id: str | None,
+    persist: bool,
+    out: str | None,
+) -> None:
+    import uuid
+
+    if persist and docx_path and not file_id:
+        fid = persist_extract_from_path(docx_path)
+        click.echo(f"Persisted extraction id={fid}")
+        return
+
+    if file_id:
+        result, warnings = extract_from_file_id(uuid.UUID(file_id))
+    elif docx_path:
+        result, warnings = extract_from_docx_path(docx_path)
+    else:
+        click.echo("Provide docx_path or --file-id", err=True)
+        sys.exit(1)
+
+    if persist and file_id:
+        persist_extract(uuid.UUID(file_id))
+        click.echo(f"Updated extraction for id={file_id}")
+
+    pe = result.get("product_elements") or {}
+    fee = result.get("fee_rates") or []
+    click.echo(
+        f"fields={len(pe)} fee_rows={len(fee)} warnings={len(warnings)}"
+    )
+    if out:
+        payload = {"extraction": result, "warnings": warnings}
+        Path(out).write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        click.echo(f"Wrote {out}")
+    else:
+        preview = {
+            "product_elements": {
+                k: v.get("value") if isinstance(v, dict) else v
+                for k, v in list(pe.items())[:8]
+            },
+            "fee_rates": fee[:3],
+        }
+        click.echo(json.dumps(preview, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

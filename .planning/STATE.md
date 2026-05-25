@@ -13,8 +13,8 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 | Field | Value |
 |-------|-------|
 | Milestone | v1.initial |
-| Phase | 2 |
-| Status | planned — ready to execute |
+| Phase | 2 (complete) → 3 next |
+| Status | executed — verify DB with Docker |
 
 ## Progress
 
@@ -25,7 +25,7 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 - [ ] Phase 1 DB 集成验证（需启动 Docker）
 - [x] Phase 2 discuss — `02-CONTEXT.md`
 - [x] Phase 2 plan — `02-01-PLAN.md`, `02-02-PLAN.md`, `02-RESEARCH.md`
-- [ ] Phase 2 execute
+- [x] Phase 2 execute — 抽取管道、CLI、pytest
 - [ ] Phase 3–5
 
 ## Notes
