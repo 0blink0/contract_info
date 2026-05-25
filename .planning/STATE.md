@@ -5,7 +5,7 @@
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 
 **Core value:** 上传 docx → 可导入 Excel  
-**Current focus:** Phase 2 — 字段抽取引擎（context 已就绪）  
+**Current focus:** Phase 3 — Excel 模板填充（context 已就绪）  
 **Project root:** `contract_info/`
 
 ## Current Position
@@ -13,8 +13,8 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 | Field | Value |
 |-------|-------|
 | Milestone | v1.initial |
-| Phase | 2 (complete) → 3 next |
-| Status | executed — verify DB with Docker |
+| Phase | 3 |
+| Status | context gathered — ready to plan |
 
 ## Progress
 
@@ -26,11 +26,13 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 - [x] Phase 2 discuss — `02-CONTEXT.md`
 - [x] Phase 2 plan — `02-01-PLAN.md`, `02-02-PLAN.md`, `02-RESEARCH.md`
 - [x] Phase 2 execute — 抽取管道、CLI、pytest
-- [ ] Phase 3–5
+- [x] Phase 3 discuss — `03-CONTEXT.md`
+- [ ] Phase 3 plan
+- [ ] Phase 3–5 execute
 
 ## Notes
 
 - 运行 `/gsd-plan-phase 1` 时请在 **`contract_info` 目录**下执行，或指定 `project_root: contract_info`，避免与仓库根或 `ai_bid_management` 混淆。
 
 ---
-*Updated: 2026-05-25 (Phase 2 planned)*
+*Updated: 2026-05-25 (Phase 3 context)*
