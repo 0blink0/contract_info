@@ -3,7 +3,8 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # 轩辕等镜像站请用完整路径，见 .env.example（勿仅用 postgres:16-alpine + 镜像加速）
+    image: ${POSTGRES_IMAGE:-postgres:16}
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -23,6 +24,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim-bookworm}
     restart: unless-stopped
     env_file:
       - .env
@@ -55,6 +58,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_KEY: ${API_KEY:-}
+        NODE_IMAGE: ${NODE_IMAGE:-node:20-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.27-alpine}
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-8080}:80"

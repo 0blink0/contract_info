@@ -51,6 +51,28 @@ docker compose up -d --build
 
 停止：`docker compose down`（加 `-v` 会删除数据卷，慎用）
 
+### 轩辕镜像 `docker.xuanyuan.run`（已登录仍提示要 login）
+
+原因：Docker 配置了镜像加速时，拉取 `postgres:16-alpine` 会走加速站，**登录凭证往往不会带上**。
+
+**做法：** 在 `.env` 里用镜像站**完整路径**（并 `docker login docker.xuanyuan.run`），不要用短名 + 加速：
+
+```bash
+docker login docker.xuanyuan.run
+
+# 编辑 .env，增加或取消注释：
+POSTGRES_IMAGE=docker.xuanyuan.run/library/postgres:16
+PYTHON_IMAGE=docker.xuanyuan.run/library/python:3.11-slim-bookworm
+NODE_IMAGE=docker.xuanyuan.run/library/node:20-alpine
+NGINX_IMAGE=docker.xuanyuan.run/library/nginx:1.27-alpine
+
+docker compose up -d --build
+```
+
+可先单独测试：`docker pull docker.xuanyuan.run/library/postgres:16`
+
+若仍失败，查看 `cat /etc/docker/daemon.json` 中的 `registry-mirrors`，必要时临时去掉加速后重启 Docker。
+
 ## 数据库（本地 venv 开发）
 
 仅启动 PostgreSQL（宿主机 **5433**，避免与 bid_tool 5432 冲突）：
