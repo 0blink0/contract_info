@@ -1,19 +1,74 @@
+# One-click deploy: PostgreSQL + API + Web (nginx)
+# Usage: copy .env.example to .env, then: docker compose up -d --build
+
 services:
   postgres:
-    image: postgres:16
-    ports:
-      - "5433:5432"
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: contract_info_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-contract_info_dev}
       POSTGRES_DB: contract_info
     volumes:
       - contract_info_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d contract_info"]
       interval: 5s
       timeout: 5s
+      retries: 10
+    networks:
+      - ctrx
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:${POSTGRES_PASSWORD:-contract_info_dev}@postgres:5432/contract_info
+    volumes:
+      - contract_info_uploads:/app/uploads
+      - contract_info_exports:/app/exports
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')",
+        ]
+      interval: 15s
+      timeout: 5s
       retries: 5
+      start_period: 40s
+    networks:
+      - ctrx
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_KEY: ${API_KEY:-}
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - ctrx
 
 volumes:
   contract_info_pg_data:
+  contract_info_uploads:
+  contract_info_exports:
+
+networks:
+  ctrx:
+    driver: bridge

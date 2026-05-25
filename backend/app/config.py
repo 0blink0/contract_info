@@ -23,10 +23,20 @@ class Settings(BaseSettings):
     llm_timeout: int = 120
     llm_max_retries: int = 1
 
+    api_key: str = ""
+    cors_origins: str = "http://localhost:5173"
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def cors_origin_list() -> list[str]:
+    raw = get_settings().cors_origins.strip()
+    if not raw:
+        return []
+    return [o.strip() for o in raw.split(",") if o.strip()]
 
 
 def templates_dir() -> Path:

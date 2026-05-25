@@ -43,3 +43,27 @@ def db_session():
                 session.delete(row)
         session.commit()
         session.close()
+
+
+@pytest.fixture
+def api_settings(monkeypatch):
+    monkeypatch.setenv("API_KEY", "test-key")
+    from backend.app.config import get_settings
+
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+def api_client(api_settings):
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+
+    return TestClient(app)
+
+
+@pytest.fixture
+def api_headers():
+    return {"X-API-Key": "test-key"}

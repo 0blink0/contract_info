@@ -5,7 +5,7 @@
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 
 **Core value:** 上传 docx → 可导入 Excel  
-**Current focus:** Phase 4 — 后端 API（下一步）  
+**Current focus:** v1 收尾（验证 / 提交）  
 **Project root:** `contract_info/`
 
 ## Current Position
@@ -13,8 +13,8 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 | Field | Value |
 |-------|-------|
 | Milestone | v1.initial |
-| Phase | 3 (complete) |
-| Status | executed — DB export 需 Docker |
+| Phase | 5 (complete) |
+| Status | executed — E2E 需 Docker + 后端 + npm run dev |
 
 ## Progress
 
@@ -29,11 +29,16 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 - [x] Phase 3 discuss — `03-CONTEXT.md`
 - [x] Phase 3 plan — `03-01-PLAN.md`, `03-02-PLAN.md`
 - [x] Phase 3 execute — export CLI + templates
-- [ ] Phase 4 plan
+- [x] Phase 4 discuss — `04-CONTEXT.md`
+- [x] Phase 4 plan — `04-01-PLAN.md`, `04-02-PLAN.md`, `04-RESEARCH.md`
+- [x] Phase 4 execute — FastAPI upload/run/download
+- [x] Phase 5 discuss — `05-CONTEXT.md`
+- [x] Phase 5 plan — `05-01-PLAN.md`, `05-02-PLAN.md`, `05-RESEARCH.md`
+- [x] Phase 5 execute — Vue frontend + jobs list API
 
 ## Notes
 
 - 运行 `/gsd-plan-phase 1` 时请在 **`contract_info` 目录**下执行，或指定 `project_root: contract_info`，避免与仓库根或 `ai_bid_management` 混淆。
 
 ---
-*Updated: 2026-05-25 (Phase 3 context)*
+*Updated: 2026-05-25 (Phase 5 execute — v1 roadmap complete)*

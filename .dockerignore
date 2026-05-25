@@ -1,0 +1,17 @@
+.venv
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+.pytest_cache
+frontend/node_modules
+frontend/dist
+.planning
+uploads/*
+!uploads/.gitkeep
+exports/*
+!exports/.gitkeep
+*.md
+!README.md
+.env
+example/
