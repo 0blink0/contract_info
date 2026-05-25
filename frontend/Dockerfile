@@ -1,13 +1,15 @@
 # Used in FROM — must be declared before the first FROM (BuildKit scope).
 ARG NODE_IMAGE=node:20-alpine
 ARG NGINX_IMAGE=nginx:1.27-alpine
+ARG NPM_REGISTRY=https://registry.npmmirror.com
 
 FROM ${NODE_IMAGE} AS build
 
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci 2>/dev/null || npm install
+RUN npm config set registry "${NPM_REGISTRY}" \
+    && (npm ci 2>/dev/null || npm install)
 
 COPY . .
 

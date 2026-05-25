@@ -26,6 +26,8 @@ services:
       dockerfile: Dockerfile
       args:
         PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim-bookworm}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
     restart: unless-stopped
     env_file:
       - .env
@@ -60,6 +62,7 @@ services:
         VITE_API_KEY: ${API_KEY:-}
         NODE_IMAGE: ${NODE_IMAGE:-node:20-alpine}
         NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.27-alpine}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-8080}:80"

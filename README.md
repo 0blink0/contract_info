@@ -73,6 +73,8 @@ docker compose up -d --build
 
 若仍失败，查看 `cat /etc/docker/daemon.json` 中的 `registry-mirrors`，必要时临时去掉加速后重启 Docker。
 
+**构建时 pip/npm 超时：** 镜像构建已默认清华 PyPI + npmmirror；无需改 `.env` 即可重试 `docker compose build --no-cache api web`。
+
 ## 数据库（本地 venv 开发）
 
 仅启动 PostgreSQL（宿主机 **5433**，避免与 bid_tool 5432 冲突）：
