@@ -14,7 +14,7 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 |-------|-------|
 | Milestone | v1.initial |
 | Phase | 2 |
-| Status | context gathered — ready to plan |
+| Status | planned — ready to execute |
 
 ## Progress
 
@@ -24,7 +24,7 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 - [x] Phase 1 execute — 代码与单元测试通过
 - [ ] Phase 1 DB 集成验证（需启动 Docker）
 - [x] Phase 2 discuss — `02-CONTEXT.md`
-- [ ] Phase 2 plan
+- [x] Phase 2 plan — `02-01-PLAN.md`, `02-02-PLAN.md`, `02-RESEARCH.md`
 - [ ] Phase 2 execute
 - [ ] Phase 3–5
 
@@ -33,4 +33,4 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
 - 运行 `/gsd-plan-phase 1` 时请在 **`contract_info` 目录**下执行，或指定 `project_root: contract_info`，避免与仓库根或 `ai_bid_management` 混淆。
 
 ---
-*Updated: 2026-05-25 (Phase 2 context)*
+*Updated: 2026-05-25 (Phase 2 planned)*
