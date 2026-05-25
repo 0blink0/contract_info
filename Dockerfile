@@ -1,8 +1,9 @@
 ARG PYTHON_IMAGE=python:3.11-slim-bookworm
+FROM ${PYTHON_IMAGE}
+
+# 须在 FROM 之后重新声明，才能在 RUN 中使用；勿在 .env 里写空的 PIP_TRUSTED_HOST=
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
-
-FROM ${PYTHON_IMAGE}
 
 WORKDIR /app
 
