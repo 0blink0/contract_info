@@ -13,7 +13,10 @@ url = os.environ.get("DATABASE_URL", "")
 if not url:
     sys.exit("DATABASE_URL is not set")
 
-for attempt in range(60):
+host = url.split("@")[-1] if "@" in url else "(unknown)"
+print(f"DATABASE_URL host: {host}")
+
+for attempt in range(45):
     try:
         engine = create_engine(url, pool_pre_ping=True)
         with engine.connect() as conn:
@@ -21,7 +24,7 @@ for attempt in range(60):
         print("PostgreSQL is ready.")
         sys.exit(0)
     except Exception as exc:
-        print(f"  attempt {attempt + 1}/60: {exc}")
+        print(f"  attempt {attempt + 1}/45: {exc}")
         time.sleep(2)
 sys.exit("PostgreSQL not ready in time")
 PY

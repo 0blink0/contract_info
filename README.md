@@ -75,6 +75,18 @@ docker compose up -d --build
 
 **构建时 pip/npm 超时：** 镜像构建已默认清华 PyPI + npmmirror；无需改 `.env` 即可重试 `docker compose build --no-cache api web`。
 
+### `api` 容器 unhealthy
+
+```bash
+docker compose logs api --tail 80
+```
+
+常见原因：
+
+1. **`.env` 里 `POSTGRES_PASSWORD` 与 `DATABASE_URL` 密码不一致** — 建议只设 `POSTGRES_PASSWORD`，删除或注释 `.env` 中的 `DATABASE_URL`（compose 会自动拼）。
+2. **首次启动较慢**（等库 + 迁移）— 已把 healthcheck `start_period` 调到 120s；仍失败则 `docker compose up -d` 再等 2 分钟看 `docker compose ps`。
+3. **密码含特殊字符** — URL 需编码，或改用字母数字密码。
+
 ## 数据库（本地 venv 开发）
 
 仅启动 PostgreSQL（宿主机 **5433**，避免与 bid_tool 5432 冲突）：
