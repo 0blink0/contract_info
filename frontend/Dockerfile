@@ -1,4 +1,7 @@
+# Used in FROM — must be declared before the first FROM (BuildKit scope).
 ARG NODE_IMAGE=node:20-alpine
+ARG NGINX_IMAGE=nginx:1.27-alpine
+
 FROM ${NODE_IMAGE} AS build
 
 WORKDIR /app
@@ -13,7 +16,6 @@ ENV VITE_API_KEY=$VITE_API_KEY
 
 RUN npm run build
 
-ARG NGINX_IMAGE=nginx:1.27-alpine
 FROM ${NGINX_IMAGE}
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
