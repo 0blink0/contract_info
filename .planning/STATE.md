@@ -29,9 +29,9 @@ Plan: Not started
 | Field | Value |
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
-| Phase | **6** — 抽取质量与黄金回归 |
-| Plan | 06-01 → 06-03（3 plans, 3 waves） |
-| Status | Planned — ready for `/gsd-execute-phase 6` |
+| Phase | **7** — 申赎费率导出 |
+| Plan | 未规划（CONTEXT 已就绪） |
+| Status | 已讨论 — 可 `/gsd-plan-phase 7` |
 
 ## Milestone v1.1 输入
 
@@ -51,9 +51,9 @@ Plan: Not started
 
 ## Next Actions
 
-1. `/gsd-execute-phase 6` — 按 Wave 0→1→2 执行 06-01~03
-2. 确认生产 `OPENAI_API_KEY`（LLM 抽取 + 校验层）
-3. 将 `example/*` 模板复制/同步到 `templates/`（若与现母版不一致）
+1. `/gsd-plan-phase 7` — 基于 `07-CONTEXT.md` 生成计划
+2. 规划时纳入：5 表 export、subscription_xlsx_path、download/subscription-fee-rates
+3. 扩展 `tests/golden/` 为 5 个 xlsx E2E
 
 ---
 *Updated: 2026-05-26*
