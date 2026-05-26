@@ -98,9 +98,9 @@ Plans:
 
 **Plans:** 3 plans in 3 waves
 
-- [ ] 09-01-PLAN.md — Wave 0：validate 包、evidence、llm_validator、TEST-02 mock
-- [ ] 09-02-PLAN.md — Wave 1：validation_result JSONB、validation_service、extract 挂钩
-- [ ] 09-03-PLAN.md — Wave 2：GET /validation、JobDetail 摘要、API 测试
+- [x] 09-01-PLAN.md — Wave 0：validate 包、evidence、llm_validator、TEST-02 mock
+- [x] 09-02-PLAN.md — Wave 1：validation_result JSONB、validation_service、extract 挂钩
+- [x] 09-03-PLAN.md — Wave 2：GET /validation、JobDetail 摘要、API 测试
 
 **Requirements:** VAL-01–04, TEST-02
 
@@ -127,7 +127,7 @@ Plans:
 | 6 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 7 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 8 | v1.1 | 3/3 | Complete | 2026-05-26 |
-| 9 | v1.1 | 0/3 | Planned | — |
+| 9 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 10 | v1.1 | 0/3 | Not started | — |
 
 ---

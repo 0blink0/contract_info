@@ -10,6 +10,7 @@ from backend.app.models.contract_file import ContractFile
 from backend.app.parse import parse_docx
 from backend.app.parse.schemas import document_to_dict
 from backend.app.services.parse_service import persist_parse
+from backend.app.services.validation_service import persist_validation
 
 
 def _run_extract_on_document(document: dict) -> tuple[dict, list, dict]:
@@ -39,6 +40,7 @@ def persist_extract(file_id: uuid.UUID) -> uuid.UUID:
             record.extraction_result = result_dict
             record.path_b_json = path_b
             record.extraction_warnings = warnings
+            persist_validation(file_id, session=session)
             record.status = "extracted"
             record.error_message = None
             session.commit()

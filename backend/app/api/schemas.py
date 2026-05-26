@@ -65,6 +65,23 @@ class PathBResponse(BaseModel):
     source_snippets: dict[str, str] = Field(default_factory=dict)
 
 
+class ValidationItemResponse(BaseModel):
+    field: str
+    status: str
+    value: str | None = None
+    reason: str
+    suggestion: str | None = None
+
+
+class ValidationResponse(BaseModel):
+    job_id: uuid.UUID
+    validated_at: str | None = None
+    model: str | None = None
+    skipped: bool = False
+    items: list[ValidationItemResponse] = Field(default_factory=list)
+    summary: dict[str, int] = Field(default_factory=dict)
+
+
 class JobDetailResponse(BaseModel):
     job_id: uuid.UUID
     filename: str
@@ -76,6 +93,9 @@ class JobDetailResponse(BaseModel):
     share_xlsx_path: str | None = None
     subscription_xlsx_path: str | None = None
     path_b_available: bool = False
+    validation_available: bool = False
+    validation_fail_count: int = 0
+    validation_warn_count: int = 0
     extraction_warnings: list[WarningItem] = Field(default_factory=list)
     extraction_warnings_count: int = 0
     outline_preview_count: int | None = None

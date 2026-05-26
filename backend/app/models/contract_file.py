@@ -29,6 +29,7 @@ class ContractFile(Base):
     share_xlsx_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     subscription_xlsx_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     path_b_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    validation_result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -16,6 +16,8 @@ from backend.app.api.schemas import (
     JobPreviewResponse,
     PathBResponse,
     ProductPreviewItem,
+    ValidationItemResponse,
+    ValidationResponse,
     RunResponse,
     warnings_from_jsonb,
 )
@@ -50,9 +52,20 @@ def _get_record(job_id: uuid.UUID) -> ContractFile:
         session.close()
 
 
+def _validation_counts(record: ContractFile) -> tuple[bool, int, int]:
+    raw = getattr(record, "validation_result", None)
+    if not raw or not isinstance(raw, dict):
+        return False, 0, 0
+    summary = raw.get("summary") or {}
+    fail_n = int(summary.get("fail") or 0)
+    warn_n = int(summary.get("warn") or 0)
+    return True, fail_n, warn_n
+
+
 def _record_to_detail(record: ContractFile) -> JobDetailResponse:
     warnings = warnings_from_jsonb(record.extraction_warnings)
     outline = record.outline_preview
+    val_available, fail_n, warn_n = _validation_counts(record)
     return JobDetailResponse(
         job_id=record.id,
         filename=record.filename,
@@ -64,6 +77,9 @@ def _record_to_detail(record: ContractFile) -> JobDetailResponse:
         share_xlsx_path=getattr(record, "share_xlsx_path", None),
         subscription_xlsx_path=getattr(record, "subscription_xlsx_path", None),
         path_b_available=bool(getattr(record, "path_b_json", None)),
+        validation_available=val_available,
+        validation_fail_count=fail_n,
+        validation_warn_count=warn_n,
         extraction_warnings=warnings,
         extraction_warnings_count=len(warnings),
         outline_preview_count=len(outline) if isinstance(outline, list) else None,
@@ -229,6 +245,33 @@ def download_subscription_fee_rates(job_id: uuid.UUID) -> FileResponse:
         path,
         media_type=XLSX_MEDIA,
         filename="subscription_fee_rates.xlsx",
+    )
+
+
+@router.get("/{job_id}/validation", response_model=ValidationResponse)
+def get_validation(job_id: uuid.UUID) -> ValidationResponse:
+    record = _get_record(job_id)
+    if record.status not in PREVIEW_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail="Job not extracted yet",
+        )
+    raw = getattr(record, "validation_result", None)
+    if raw is None or not isinstance(raw, dict):
+        raise HTTPException(status_code=404, detail="Validation result not available")
+    items_raw = raw.get("items") or []
+    items = [
+        ValidationItemResponse.model_validate(entry)
+        for entry in items_raw
+        if isinstance(entry, dict)
+    ]
+    return ValidationResponse(
+        job_id=record.id,
+        validated_at=raw.get("validated_at"),
+        model=raw.get("model"),
+        skipped=bool(raw.get("skipped")),
+        items=items,
+        summary=raw.get("summary") or {},
     )
 
 
