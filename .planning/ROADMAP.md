@@ -80,13 +80,15 @@ Plans:
 
 **Goal:** 业绩报酬、开放日结构化草稿供 CRM 手录，不进 Excel 母版。
 
-**Plans:**
+**Plans:** 3 plans in 3 waves
 
-1. `path_b/schemas.py` + 规则/LLM 抽取
-2. 持久化 `path_b_json` 列或 `extraction_result.path_b`
-3. API + 前端 JSON 面板
+- [ ] 08-01-PLAN.md — Wave 0：PathB schema、path_b_rules、assemble、pipeline 三元组、contract_expected
+- [ ] 08-02-PLAN.md — Wave 1：Alembic `path_b_json`、extract_service 持久化
+- [ ] 08-03-PLAN.md — Wave 2：`GET /path-b`、JobDetail 摘要、API 测试（可选 LLM）
 
 **Requirements:** PATHB-01–04
+
+**Success criteria:** ① JSON 含 performance_fee/open_day + source_snippets ② extract 写入 path_b_json ③ GET /path-b 可用（前端 Phase 10）
 
 ---
 
@@ -122,7 +124,7 @@ Plans:
 |-------|-----------|-------|--------|-----------|
 | 6 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 7 | v1.1 | 3/3 | Complete | 2026-05-26 |
-| 8 | v1.1 | 0/3 | Not started | — |
+| 8 | v1.1 | 0/3 | Planned | — |
 | 9 | v1.1 | 0/3 | Not started | — |
 | 10 | v1.1 | 0/3 | Not started | — |
 

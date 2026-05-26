@@ -19,20 +19,20 @@ progress:
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 08 — path-b-json（已讨论，待规划）
+**Current focus:** Phase 08 — path-b-json（已规划，待执行）
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: **8** — 路径 B JSON — **CONTEXT READY**
-Plan: 0/3（待规划）
+Phase: **8** — 路径 B JSON — **PLANNED**
+Plan: 0/3 executed（3 plans ready）
 
 | Field | Value |
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
 | Phase | 8 — 路径 B JSON |
-| Status | 已讨论，可规划 |
-| Next | `/gsd-plan-phase 8` |
+| Status | 已规划 |
+| Next | `/gsd-execute-phase 8` |
 
 ## Phase 8 讨论要点（2026-05-26）
 
@@ -43,9 +43,9 @@ Plan: 0/3（待规划）
 
 ## Next Actions
 
-1. `/gsd-plan-phase 8` — 生成 RESEARCH + PLAN
-2. 部署环境 `alembic upgrade head`（005，若尚未执行）
-3. `/gsd-execute-phase 8` — 讨论完成后执行
+1. `/gsd-execute-phase 8` — Wave 0→1→2 执行 08-01~03
+2. 部署环境 `alembic upgrade head`（含 006 path_b_json）
+3. Phase 10 补前端 JSON 面板
 
 ---
 *Updated: 2026-05-26*
