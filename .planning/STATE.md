@@ -1,44 +1,55 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: MVP
+status: Awaiting next milestone
+last_updated: "2026-05-26"
+last_activity: 2026-05-26 — Milestone v1.0 archived and tagged
+progress:
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 10
+  completed_plans: 10
+  percent: 100
+---
+
 # State: CTRX
 
 ## Project Reference
 
-See: `contract_info/.planning/PROJECT.md` (updated 2026-05-25)
+See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
 **Core value:** 上传 docx → 可导入 Excel  
-**Current focus:** v1 收尾（验证 / 提交）  
+**Current focus:** 规划 v1.1（`/gsd:new-milestone`）  
 **Project root:** `contract_info/`
 
 ## Current Position
 
 | Field | Value |
 |-------|-------|
-| Milestone | v1.initial |
-| Phase | 5 (complete) |
-| Status | executed — E2E 需 Docker + 后端 + npm run dev |
+| Milestone | v1.0 **shipped** |
+| Phase | — (roadmap phases 1–5 complete) |
+| Status | Awaiting next milestone |
 
-## Progress
+## Deferred Items
 
-- [x] GSD 项目初始化（规划置于 `contract_info/.planning/`）
-- [x] Phase 1 discuss — `01-CONTEXT.md`
-- [x] Phase 1 plan — `01-01-PLAN.md`, `01-02-PLAN.md`
-- [x] Phase 1 execute — 代码与单元测试通过
-- [ ] Phase 1 DB 集成验证（需启动 Docker）
-- [x] Phase 2 discuss — `02-CONTEXT.md`
-- [x] Phase 2 plan — `02-01-PLAN.md`, `02-02-PLAN.md`, `02-RESEARCH.md`
-- [x] Phase 2 execute — 抽取管道、CLI、pytest
-- [x] Phase 3 discuss — `03-CONTEXT.md`
-- [x] Phase 3 plan — `03-01-PLAN.md`, `03-02-PLAN.md`
-- [x] Phase 3 execute — export CLI + templates
-- [x] Phase 4 discuss — `04-CONTEXT.md`
-- [x] Phase 4 plan — `04-01-PLAN.md`, `04-02-PLAN.md`, `04-RESEARCH.md`
-- [x] Phase 4 execute — FastAPI upload/run/download
-- [x] Phase 5 discuss — `05-CONTEXT.md`
-- [x] Phase 5 plan — `05-01-PLAN.md`, `05-02-PLAN.md`, `05-RESEARCH.md`
-- [x] Phase 5 execute — Vue frontend + jobs list API
+| Category | Item | Notes |
+|----------|------|-------|
+| verification | Phase 1 DB 集成验证 | Docker + alembic 手测 |
+| feature | 批量上传 DOC-11 | v1.1 候选 |
+| feature | 路径 B 业绩报酬/开放日 | CRM 手录，可辅助 JSON |
+| process | milestone audit | 未跑 audit-milestone |
 
-## Notes
+## Progress (v1.0 — archived)
 
-- 运行 `/gsd-plan-phase 1` 时请在 **`contract_info` 目录**下执行，或指定 `project_root: contract_info`，避免与仓库根或 `ai_bid_management` 混淆。
+- [x] Phases 1–5 全部 execute 完成（10/10 plans）
+- [ ] Phase 1 DB 集成验证（遗留）
+
+## Operator Next Steps
+
+- `/gsd:new-milestone` — 定义 v1.1 需求与路线图
+- `/gsd:audit-milestone` — 可选，补 v1.0 验收报告
+- `/gsd:verify-work` — 对已部署环境做 UAT
 
 ---
-*Updated: 2026-05-25 (Phase 5 execute — v1 roadmap complete)*
+*Updated: 2026-05-26 after v1.0 milestone complete*
