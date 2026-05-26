@@ -19,33 +19,33 @@ progress:
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 08 — path-b-json
+**Current focus:** Phase 08 — path-b-json（已讨论，待规划）
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: **7** — 申赎费率导出 — **COMPLETE**
-Plan: 3/3 plans done
+Phase: **8** — 路径 B JSON — **CONTEXT READY**
+Plan: 0/3（待规划）
 
 | Field | Value |
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
-| Phase | 7 — 申赎费率导出 |
-| Status | 已完成 |
-| Next | `/gsd-plan-phase 8` 或 `/gsd-execute-phase 8` |
+| Phase | 8 — 路径 B JSON |
+| Status | 已讨论，可规划 |
+| Next | `/gsd-plan-phase 8` |
 
-## Phase 7 成果摘要
+## Phase 8 讨论要点（2026-05-26）
 
-- 规则层 `subscription_fees`（份额表 + 短期赎回分段）
-- 第五次导出 `subscription_fee_rates.xlsx` + DB `subscription_xlsx_path`
-- API：`GET .../download/subscription-fee-rates`
-- Golden E2E 扩展为 5 个 xlsx
+- JSON：`performance_fee` + `open_day`；业绩报酬 `tiers[]`
+- 抽取：规则层 CI；可选 LLM；fees + subscription 窗口
+- DB：`path_b_json` 列，extract 阶段写入
+- API：`GET /jobs/{id}/path-b`（本阶段无前端）
 
 ## Next Actions
 
-1. `/gsd-discuss-phase 8` 或 `/gsd-plan-phase 8` — 路径 B JSON
-2. 部署环境执行 `alembic upgrade head`（005）
-3. Phase 10 再补前端五表下载
+1. `/gsd-plan-phase 8` — 生成 RESEARCH + PLAN
+2. 部署环境 `alembic upgrade head`（005，若尚未执行）
+3. `/gsd-execute-phase 8` — 讨论完成后执行
 
 ---
 *Updated: 2026-05-26*
