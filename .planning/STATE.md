@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 抽取质量与导出扩展
-status: ready_to_plan
+status: ready_to_execute
 last_updated: "2026-05-26T07:51:26.322Z"
 progress:
   total_phases: 5
@@ -30,8 +30,8 @@ Plan: Not started
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
 | Phase | **7** — 申赎费率导出 |
-| Plan | 未规划（CONTEXT 已就绪） |
-| Status | 已讨论 — 可 `/gsd-plan-phase 7` |
+| Plan | 07-01 → 07-03（3 plans, 3 waves） |
+| Status | 已规划 — 可 `/gsd-execute-phase 7` |
 
 ## Milestone v1.1 输入
 
@@ -51,9 +51,9 @@ Plan: Not started
 
 ## Next Actions
 
-1. `/gsd-plan-phase 7` — 基于 `07-CONTEXT.md` 生成计划
-2. 规划时纳入：5 表 export、subscription_xlsx_path、download/subscription-fee-rates
-3. 扩展 `tests/golden/` 为 5 个 xlsx E2E
+1. `/gsd-execute-phase 7` — 按 Wave 0→1→2 执行 07-01~03
+2. 执行前确认 `example/产品申赎费率导入模板.xlsx` 在仓库（母版复制源）
+3. Phase 10 再补前端五表下载与预览
 
 ---
 *Updated: 2026-05-26*

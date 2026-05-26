@@ -59,13 +59,20 @@ Plans:
 
 **Goal:** 新增 `产品申赎费率导入模板` 导出（按 A/B/C/D 份额类多行）。
 
-**Plans:**
+**Plans:** 3 plans in 3 waves
 
-1. `subscription_fee` 抽取（份额分类表 + 申赎章节）+ schema
-2. `export/subscription_workbook.py` + alembic `subscription_xlsx_path`
-3. 下载 API + 预览 tab
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Wave 0：SubscriptionFeeRow + subscription_rules + pipeline 集成
+- [ ] 07-02-PLAN.md — Wave 1：母版/templates、subscription_workbook、export 五文件、DB 迁移
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 07-03-PLAN.md — Wave 2：download/subscription-fee-rates、golden 五表 E2E（无前端）
 
 **Requirements:** XLS-01–04, API-01
+
+**Success criteria:** ① 申赎模板列正确 ② 每份额类≥认购/申购行（赎回按合同） ③ 下载端点可用
 
 ---
 
