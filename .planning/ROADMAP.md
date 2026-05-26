@@ -112,13 +112,15 @@ Plans:
 
 **Goal:** 运营可用的完整交付面。
 
-**Plans:**
+**Plans:** 3 plans in 3 waves
 
-1. 前端 5 下载 + 路径 B + 校验摘要
-2. `FIELD_SPEC.md` / README / `.env.example`
-3. 可选：服务器部署 checklist（LLM key、alembic）
+- [ ] 10-01-PLAN.md — Wave 0：preview 申赎 API + schema + 测试
+- [ ] 10-02-PLAN.md — Wave 1：client/types、五下载、PathBPanel、ValidationPanel
+- [ ] 10-03-PLAN.md — Wave 2：ExportPreview 申赎 Tab、README/FIELD_SPEC/.env
 
 **Requirements:** API-02, UI-01–02, TEST-03
+
+**Success criteria:** ① 5 xlsx + path B + 校验 UI ② README ③ LLM/alembic 说明
 
 ## Progress
 
@@ -128,7 +130,7 @@ Plans:
 | 7 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 8 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 9 | v1.1 | 3/3 | Complete | 2026-05-26 |
-| 10 | v1.1 | 0/3 | Not started | — |
+| 10 | v1.1 | 0/3 | Planned | — |
 
 ---
 *Roadmap updated: 2026-05-26 — milestone v1.1 started*

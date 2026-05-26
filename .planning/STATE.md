@@ -19,32 +19,32 @@ progress:
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 10 — 集成与文档（已讨论，待规划）
+**Current focus:** Phase 10 — 集成与文档（已规划，待执行）
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: **10** — 集成与文档 — **CONTEXT READY**
-Plan: 0/3（待规划）
+Phase: **10** — 集成与文档 — **PLANNED**
+Plan: 0/3 executed（3 plans ready）
 
 | Field | Value |
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
 | Phase | 10 — 集成与文档 |
-| Status | 已讨论，可规划 |
-| Next | `/gsd-plan-phase 10` |
+| Status | 已规划 |
+| Next | `/gsd-execute-phase 10` |
 
-## Phase 10 讨论要点
+## Phase 10 计划摘要
 
-- 5 并列下载按钮；Path B 折叠 + 复制/下载 JSON
-- 独立 ValidationPanel；默认 fail+warn；懒加载
-- extracted+ 可见 path B/校验；ExportPreview 加申赎 Tab
-- README + FIELD_SPEC + .env.example
+- Wave 0：preview 申赎行列
+- Wave 1：五下载 + PathBPanel + ValidationPanel
+- Wave 2：ExportPreview Tab + 文档
 
 ## Next Actions
 
-1. `/gsd-plan-phase 10`
-2. `/gsd-execute-phase 10`
+1. `/gsd-execute-phase 10`
+2. 手工 UAT：5 下载 + path B + 校验 + 预览
+3. v1.1 里程碑收尾 / `gsd-complete-milestone`
 
 ---
 *Updated: 2026-05-26*
