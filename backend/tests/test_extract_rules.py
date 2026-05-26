@@ -32,7 +32,7 @@ def test_fee_rules_at_least_two_rows(sample_document):
     product = extract_product_rules(sample_document, windows)
     fund = product.get("基金全称")
     name = str(fund.value) if fund and fund.value else None
-    fees = extract_fee_rates(windows["fees"], name)
+    fees = extract_fee_rates(windows["fees"], name, sample_document)
     assert len(fees) >= 2
     types = {r.运营费类型 for r in fees}
     assert "管理费" in types

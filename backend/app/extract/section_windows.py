@@ -18,16 +18,20 @@ WINDOW_KEYS = (
 MAX_WINDOW_CHARS = 12000
 
 _SECTION_PATTERNS: dict[str, re.Pattern[str]] = {
-    "fees": re.compile(r"费用|税收|管理费|托管费|业绩报酬|计提"),
-    "subscription": re.compile(r"申购|赎回|转让|开放日|封闭"),
+    "fees": re.compile(r"费用与税收|费用|税收|管理费|托管费|基金服务费|业绩报酬|计提"),
+    "subscription": re.compile(
+        r"申购|赎回|转让|开放日|封闭|份额锁定|申购赎回"
+    ),
     "establish": re.compile(r"成立|备案|清算"),
     "investment": re.compile(
-        r"投资目标|投资范围|投资策略|投资限制|风控|止损|预警|投资经理"
+        r"投资目标|投资范围|投资策略|投资限制|风控|止损|预警|投资经理|基金的投资"
     ),
     "raising": re.compile(r"募集|销售|冷静期|回访|双录"),
     "distribution": re.compile(r"收益分配|分红|分配"),
     "risk": re.compile(r"风险揭示|风险等级|风险收益"),
-    "basic": re.compile(r"基本情况|基金的基本|存续期|组织形式"),
+    "basic": re.compile(
+        r"基本情况|基金的基本|存续期|组织形式|私募证券投资基金$"
+    ),
     "cover_parties": re.compile(
         r"基金管理人|托管人|当事人|前言|释义|合同|封面|私募基金管理人"
     ),
