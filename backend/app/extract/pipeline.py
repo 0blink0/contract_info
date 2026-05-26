@@ -21,6 +21,7 @@ from backend.app.extract.llm.subtable_extract import (
 )
 
 from backend.app.extract.merge import merge_extraction, merge_field
+from backend.app.extract.row_sort import sort_fee_rates, sort_subscription_fees
 
 from backend.app.extract.rules import extract_fee_rates, extract_product_rules
 
@@ -157,7 +158,7 @@ async def extract_document(
             merge_field(merged_product.get(key), llm_fv, field_name=key) or llm_fv
         )
 
-    fee_rates = enrich_fee_rates_from_product(fee_rates, merged_product)
+    fee_rates = sort_fee_rates(enrich_fee_rates_from_product(fee_rates, merged_product))
 
 
 
@@ -237,12 +238,14 @@ async def extract_document(
                 share_classes = merge_share_classes(share_classes, llm_share)
                 chapters_called.append("share")
 
-    subscription_fees = extract_subscription_fees_rules(
-        document,
-        windows,
-        fund_name=fund_name,
-        share_classes=share_classes,
-        product_elements=merged_product,
+    subscription_fees = sort_subscription_fees(
+        extract_subscription_fees_rules(
+            document,
+            windows,
+            fund_name=fund_name,
+            share_classes=share_classes,
+            product_elements=merged_product,
+        )
     )
 
     result = merge_extraction(
