@@ -68,9 +68,17 @@ def test_subscription_export_from_contract(docx_key, tmp_path, monkeypatch):
     assert sub_path.is_file()
     wb = load_workbook(sub_path, read_only=True)
     ws = wb[SUBSCRIPTION_SHEET]
-    row_count = 0
+    names: list[str] = []
     for r in range(SUBSCRIPTION_DATA_START_ROW, SUBSCRIPTION_DATA_START_ROW + 30):
-        if ws.cell(r, 1).value:
-            row_count += 1
+        val = ws.cell(r, 1).value
+        if not val:
+            break
+        names.append(str(val))
     wb.close()
-    assert row_count >= 8
+    expected_rows = len(result.subscription_fees)
+    assert len(names) == expected_rows
+    assert len(names) >= 8
+    if "福禄" not in docx_key:
+        assert not any("福禄" in n for n in names)
+    else:
+        assert not any("中证" in n for n in names)

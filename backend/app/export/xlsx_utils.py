@@ -37,6 +37,15 @@ def build_header_index(ws: Worksheet, header_row: int) -> dict[str, list[int]]:
     return index
 
 
+def clear_data_rows(ws: Worksheet, start_row: int, *, max_col: int | None = None) -> None:
+    """Remove template sample rows from *start_row* through the sheet bottom."""
+    last_col = max_col or ws.max_column or 1
+    end_row = ws.max_row or start_row
+    for row in range(start_row, end_row + 1):
+        for col in range(1, last_col + 1):
+            ws.cell(row=row, column=col).value = None
+
+
 def write_cell_values(
     ws: Worksheet,
     row: int,

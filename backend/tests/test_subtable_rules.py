@@ -78,3 +78,20 @@ def test_share_rules_empty_when_not_graded():
         product_elements=product,
     )
     assert rows == []
+
+
+def test_share_rules_from_subscription_classification():
+    product = {
+        "预警线": FieldValue(value="无", confidence="high", source="rule"),
+        "止损线": FieldValue(value="无", confidence="high", source="rule"),
+    }
+    rows = extract_share_classes_rules(
+        {"blocks": []},
+        {"subscription": "份额分类表 A类份额 B类份额 C类份额 D类份额"},
+        fund_name="石云中证1000资产进取一号私募证券投资基金",
+        fund_code=None,
+        product_elements=product,
+    )
+    assert len(rows) == 4
+    assert rows[0].预警线 == "无"
+    assert all(r.基金全称 == "石云中证1000资产进取一号私募证券投资基金" for r in rows)

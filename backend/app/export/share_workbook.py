@@ -26,6 +26,7 @@ from backend.app.export.date_format import normalize_date_slash
 
 from backend.app.export.xlsx_utils import (
     build_header_index,
+    clear_data_rows,
     keep_only_sheet,
     write_cell_values,
 )
@@ -81,6 +82,8 @@ def fill_share_workbook(
     ws = wb[SHARE_SHEET]
 
     header_index = build_header_index(ws, SHARE_HEADER_ROW)
+
+    clear_data_rows(ws, SHARE_DATA_START_ROW)
 
     for offset, row in enumerate(share_classes):
 

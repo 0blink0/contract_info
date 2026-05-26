@@ -29,7 +29,10 @@ from backend.app.extract.rules.fee_rules import enrich_fee_rates_from_product
 from backend.app.extract.rules.lock_normalize import merge_lock_rows
 from backend.app.extract.rules.lock_rules import extract_lock_periods_rules
 
-from backend.app.extract.rules.share_rules import extract_share_classes_rules
+from backend.app.extract.rules.share_rules import (
+    extract_share_classes_rules,
+    is_graded_contract,
+)
 from backend.app.extract.rules.path_b_rules import extract_path_b_rules
 from backend.app.extract.rules.subscription_rules import extract_subscription_fees_rules
 
@@ -217,7 +220,7 @@ async def extract_document(
 
         share_text = sub_text + "\n" + windows.get("basic", "")
 
-        graded = _field_value(merged_product, "份额结构")
+        graded = is_graded_contract(merged_product, windows)
 
         if share_text.strip() and (share_classes or graded):
 
