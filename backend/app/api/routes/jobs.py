@@ -60,6 +60,7 @@ def _record_to_detail(record: ContractFile) -> JobDetailResponse:
         fee_xlsx_path=record.fee_xlsx_path,
         lock_xlsx_path=getattr(record, "lock_xlsx_path", None),
         share_xlsx_path=getattr(record, "share_xlsx_path", None),
+        subscription_xlsx_path=getattr(record, "subscription_xlsx_path", None),
         extraction_warnings=warnings,
         extraction_warnings_count=len(warnings),
         outline_preview_count=len(outline) if isinstance(outline, list) else None,
@@ -210,4 +211,19 @@ def download_share_classes(job_id: uuid.UUID) -> FileResponse:
         path,
         media_type=XLSX_MEDIA,
         filename="share_classes.xlsx",
+    )
+
+
+@router.get("/{job_id}/download/subscription-fee-rates")
+def download_subscription_fee_rates(job_id: uuid.UUID) -> FileResponse:
+    record = _get_record(job_id)
+    if record.status != "exported":
+        raise HTTPException(status_code=409, detail="Job not exported yet")
+    path = _resolve_export_path(
+        getattr(record, "subscription_xlsx_path", None)
+    )
+    return FileResponse(
+        path,
+        media_type=XLSX_MEDIA,
+        filename="subscription_fee_rates.xlsx",
     )

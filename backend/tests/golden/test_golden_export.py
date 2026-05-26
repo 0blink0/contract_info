@@ -10,6 +10,7 @@ from backend.tests.golden.helpers.xlsx_diff import (
     assert_fee_types_present,
     assert_lock_sheet,
     assert_share_sheet_extended,
+    assert_subscription_rates,
 )
 
 
@@ -38,6 +39,7 @@ def test_golden_export_e2e(
         "fee": run.fee_path,
         "lock": run.lock_path,
         "share": run.share_path,
+        "subscription": run.subscription_path,
     }
     assert_export_structure(paths)
     fund = expected["基金全称"]
@@ -47,3 +49,6 @@ def test_golden_export_e2e(
     )
     assert_lock_sheet(run.lock_path, fund, expect_rows=lock_rows)
     assert_share_sheet_extended(run.share_path)
+    sub_expected = expected.get("subscription_fees_by_share")
+    if sub_expected:
+        assert_subscription_rates(run.subscription_path, sub_expected)

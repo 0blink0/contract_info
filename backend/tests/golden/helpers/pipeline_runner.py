@@ -23,6 +23,7 @@ class GoldenRunResult:
     fee_path: Path
     lock_path: Path
     share_path: Path
+    subscription_path: Path
     warnings: list[Any]
 
 
@@ -42,7 +43,7 @@ def run_golden_pipeline(
     result, warnings = extract_document_sync(document, llm_client=LlmOff())  # type: ignore[arg-type]
     extraction = result.model_dump(mode="json")
     fid = uuid.uuid4()
-    product_rel, fee_rel, lock_rel, share_rel, export_warnings = export_xlsx(
+    product_rel, fee_rel, lock_rel, share_rel, sub_rel, export_warnings = export_xlsx(
         extraction, fid
     )
     base = exports_root / str(fid)
@@ -52,5 +53,6 @@ def run_golden_pipeline(
         fee_path=base / Path(fee_rel).name,
         lock_path=base / Path(lock_rel).name,
         share_path=base / Path(share_rel).name,
+        subscription_path=base / Path(sub_rel).name,
         warnings=list(warnings) + list(export_warnings),
     )

@@ -63,12 +63,12 @@ Plans:
 
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Wave 0：SubscriptionFeeRow + subscription_rules + pipeline 集成
-- [ ] 07-02-PLAN.md — Wave 1：母版/templates、subscription_workbook、export 五文件、DB 迁移
+- [x] 07-01-PLAN.md — Wave 0：SubscriptionFeeRow + subscription_rules + pipeline 集成
+- [x] 07-02-PLAN.md — Wave 1：母版/templates、subscription_workbook、export 五文件、DB 迁移
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 07-03-PLAN.md — Wave 2：download/subscription-fee-rates、golden 五表 E2E（无前端）
+- [x] 07-03-PLAN.md — Wave 2：download/subscription-fee-rates、golden 五表 E2E（无前端）
 
 **Requirements:** XLS-01–04, API-01
 
@@ -120,8 +120,8 @@ Plans:
 
 | Phase | Milestone | Plans | Status | Completed |
 |-------|-----------|-------|--------|-----------|
-| 6 | v1.1 | 0/3 | Planned | — |
-| 7 | v1.1 | 0/3 | Not started | — |
+| 6 | v1.1 | 3/3 | Complete | 2026-05-26 |
+| 7 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 8 | v1.1 | 0/3 | Not started | — |
 | 9 | v1.1 | 0/3 | Not started | — |
 | 10 | v1.1 | 0/3 | Not started | — |

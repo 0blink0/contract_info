@@ -29,6 +29,7 @@ from backend.app.extract.rules.fee_rules import enrich_fee_rates_from_product
 from backend.app.extract.rules.lock_rules import extract_lock_periods_rules
 
 from backend.app.extract.rules.share_rules import extract_share_classes_rules
+from backend.app.extract.rules.subscription_rules import extract_subscription_fees_rules
 
 from backend.app.extract.schemas import (
 
@@ -230,7 +231,13 @@ async def extract_document(
 
                 chapters_called.append("share")
 
-
+    subscription_fees = extract_subscription_fees_rules(
+        document,
+        windows,
+        fund_name=fund_name,
+        share_classes=share_classes,
+        product_elements=merged_product,
+    )
 
     result = merge_extraction(
 
@@ -245,6 +252,8 @@ async def extract_document(
         lock_periods=lock_periods,
 
         share_classes=share_classes,
+
+        subscription_fees=subscription_fees,
 
     )
 

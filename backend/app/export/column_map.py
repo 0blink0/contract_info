@@ -18,6 +18,24 @@ SHARE_SHEET = "分级份额导入模板"
 SHARE_HEADER_ROW = 2
 SHARE_DATA_START_ROW = 3
 
+SUBSCRIPTION_SHEET = "产品申赎费率导入模板"
+SUBSCRIPTION_HEADER_ROW = 3
+SUBSCRIPTION_DATA_START_ROW = 4
+
+SUBSCRIPTION_EXTRACTION_TO_TEMPLATE: dict[str, str] = {
+    "基金名称": "基金名称",
+    "基金代码": "基金代码",
+    "申赎费类型": "申赎费类型",
+    "计费方式": "计费方式",
+    "费率生效日期": "费率生效日期",
+    "计费基准": "计费基准",
+    "时间区间单位": "时间区间单位",
+    "区间开始": "区间开始",
+    "区间结束": "区间结束",
+    "费率类型": "费率类型",
+    "费率": "费率",
+}
+
 PRODUCT_DATE_FIELDS = frozenset(
     {
         "成立日期",
@@ -58,3 +76,7 @@ def normalize_header(value: object) -> str:
 
 def template_header_for_fee_key(key: str) -> str:
     return FEE_EXTRACTION_TO_TEMPLATE.get(key, key)
+
+
+def template_header_for_subscription_key(key: str) -> str:
+    return SUBSCRIPTION_EXTRACTION_TO_TEMPLATE.get(key, key)

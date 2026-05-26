@@ -67,6 +67,7 @@ class JobDetailResponse(BaseModel):
     fee_xlsx_path: str | None = None
     lock_xlsx_path: str | None = None
     share_xlsx_path: str | None = None
+    subscription_xlsx_path: str | None = None
     extraction_warnings: list[WarningItem] = Field(default_factory=list)
     extraction_warnings_count: int = 0
     outline_preview_count: int | None = None

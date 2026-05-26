@@ -6,6 +6,7 @@ from backend.app.extract.schemas import (
     ExtractionResult,
     FeeRateRow,
     FieldValue,
+    SubscriptionFeeRow,
 )
 
 _PARTY_FIELDS = frozenset({"管理人", "托管人", "投资顾问", "外包机构"})
@@ -80,6 +81,7 @@ def merge_extraction(
     meta: ExtractionMeta,
     lock_periods: list | None = None,
     share_classes: list | None = None,
+    subscription_fees: list[SubscriptionFeeRow] | None = None,
 ) -> ExtractionResult:
     merged: dict[str, FieldValue] = dict(product_rules)
     for key, llm_fv in llm_fields.items():
@@ -91,5 +93,6 @@ def merge_extraction(
         fee_rates=fee_rates,
         lock_periods=lock_periods or [],
         share_classes=share_classes or [],
+        subscription_fees=subscription_fees or [],
         meta=meta,
     )

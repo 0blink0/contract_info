@@ -27,6 +27,7 @@ class ContractFile(Base):
     fee_xlsx_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     lock_xlsx_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     share_xlsx_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subscription_xlsx_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

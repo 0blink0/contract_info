@@ -52,6 +52,22 @@ class ShareClassRow(BaseModel):
     止损线: str | None = None
 
 
+class SubscriptionFeeRow(BaseModel):
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
+    基金名称: str | None = None
+    基金代码: str | None = None
+    申赎费类型: str | None = None
+    计费方式: str | None = None
+    费率生效日期: str | None = None
+    计费基准: str | None = None
+    时间区间单位: str | None = None
+    区间开始: str | None = None
+    区间结束: str | None = None
+    费率类型: str | None = None
+    费率: str | None = None
+
+
 class FeeRateRow(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 
@@ -84,6 +100,7 @@ class ExtractionMeta(BaseModel):
 class ExtractionResult(BaseModel):
     product_elements: dict[str, FieldValue] = Field(default_factory=dict)
     fee_rates: list[FeeRateRow] = Field(default_factory=list)
+    subscription_fees: list[SubscriptionFeeRow] = Field(default_factory=list)
     lock_periods: list[LockPeriodRow] = Field(default_factory=list)
     share_classes: list[ShareClassRow] = Field(default_factory=list)
     meta: ExtractionMeta = Field(default_factory=ExtractionMeta, alias="_meta")
@@ -118,6 +135,10 @@ def extraction_result_to_dict(result: ExtractionResult) -> dict[str, Any]:
     data["share_classes"] = [
         row if isinstance(row, dict) else row.model_dump(by_alias=True)
         for row in data.get("share_classes", [])
+    ]
+    data["subscription_fees"] = [
+        row if isinstance(row, dict) else row.model_dump(by_alias=True)
+        for row in data.get("subscription_fees", [])
     ]
     return data
 

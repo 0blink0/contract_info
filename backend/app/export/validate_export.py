@@ -6,6 +6,7 @@ from backend.app.extract.schemas import ExtractionWarning
 
 REQUIRED_PRODUCT = ["基金全称", "基金简称", "管理人"]
 REQUIRED_FEE_PER_ROW = ["基金名称", "运营费类型", "计费频率", "费率（单位：%/年）"]
+REQUIRED_SUBSCRIPTION_PER_ROW = ["基金名称", "申赎费类型", "费率"]
 
 
 def _field_value(product_elements: dict[str, Any], key: str) -> str | None:
@@ -62,6 +63,33 @@ def check_fees(extraction: dict[str, Any]) -> list[ExtractionWarning]:
                         field=f"fee_rates[{idx}].{key}",
                         code="export_required_missing",
                         message=f"费率第 {idx} 行必填「{key}」为空",
+                    )
+                )
+    return warnings
+
+
+def check_subscription_fees(extraction: dict[str, Any]) -> list[ExtractionWarning]:
+    warnings: list[ExtractionWarning] = []
+    rows = extraction.get("subscription_fees") or []
+    if not rows:
+        warnings.append(
+            ExtractionWarning(
+                field="subscription_fees",
+                code="export_required_missing",
+                message="申赎费率无数据行",
+            )
+        )
+        return warnings
+    for idx, row in enumerate(rows, start=1):
+        data = row if isinstance(row, dict) else row.model_dump(by_alias=True)
+        for key in REQUIRED_SUBSCRIPTION_PER_ROW:
+            val = data.get(key)
+            if val is None or str(val).strip() == "":
+                warnings.append(
+                    ExtractionWarning(
+                        field=f"subscription_fees[{idx}].{key}",
+                        code="export_required_missing",
+                        message=f"申赎费率第 {idx} 行必填「{key}」为空",
                     )
                 )
     return warnings

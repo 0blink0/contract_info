@@ -17,6 +17,9 @@ from backend.app.export.column_map import (
     PRODUCT_SHEET,
     SHARE_HEADER_ROW,
     SHARE_SHEET,
+    SUBSCRIPTION_DATA_START_ROW,
+    SUBSCRIPTION_HEADER_ROW,
+    SUBSCRIPTION_SHEET,
     normalize_header,
 )
 from backend.tests.golden.helpers.normalize import (
@@ -192,6 +195,46 @@ def assert_export_structure(paths: dict[str, Path]) -> None:
     wb = load_workbook(paths["share"], read_only=True)
     assert SHARE_SHEET in wb.sheetnames
     wb.close()
+    if "subscription" in paths:
+        wb = load_workbook(paths["subscription"], read_only=True)
+        assert SUBSCRIPTION_SHEET in wb.sheetnames
+        wb.close()
+
+
+def assert_subscription_rates(
+    export_path: Path,
+    expected_by_share: dict[str, Any],
+) -> None:
+    wb = load_workbook(export_path, read_only=True, data_only=True)
+    ws = wb[SUBSCRIPTION_SHEET]
+    headers = _header_map(ws, SUBSCRIPTION_HEADER_ROW)
+    name_col = headers.get(normalize_header("基金名称"))
+    type_col = headers.get(normalize_header("申赎费类型"))
+    rate_col = headers.get(normalize_header("费率"))
+    if not name_col or not type_col or not rate_col:
+        wb.close()
+        raise AssertionError("Subscription sheet missing required columns")
+
+    found: dict[str, dict[str, str]] = {}
+    for row in range(SUBSCRIPTION_DATA_START_ROW, ws.max_row + 1):
+        fname = normalize_cell(ws.cell(row, name_col).value) or ""
+        fee_type = normalize_cell(ws.cell(row, type_col).value) or ""
+        if not fname or not fee_type:
+            continue
+        rate = normalize_pct(ws.cell(row, rate_col).value)
+        for letter in expected_by_share:
+            if letter.upper() in fname.upper():
+                found.setdefault(letter.upper(), {})[fee_type] = rate
+                break
+
+    wb.close()
+    for letter, rates in expected_by_share.items():
+        for fee_type, exp_rate in rates.items():
+            got = found.get(letter.upper(), {}).get(fee_type)
+            assert got is not None, f"Missing {letter} {fee_type}"
+            assert normalize_pct(got) == normalize_pct(
+                exp_rate
+            ), f"{letter} {fee_type}: expected {exp_rate!r}, got {got!r}"
 
 
 def assert_lock_sheet(

@@ -54,3 +54,31 @@ def test_download_success_when_exported(api_client, api_headers, tmp_path, monke
         )
     assert response.status_code == 200
     assert "spreadsheet" in response.headers.get("content-type", "")
+
+
+def test_download_subscription_fee_rates(api_client, api_headers, tmp_path):
+    job_id = uuid.uuid4()
+    rel = f"exports/{job_id}/subscription_fee_rates.xlsx"
+    full = PROJECT_ROOT / rel
+    full.parent.mkdir(parents=True, exist_ok=True)
+    full.write_bytes(b"PK")
+
+    record = SimpleNamespace(
+        id=job_id,
+        status="exported",
+        subscription_xlsx_path=rel,
+        filename="a.docx",
+        error_message=None,
+        extraction_warnings=[],
+        outline_preview=None,
+    )
+
+    with patch("backend.app.api.routes.jobs._get_record", return_value=record):
+        response = api_client.get(
+            f"/api/v1/jobs/{job_id}/download/subscription-fee-rates",
+            headers=api_headers,
+        )
+    assert response.status_code == 200
+    assert "subscription_fee_rates" in response.headers.get(
+        "content-disposition", ""
+    )
