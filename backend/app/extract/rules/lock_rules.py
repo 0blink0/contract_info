@@ -104,6 +104,10 @@ def _build_lock_row(
     start_m = _RE_START_RULE.search(combined)
     if start_m:
         row.起始规则 = f"交易{start_m.group(1)}日（{start_m.group(2)}）"
+    elif "认购份额自基金成立日起算" in combined:
+        row.起始规则 = "认购份额自基金成立日起算，申购份额自申购确认日起算"
+    elif "申购份额自申购确认日起算" in combined:
+        row.起始规则 = "申购份额自申购确认日起算"
 
     unlock_m = _RE_UNLOCK.search(combined)
     if unlock_m:

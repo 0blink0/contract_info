@@ -65,6 +65,40 @@ def test_normalize_llm_misplaced_duration():
     assert fixed.份额类型 == "全部"
 
 
+def test_merge_lock_keeps_dual_investor_when_llm_collapses():
+    from backend.app.extract.rules.lock_normalize import merge_lock_rows
+
+    rules = [
+        LockPeriodRow(
+            产品名称="石云中证1000资产进取一号私募证券投资基金",
+            份额类型="全部",
+            锁定期="有",
+            投资者类型="一般投资者",
+            锁定时间="180天",
+        ),
+        LockPeriodRow(
+            产品名称="石云中证1000资产进取一号私募证券投资基金",
+            份额类型="全部",
+            锁定期="有",
+            投资者类型="管理人及其员工",
+            锁定时间="180天",
+        ),
+    ]
+    llm = [
+        LockPeriodRow(
+            产品名称="石云中证1000资产进取一号私募证券投资基金",
+            份额类型="A类",
+            锁定期="180天",
+            投资者类型="一般投资者",
+        ),
+    ]
+    merged = merge_lock_rows(llm, rules)
+    assert len(merged) == 2
+    assert {r.投资者类型 for r in merged} == {"一般投资者", "管理人及其员工"}
+    assert all(r.份额类型 == "全部" for r in merged)
+    assert all(r.锁定时间 == "180天" for r in merged)
+
+
 def test_merge_lock_rows_fills_start_rule():
     llm = [
         LockPeriodRow(

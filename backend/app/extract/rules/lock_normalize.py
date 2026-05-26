@@ -38,37 +38,67 @@ def normalize_lock_row(row: LockPeriodRow, *, combined_text: str = "") -> LockPe
     return LockPeriodRow(**data)
 
 
+_FILL_FROM_RULE = (
+    "锁定期",
+    "锁定时间",
+    "份额类型",
+    "投资者类型",
+    "起始规则",
+    "解锁方式",
+    "解锁批次",
+    "继承原交易锁定期",
+)
+
+
+def _patch_lock_row(
+    primary: LockPeriodRow,
+    secondary: LockPeriodRow,
+    *,
+    combined_text: str = "",
+) -> LockPeriodRow:
+    row = normalize_lock_row(primary, combined_text=combined_text)
+    patched = row.model_dump()
+    other = normalize_lock_row(secondary, combined_text=combined_text).model_dump()
+    for key in _FILL_FROM_RULE:
+        if not patched.get(key) and other.get(key):
+            patched[key] = other[key]
+    if not patched.get("产品名称") and other.get("产品名称"):
+        patched["产品名称"] = other["产品名称"]
+    return LockPeriodRow(**patched)
+
+
 def merge_lock_rows(
     llm_rows: list[LockPeriodRow],
     rule_rows: list[LockPeriodRow],
     *,
     combined_text: str = "",
 ) -> list[LockPeriodRow]:
-    """Normalize LLM rows; fill gaps from rule layer."""
-    rule = rule_rows[0] if rule_rows else None
-    fill_fields = (
-        "锁定期",
-        "锁定时间",
-        "份额类型",
-        "投资者类型",
-        "起始规则",
-        "解锁方式",
-        "解锁批次",
-        "继承原交易锁定期",
-    )
+    """Prefer multi-row rule output when LLM collapses investor types to one row."""
     if not llm_rows:
         return rule_rows
+    if not rule_rows:
+        return [
+            normalize_lock_row(raw, combined_text=combined_text) for raw in llm_rows
+        ]
+
+    rule_types = {r.投资者类型 for r in rule_rows if r.投资者类型}
+    if len(rule_rows) >= 2 and len(rule_types) >= 2 and len(llm_rows) < len(rule_rows):
+        out: list[LockPeriodRow] = []
+        for rule in rule_rows:
+            match = next(
+                (
+                    lr
+                    for lr in llm_rows
+                    if lr.投资者类型 and lr.投资者类型 == rule.投资者类型
+                ),
+                None,
+            )
+            base = match if match is not None else llm_rows[0]
+            out.append(_patch_lock_row(rule, base, combined_text=combined_text))
+        return out
+
+    rule = rule_rows[0]
     out: list[LockPeriodRow] = []
     for raw in llm_rows:
-        row = normalize_lock_row(raw, combined_text=combined_text)
-        if rule:
-            patched = row.model_dump()
-            rule_d = rule.model_dump()
-            for key in fill_fields:
-                if not patched.get(key) and rule_d.get(key):
-                    patched[key] = rule_d[key]
-            if not patched.get("产品名称") and rule_d.get("产品名称"):
-                patched["产品名称"] = rule_d["产品名称"]
-            row = LockPeriodRow(**patched)
-        out.append(row)
+        out.append(_patch_lock_row(raw, rule, combined_text=combined_text))
     return out
