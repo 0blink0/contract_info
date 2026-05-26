@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: 抽取质量与导出扩展
 status: Phase 6 context gathered
 last_updated: "2026-05-26"
-last_activity: 2026-05-26 — Phase 6 discuss-phase complete
+last_activity: 2026-05-26 — Phase 6 字段可抽取性/可空性调研入档
 progress:
   total_phases: 5
   completed_phases: 0
@@ -37,6 +37,7 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 - 黄金样例：`example/产品要素 - 副本(1).xlsx`、`产品运营费率导入模板.xlsx`、`产品申赎费率导入模板.xlsx`
 - 合同：`石云中证1000…(1).docx`、`石云福禄1000…(1).docx`
 - 图中误抽（管理人/投顾/外包/锁定期）为 v1.0 已知问题；部分规则修复已在仓库，本里程碑做回归与 LLM/校验闭环
+- **字段调研入档：** `.planning/phases/06-extract-quality/06-FIELD-MATRIX.md`（12 项可抽、四分类可空、合同真值 vs 黄金表）
 
 ## Deferred from v1.0
 

@@ -37,6 +37,8 @@
 
 **Goal:** 输出接近 `example/` 人工填写结果；消除图中类错误（管理人/投顾/外包/锁定期）。
 
+**调研入档:** `phases/06-extract-quality/06-FIELD-MATRIX.md`（12 项可抽取性、四分类可空性、合同真值 vs 黄金表）。
+
 **Plans（待 `/gsd:plan-phase 6` 细化）:**
 
 1. 合并规则修复入库（party_helpers、费用表、投资章节全文规则）+ `merge_field` 误抽策略

@@ -57,6 +57,15 @@
 - **D-E02:** **申赎费率导出** 不在 Phase 6 验收范围（属 Phase 7 / XLS-01）。
 - **D-E03:** 黄金 xlsx **绝不** 接入运行时 `validate` 或 LLM 校验层（仅 pytest 读取）。
 
+### 字段可抽取性与可空性（2026-05-26 调研锁定）
+
+- **D-F01:** 完整矩阵见 **`06-FIELD-MATRIX.md`**（下游 planner/researcher **必读**）。
+- **D-F02:** 空值 **四分类**：A 非合同源、B 合同可选、C 合同应有、D 延后交付；测试与文档统一用语。
+- **D-F03:** 用户图中 **12 项业务要素** 在合同中 **均有依据**；Phase 6 验收其中 **已上线 Excel/抽取** 的项；第 9/11/12 项整体验收在 Phase 7/8。
+- **D-F04:** **黄金表 ≠ 合同真值**：样本中黄金「管理人」为弈倍、福禄托管人与合同（招商）不一致；Critical 断言 **以合同为准**（`example/_contract_keys.json` 或 `tests/golden/fixtures/contract_expected.json`）。
+- **D-F05:** **允许与黄金不一致**：基金代码、成立/备案日、运行状态、MANUAL_ONLY 六列；黄金主表空但合同有的字段（外包、锁定期、投资经理）抽取有值 **不失败**。
+- **D-F06:** Phase 6 Critical 清单以 **FIELD-MATRIX §6** 为准写入 `tests/golden/README.md`；含风险等级、四要素、预警止损、开放日摘要、四类运营费率及 %。
+
 ### Claude's Discretion
 
 - `tests/golden/` 目录结构与 diff 工具选型（openpyxl 读表 vs 导出后再读）
@@ -70,6 +79,11 @@
 ## Canonical References
 
 **Downstream agents MUST read these before planning or implementing.**
+
+### 本阶段调研（必读）
+- `contract_info/.planning/phases/06-extract-quality/06-FIELD-MATRIX.md` — 可抽取性、可空性、12 项对照、合同 vs 黄金
+- `contract_info/example/_contract_keys.json` — 两份合同规则层关键字段快照
+- `contract_info/example/_golden_two_funds.json` — 黄金主表填/空统计
 
 ### 里程碑与需求
 - `contract_info/.planning/REQUIREMENTS.md` — QUAL-01–04, TEST-01；黄金样例说明
@@ -124,6 +138,7 @@
 - 用户截图中的误抽（管理人=承诺散文、投顾=风险段、锁定期=「锁定期）」）为 **v1.0 未部署/无 LLM** 时的典型问题；本地规则+DeepSeek 已改善，本阶段用黄金测试锁住。
 - 黄金表由运营人工填写，**基金代码** 等系统字段允许抽取为空。
 - 托管人：释义条「华福」优先于封面「华泰」笔误（已实现评分逻辑，需黄金断言）。
+- **2026-05-26：** 已确认图中 12 项均可从合同抽取；空值规则与黄金/合同分工见 `06-FIELD-MATRIX.md`。
 
 </specifics>
 
