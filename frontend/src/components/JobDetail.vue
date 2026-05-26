@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { JobDetail } from '@/api/types'
-import { downloadBlob, getJob, runJob } from '@/api/client'
+import { deleteJob, downloadBlob, getJob, runJob } from '@/api/client'
 import {
   canRetry,
   canStartRun,
@@ -21,6 +21,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   refreshList: []
   updated: []
+  deleted: [jobId: string]
 }>()
 
 const detail = ref<JobDetail | null>(null)
@@ -33,6 +34,9 @@ const showStart = computed(
 )
 const showRetry = computed(() => detail.value && canRetry(detail.value.status))
 const showDownloads = computed(() => detail.value?.status === 'exported')
+const canDelete = computed(
+  () => detail.value && !isInProgress(detail.value.status),
+)
 
 async function loadDetail(id: string) {
   loading.value = true
@@ -88,6 +92,27 @@ async function onStartOrRetry() {
   }
 }
 
+async function onDelete() {
+  if (!props.jobId || !detail.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确定删除「${detail.value.filename}」？将同时删除上传文件、导出 Excel 及数据库记录，且不可恢复。`,
+      '删除确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteJob(props.jobId)
+    ElMessage.success('已删除')
+    emit('deleted', props.jobId)
+    emit('refreshList')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
 async function onDownload(kind: 'product-elements' | 'fee-rates', filename: string) {
   if (!props.jobId) return
   try {
@@ -103,7 +128,18 @@ async function onDownload(kind: 'product-elements' | 'fee-rates', filename: stri
     <el-empty v-if="!jobId" description="请选择或上传一份合同" />
     <el-skeleton v-else-if="loading && !detail" :rows="6" animated />
     <template v-else-if="detail">
-      <h2 class="filename">{{ detail.filename }}</h2>
+      <div class="title-row">
+        <h2 class="filename">{{ detail.filename }}</h2>
+        <el-button
+          v-if="canDelete"
+          type="danger"
+          plain
+          size="small"
+          @click="onDelete"
+        >
+          删除
+        </el-button>
+      </div>
       <p class="status-line">
         状态：<el-tag>{{ statusLabelZh(detail.status) }}</el-tag>
         <span class="raw-status">{{ detail.status }}</span>
@@ -161,10 +197,18 @@ async function onDownload(kind: 'product-elements' | 'fee-rates', filename: stri
 .job-detail {
   padding: 8px 16px;
 }
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
 .filename {
   font-size: 18px;
-  margin: 0 0 8px;
+  margin: 0;
   word-break: break-all;
+  flex: 1;
 }
 .status-line {
   margin: 0 0 12px;

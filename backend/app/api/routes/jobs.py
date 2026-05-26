@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from backend.app.api.deps import verify_api_key
 from backend.app.api.schemas import (
+    DeleteJobResponse,
     JobDetailResponse,
     JobListItem,
     JobListResponse,
@@ -17,6 +18,7 @@ from backend.app.api.schemas import (
     RunResponse,
     warnings_from_jsonb,
 )
+from backend.app.services.delete_service import JobDeleteBusyError, delete_job_record
 from backend.app.services.preview_service import get_job_preview
 from backend.app.config import PROJECT_ROOT, exports_dir
 from backend.app.db.session import SessionLocal
@@ -121,6 +123,17 @@ def preview_job(job_id: uuid.UUID) -> JobPreviewResponse:
         fee_columns=data["fee_columns"],
         fee_rows=data["fee_rows"],
     )
+
+
+@router.delete("/{job_id}", response_model=DeleteJobResponse)
+def delete_job(job_id: uuid.UUID) -> DeleteJobResponse:
+    try:
+        delete_job_record(job_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except JobDeleteBusyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return DeleteJobResponse(job_id=job_id)
 
 
 @router.post("/{job_id}/run", response_model=RunResponse, status_code=202)

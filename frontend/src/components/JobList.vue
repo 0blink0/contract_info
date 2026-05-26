@@ -10,7 +10,13 @@ defineProps<{
 
 const emit = defineEmits<{
   select: [jobId: string]
+  delete: [jobId: string]
 }>()
+
+function onDeleteClick(event: Event, jobId: string) {
+  event.stopPropagation()
+  emit('delete', jobId)
+}
 
 function formatTime(iso: string): string {
   try {
@@ -33,7 +39,18 @@ function formatTime(iso: string): string {
         :class="{ active: item.job_id === selectedId }"
         @click="emit('select', item.job_id)"
       >
-        <div class="name" :title="item.filename">{{ item.filename }}</div>
+        <div class="row-top">
+          <div class="name" :title="item.filename">{{ item.filename }}</div>
+          <el-button
+            type="danger"
+            link
+            size="small"
+            title="删除"
+            @click="onDeleteClick($event, item.job_id)"
+          >
+            删除
+          </el-button>
+        </div>
         <div class="meta">
           <el-tag size="small" type="info">{{ statusLabelZh(item.status) }}</el-tag>
           <span class="time">{{ formatTime(item.created_at) }}</span>
@@ -67,11 +84,17 @@ function formatTime(iso: string): string {
   background: #ecf5ff;
   border-color: #b3d8ff;
 }
+.row-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .name {
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 .meta {
   display: flex;

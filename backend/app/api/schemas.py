@@ -18,6 +18,11 @@ class RunResponse(BaseModel):
     status: str
 
 
+class DeleteJobResponse(BaseModel):
+    job_id: uuid.UUID
+    deleted: bool = True
+
+
 class WarningItem(BaseModel):
     field: str
     code: str

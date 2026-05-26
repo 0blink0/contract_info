@@ -67,6 +67,10 @@ export async function runJob(jobId: string): Promise<{ job_id: string; status: s
   return res.json()
 }
 
+export async function deleteJob(jobId: string): Promise<void> {
+  await apiFetch(`/jobs/${jobId}`, { method: 'DELETE' })
+}
+
 export function downloadUrl(jobId: string, kind: DownloadKind): string {
   return `${API_BASE}/jobs/${jobId}/download/${kind}`
 }

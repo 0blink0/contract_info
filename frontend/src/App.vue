@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { listJobs } from '@/api/client'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { deleteJob, listJobs } from '@/api/client'
 import type { JobListItem } from '@/api/types'
 import JobList from '@/components/JobList.vue'
 import JobDetail from '@/components/JobDetail.vue'
@@ -29,6 +30,36 @@ function onSelect(jobId: string) {
   selectedId.value = jobId
 }
 
+async function onDeleteJob(jobId: string) {
+  const item = items.value.find((i) => i.job_id === jobId)
+  const name = item?.filename ?? jobId
+  try {
+    await ElMessageBox.confirm(
+      `确定删除「${name}」？将同时删除上传文件、导出 Excel 及数据库记录。`,
+      '删除确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteJob(jobId)
+    ElMessage.success('已删除')
+    if (selectedId.value === jobId) {
+      selectedId.value = null
+    }
+    await refreshList()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
+function onJobDeleted(jobId: string) {
+  if (selectedId.value === jobId) {
+    selectedId.value = null
+  }
+}
+
 onMounted(() => {
   void refreshList()
 })
@@ -47,6 +78,7 @@ onMounted(() => {
           :selected-id="selectedId"
           :loading="listLoading"
           @select="onSelect"
+          @delete="onDeleteJob"
         />
         <UploadPanel @uploaded="onUploaded" />
       </el-aside>
@@ -55,6 +87,7 @@ onMounted(() => {
           :job-id="selectedId"
           @refresh-list="refreshList"
           @updated="refreshList"
+          @deleted="onJobDeleted"
         />
       </el-main>
     </el-container>
