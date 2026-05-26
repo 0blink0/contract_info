@@ -3,14 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 抽取质量与导出扩展
 status: ready_to_plan
-last_updated: 2026-05-26T07:40:10.495Z
+last_updated: "2026-05-26T07:51:26.322Z"
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 3
-  completed_plans: 13
+  completed_plans: 3
   percent: 20
-stopped_at: Phase 06 complete (3/3) — ready to discuss Phase 7
 ---
 
 # State: CTRX
