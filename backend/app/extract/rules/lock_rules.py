@@ -14,12 +14,16 @@ _RE_UNLOCK = re.compile(r"(一次性解锁|分批解锁)")
 _RE_UNLOCK_BATCH = re.compile(r"分批解锁[^。\n]{0,40}?(\d+)\s*(?:个)?批")
 _RE_INHERIT = re.compile(r"转让|转换|红利")
 _INVESTOR_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("一般投资者", re.compile(r"一般投资者|普通投资者")),
+    ("一般投资者", re.compile(r"一般投资者|普通投资者|其他投资者")),
     (
         "管理人及其员工",
         re.compile(r"管理人[及其和与]?员工|员工跟投|管理人跟投|管理人及其员工"),
     ),
 )
+_RE_EMPLOYEE_LOCK = re.compile(
+    r"管理人[及其和与]?员工|员工跟投|管理人跟投"
+)
+_RE_GENERAL_LOCK_CLAUSE = re.compile(r"份额锁定期限|本基金设置.{0,20}锁定期")
 
 
 def _field_text(fv: FieldValue | dict | None) -> str | None:
@@ -124,6 +128,29 @@ def extract_lock_periods_rules(
                 investor_type=label,
             )
             for label in investor_hits
+        ]
+
+    # 合同常写「员工跟投」条款 + 面向其他投资者的通用锁定期，但未写「一般投资者」四字
+    if (
+        has_lock
+        and _RE_EMPLOYEE_LOCK.search(combined)
+        and _RE_GENERAL_LOCK_CLAUSE.search(combined)
+    ):
+        return [
+            _build_lock_row(
+                fund_name,
+                combined,
+                has_lock=has_lock,
+                lock_text=lock_text,
+                investor_type="一般投资者",
+            ),
+            _build_lock_row(
+                fund_name,
+                combined,
+                has_lock=has_lock,
+                lock_text=lock_text,
+                investor_type="管理人及其员工",
+            ),
         ]
 
     row = _build_lock_row(
