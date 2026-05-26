@@ -25,7 +25,10 @@ from backend.app.extract.row_sort import sort_fee_rates, sort_subscription_fees
 
 from backend.app.extract.rules import extract_fee_rates, extract_product_rules
 
-from backend.app.extract.rules.fee_rules import enrich_fee_rates_from_product
+from backend.app.extract.rules.fee_rules import (
+    enrich_fee_rates_from_fees_chapter,
+    enrich_fee_rates_from_product,
+)
 
 from backend.app.extract.rules.lock_normalize import merge_lock_rows
 from backend.app.extract.rules.lock_rules import extract_lock_periods_rules
@@ -158,7 +161,12 @@ async def extract_document(
             merge_field(merged_product.get(key), llm_fv, field_name=key) or llm_fv
         )
 
-    fee_rates = sort_fee_rates(enrich_fee_rates_from_product(fee_rates, merged_product))
+    fee_rates = sort_fee_rates(
+        enrich_fee_rates_from_product(
+            enrich_fee_rates_from_fees_chapter(fee_rates, windows.get("fees", "")),
+            merged_product,
+        )
+    )
 
 
 

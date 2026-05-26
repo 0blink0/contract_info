@@ -39,6 +39,21 @@ def test_fee_rules_at_least_two_rows(sample_document):
     assert "托管费" in types
 
 
+def test_fee_rules_billing_from_fees_chapter(example_docx_path):
+    doc = document_to_dict(parse_docx(str(example_docx_path)))
+    windows, _ = build_section_windows(doc)
+    product = extract_product_rules(doc, windows)
+    name = str(product["基金全称"].value)
+    from backend.app.extract.rules.fee_rules import enrich_fee_rates_from_fees_chapter
+
+    fees = enrich_fee_rates_from_fees_chapter(
+        extract_fee_rates(windows["fees"], name, doc), windows["fees"]
+    )
+    assert fees
+    assert all(r.计费频率 == "按日" for r in fees)
+    assert all(r.计费基准 == "前一日资产净值" for r in fees)
+
+
 def test_fee_rules_per_share_class_when_table_present(example_docx_path):
     doc = document_to_dict(parse_docx(str(example_docx_path)))
     windows, _ = build_section_windows(doc)

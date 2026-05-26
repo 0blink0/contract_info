@@ -394,6 +394,36 @@ def extract_fee_rates(
     return per_class_rows + rows
 
 
+def enrich_fee_rates_from_fees_chapter(
+    fee_rates: list[FeeRateRow],
+    fees_text: str,
+) -> list[FeeRateRow]:
+    """Align billing frequency/basis with 费用章节 (daily accrual + prior-day NAV)."""
+    if not fees_text.strip():
+        return fee_rates
+    daily_accrual = "每日计提" in fees_text or "每日应计提" in fees_text
+    prev_nav = bool(
+        re.search(r"前一自然日.{0,24}资产净值", fees_text)
+        or re.search(r"前一自然日的?基金资产净值", fees_text)
+    )
+    use_actual_days = "当年天数" in fees_text or "÷N" in fees_text
+    freq = "按日" if daily_accrual else None
+    basis = "前一日资产净值" if prev_nav else None
+    vague_basis = frozenset(
+        {"基金资产净值", "资产净值", "前一自然日基金资产净值", None, ""}
+    )
+    for row in fee_rates:
+        if freq and (not row.计费频率 or row.计费频率 in ("按年", "每年")):
+            row.计费频率 = freq
+        if basis and (not row.计费基准 or row.计费基准 in vague_basis):
+            row.计费基准 = basis
+        if daily_accrual and not row.费用计算方式:
+            row.费用计算方式 = "系统计算"
+        if use_actual_days and not row.年计提天数:
+            row.年计提天数 = "实际天数"
+    return fee_rates
+
+
 def enrich_fee_rates_from_product(
     fee_rates: list[FeeRateRow],
     product_elements: dict,
