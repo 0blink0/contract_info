@@ -4,10 +4,21 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from backend.app.export.column_map import normalize_header
+
+
+def keep_only_sheet(wb: Workbook, sheet_name: str) -> None:
+    """Remove all worksheets except *sheet_name* before saving export files."""
+    if sheet_name not in wb.sheetnames:
+        raise KeyError(
+            f"sheet {sheet_name!r} not in workbook; have {wb.sheetnames!r}"
+        )
+    for name in list(wb.sheetnames):
+        if name != sheet_name:
+            wb.remove(wb[name])
 
 
 def copy_template(template_path: Path, dest_path: Path) -> None:

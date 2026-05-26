@@ -12,7 +12,11 @@ from backend.app.export.column_map import (
     normalize_header,
     template_header_for_subscription_key,
 )
-from backend.app.export.xlsx_utils import build_header_index, write_cell_values
+from backend.app.export.xlsx_utils import (
+    build_header_index,
+    keep_only_sheet,
+    write_cell_values,
+)
 
 
 def _subscription_row_values(row: dict[str, Any]) -> dict[str, Any]:
@@ -55,5 +59,6 @@ def fill_subscription_workbook(
             ws, SUBSCRIPTION_DATA_START_ROW + offset, header_index, mapped
         )
 
+    keep_only_sheet(wb, SUBSCRIPTION_SHEET)
     wb.save(dest_path)
     wb.close()

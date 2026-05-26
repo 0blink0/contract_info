@@ -12,7 +12,11 @@ from backend.app.export.column_map import (
     PRODUCT_SHEET,
 )
 from backend.app.export.date_format import normalize_date_slash
-from backend.app.export.xlsx_utils import build_header_index, write_cell_values
+from backend.app.export.xlsx_utils import (
+    build_header_index,
+    keep_only_sheet,
+    write_cell_values,
+)
 
 
 def _product_field_values(product_elements: dict[str, Any]) -> dict[str, Any]:
@@ -43,5 +47,6 @@ def fill_product_workbook(
     header_index = build_header_index(ws, PRODUCT_HEADER_ROW)
     values = _product_field_values(product_elements)
     write_cell_values(ws, PRODUCT_DATA_ROW, header_index, values)
+    keep_only_sheet(wb, PRODUCT_SHEET)
     wb.save(dest_path)
     wb.close()
