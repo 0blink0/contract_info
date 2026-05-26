@@ -108,6 +108,32 @@ watch(
             />
           </el-table>
         </el-tab-pane>
+        <el-tab-pane
+          :label="`申赎费率（${preview.subscription_rows.length} 行）`"
+          name="subscription"
+        >
+          <el-table
+            :data="preview.subscription_rows"
+            size="small"
+            stripe
+            border
+            max-height="360"
+            empty-text="暂无申赎费率数据"
+          >
+            <el-table-column
+              v-for="col in preview.subscription_columns.length
+                ? preview.subscription_columns
+                : preview.subscription_rows.length
+                  ? Object.keys(preview.subscription_rows[0])
+                  : []"
+              :key="col"
+              :prop="col"
+              :label="col"
+              min-width="120"
+              show-overflow-tooltip
+            />
+          </el-table>
+        </el-tab-pane>
         <el-tab-pane :label="`分级份额（${preview.share_rows.length} 行）`" name="share">
           <el-table
             :data="preview.share_rows"

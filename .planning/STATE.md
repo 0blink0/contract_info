@@ -2,49 +2,47 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 抽取质量与导出扩展
-status: ready_to_execute
-last_updated: "2026-05-26T20:00:00.000Z"
+status: milestone_complete
+last_updated: "2026-05-26T22:00:00.000Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 15
-  completed_plans: 12
-  percent: 80
+  completed_plans: 15
+  percent: 100
 ---
 
 # State: CTRX
 
 ## Project Reference
 
-See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
+See: `contract_info/.planning/PROJECT.md`
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 10 — 集成与文档（已规划，待执行）
+**Current focus:** v1.1 里程碑已完成  
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: **10** — 集成与文档 — **PLANNED**
-Plan: 0/3 executed（3 plans ready）
+Milestone: **v1.1 抽取质量与导出扩展** — **COMPLETE**  
+Phase 10 — 集成与文档 — **COMPLETE** (3/3 plans)
 
 | Field | Value |
 |-------|-------|
-| Milestone | v1.1 抽取质量与导出扩展 |
-| Phase | 10 — 集成与文档 |
-| Status | 已规划 |
-| Next | `/gsd-execute-phase 10` |
+| Status | 里程碑 v1.1 全部阶段完成 |
+| Next | `/gsd-complete-milestone` 或手工 UAT |
 
-## Phase 10 计划摘要
+## v1.1 交付摘要
 
-- Wave 0：preview 申赎行列
-- Wave 1：五下载 + PathBPanel + ValidationPanel
-- Wave 2：ExportPreview Tab + 文档
+- Phase 6–7：抽取质量 + 申赎第五表
+- Phase 8–9：path B JSON + LLM 校验
+- Phase 10：前端五下载、path B/校验面板、文档
 
 ## Next Actions
 
-1. `/gsd-execute-phase 10`
-2. 手工 UAT：5 下载 + path B + 校验 + 预览
-3. v1.1 里程碑收尾 / `gsd-complete-milestone`
+1. 手工 UAT（Web + 五表下载）
+2. `docker compose up` 生产验证
+3. `/gsd-complete-milestone` 归档 v1.1
 
 ---
 *Updated: 2026-05-26*

@@ -114,9 +114,9 @@ Plans:
 
 **Plans:** 3 plans in 3 waves
 
-- [ ] 10-01-PLAN.md — Wave 0：preview 申赎 API + schema + 测试
-- [ ] 10-02-PLAN.md — Wave 1：client/types、五下载、PathBPanel、ValidationPanel
-- [ ] 10-03-PLAN.md — Wave 2：ExportPreview 申赎 Tab、README/FIELD_SPEC/.env
+- [x] 10-01-PLAN.md — Wave 0：preview 申赎 API + schema + 测试
+- [x] 10-02-PLAN.md — Wave 1：client/types、五下载、PathBPanel、ValidationPanel
+- [x] 10-03-PLAN.md — Wave 2：ExportPreview 申赎 Tab、README/FIELD_SPEC/.env
 
 **Requirements:** API-02, UI-01–02, TEST-03
 
@@ -130,7 +130,7 @@ Plans:
 | 7 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 8 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 9 | v1.1 | 3/3 | Complete | 2026-05-26 |
-| 10 | v1.1 | 0/3 | Planned | — |
+| 10 | v1.1 | 3/3 | Complete | 2026-05-26 |
 
 ---
 *Roadmap updated: 2026-05-26 — milestone v1.1 started*

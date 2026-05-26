@@ -148,6 +148,8 @@ def preview_job(job_id: uuid.UUID) -> JobPreviewResponse:
         lock_rows=data["lock_rows"],
         share_columns=data["share_columns"],
         share_rows=data["share_rows"],
+        subscription_columns=data.get("subscription_columns") or [],
+        subscription_rows=data.get("subscription_rows") or [],
     )
 
 

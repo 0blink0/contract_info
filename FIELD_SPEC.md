@@ -177,14 +177,32 @@
 
 ---
 
-## 五、路径 B — 页面手录（本期不生成 Excel）
+## 五、路径 B — 页面手录（JSON，不写导入母版）
 
 | 模块 | 主要字段 | 与合同关系 |
 |------|----------|------------|
-| 业绩报酬提取设置 | 提取方式、业务基准类型、门槛净值、提取比例表、提取时点 | 费用/业绩报酬章节 |
-| 开放日管理 | 固定开放日规则、开放业务、不定期开放日 | 申赎章节（开放日规则在主表仅为摘要） |
+| 业绩报酬 `performance_fee` | 提取方式、基准、tiers（比例/门槛）、提取时点 | 费用/业绩报酬章节 |
+| 开放日 `open_day` | `fixed_schedule`、开放业务、临时开放 | 申赎章节 |
+| `source_snippets` | 点分路径 → 合同摘录 | 供运营对照手录 |
 
-本期可只做「录入辅助 JSON」可选，不写入导入模板。
+API：`GET /api/v1/jobs/{id}/path-b`；持久化列 `path_b_json`。
+
+## 五（续）、申赎费率表（路径 A 第 5 表）
+
+母版：`templates/产品申赎费率导入模板-1.xlsx`，导出 `subscription_fee_rates.xlsx`。  
+抽取字段见 `SubscriptionFeeRow`（申赎费类型、费率、份额类等）。
+
+## 五（续）、摘录一致性校验（`validation_result`）
+
+| 字段 | 说明 |
+|------|------|
+| `items[].field` | 被校字段名 |
+| `items[].status` | `pass` / `warn` / `fail` |
+| `items[].reason` | LLM 判定理由 |
+| `summary` | pass/warn/fail 计数 |
+
+与 **`extraction_warnings`** 区分：后者为规则枚举、导出必填、`validation_skipped` 等摘要；校验明细仅在 `validation_result`。  
+API：`GET /api/v1/jobs/{id}/validation`。顾问式：**fail 不阻止导出**。
 
 ---
 
@@ -207,4 +225,4 @@
 
 ---
 
-*文档版本：v1｜生成日期：2026-05-25*
+*文档版本：v1.1｜更新：2026-05-26（五表 + path B + validation）*

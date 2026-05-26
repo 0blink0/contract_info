@@ -13,6 +13,7 @@ def test_build_preview_from_extraction():
         fee_xlsx_path=None,
         lock_xlsx_path=None,
         share_xlsx_path=None,
+        subscription_xlsx_path=None,
         extraction_result={
             "product_elements": {
                 "基金全称": {"value": "测试基金"},
@@ -33,6 +34,30 @@ def test_build_preview_from_extraction():
     assert len(data["fee_rows"]) == 1
 
 
+def test_build_preview_subscription_from_extraction():
+    record = SimpleNamespace(
+        id=uuid.uuid4(),
+        status="extracted",
+        product_xlsx_path=None,
+        fee_xlsx_path=None,
+        lock_xlsx_path=None,
+        share_xlsx_path=None,
+        subscription_xlsx_path=None,
+        extraction_result={
+            "product_elements": {"基金全称": {"value": "测试基金"}},
+            "subscription_fees": [
+                {
+                    "基金名称": "测试基金A类",
+                    "申赎费类型": "认购费",
+                    "费率": "0",
+                },
+            ],
+        },
+    )
+    data = build_job_preview(record)
+    assert len(data["subscription_rows"]) >= 1
+
+
 def test_preview_api(api_client, api_headers):
     job_id = uuid.uuid4()
     with patch(
@@ -47,6 +72,8 @@ def test_preview_api(api_client, api_headers):
             "lock_rows": [],
             "share_columns": [],
             "share_rows": [],
+            "subscription_columns": ["申赎费类型"],
+            "subscription_rows": [{"申赎费类型": "认购费"}],
         },
     ):
         res = api_client.get(f"/api/v1/jobs/{job_id}/preview", headers=api_headers)

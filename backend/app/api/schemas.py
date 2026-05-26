@@ -56,6 +56,8 @@ class JobPreviewResponse(BaseModel):
     lock_rows: list[dict[str, str | None]] = Field(default_factory=list)
     share_columns: list[str] = Field(default_factory=list)
     share_rows: list[dict[str, str | None]] = Field(default_factory=list)
+    subscription_columns: list[str] = Field(default_factory=list)
+    subscription_rows: list[dict[str, str | None]] = Field(default_factory=list)
 
 
 class PathBResponse(BaseModel):

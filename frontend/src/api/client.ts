@@ -3,7 +3,9 @@ import type {
   JobDetail,
   JobListResponse,
   JobPreview,
+  PathBResponse,
   UploadResponse,
+  ValidationResponse,
 } from './types'
 
 const API_BASE = '/api/v1'
@@ -52,6 +54,16 @@ export type { JobPreview } from './types'
 
 export async function getJobPreview(jobId: string): Promise<JobPreview> {
   const res = await apiFetch(`/jobs/${jobId}/preview`)
+  return res.json()
+}
+
+export async function getPathB(jobId: string): Promise<PathBResponse> {
+  const res = await apiFetch(`/jobs/${jobId}/path-b`)
+  return res.json()
+}
+
+export async function getValidation(jobId: string): Promise<ValidationResponse> {
+  const res = await apiFetch(`/jobs/${jobId}/validation`)
   return res.json()
 }
 

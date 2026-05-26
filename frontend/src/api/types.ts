@@ -25,6 +25,11 @@ export interface JobDetail {
   fee_xlsx_path?: string | null
   lock_xlsx_path?: string | null
   share_xlsx_path?: string | null
+  subscription_xlsx_path?: string | null
+  path_b_available: boolean
+  validation_available: boolean
+  validation_fail_count: number
+  validation_warn_count: number
   extraction_warnings: WarningItem[]
   extraction_warnings_count: number
   outline_preview_count?: number | null
@@ -45,6 +50,32 @@ export interface JobPreview {
   lock_rows: Record<string, string | null>[]
   share_columns: string[]
   share_rows: Record<string, string | null>[]
+  subscription_columns: string[]
+  subscription_rows: Record<string, string | null>[]
+}
+
+export interface PathBResponse {
+  job_id: string
+  performance_fee: Record<string, unknown>
+  open_day: Record<string, unknown>
+  source_snippets: Record<string, string>
+}
+
+export interface ValidationItem {
+  field: string
+  status: string
+  value?: string | null
+  reason: string
+  suggestion?: string | null
+}
+
+export interface ValidationResponse {
+  job_id: string
+  validated_at?: string | null
+  model?: string | null
+  skipped: boolean
+  items: ValidationItem[]
+  summary: Record<string, number>
 }
 
 export interface UploadResponse {
@@ -58,3 +89,4 @@ export type DownloadKind =
   | 'fee-rates'
   | 'lock-periods'
   | 'share-classes'
+  | 'subscription-fee-rates'

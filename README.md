@@ -1,6 +1,10 @@
 # 合同要素抽取（CTRX）
 
-从私募基金合同 **docx** 解析结构化 JSON、抽取字段并生成可导入 Excel。Phase 1–5：解析 → 抽取 → xlsx → HTTP API → Web 界面。
+从私募基金合同 **docx** 解析结构化 JSON、抽取字段并生成可导入 Excel。
+
+**v1.1（当前）**：五表 Excel 导出、路径 B JSON（CRM 手录辅助）、LLM 摘录一致性校验、Web 端完整预览与下载。
+
+**v1.0**：解析 → 抽取 → xlsx → HTTP API → Web 界面（Phase 1–5）。
 
 **Git 仓库：** [github.com/0blink0/contract_info](https://github.com/0blink0/contract_info.git)
 
@@ -32,7 +36,8 @@ copy .env.example .env
 ```bash
 cd contract_info
 cp .env.example .env
-# 编辑 .env：POSTGRES_PASSWORD、API_KEY（建议）、OPENAI_API_KEY（可选）
+# 编辑 .env：POSTGRES_PASSWORD、API_KEY（建议）
+# 生产若需 LLM 抽取与摘录校验，必须配置 OPENAI_API_KEY（及 OPENAI_BASE_URL）
 
 docker compose up -d --build
 ```
@@ -117,11 +122,11 @@ python -m backend.cli parse example\*.docx --out out.json
 ## 母版与导出目录
 
 - **`templates/`** — 官方导入母版（与 `example/` 同步，运行时使用）
-- **`exports/{file_id}/`** — 生成的 `product_elements.xlsx`、`fee_rates.xlsx`
+- **`exports/{file_id}/`** — 五表：`product_elements.xlsx`、`fee_rates.xlsx`、`lock_periods.xlsx`、`share_classes.xlsx`、`subscription_fee_rates.xlsx`
 
 ## 字段抽取（CLI）
 
-在 `.env` 中配置 `OPENAI_API_KEY`（及可选 `OPENAI_BASE_URL`、`LLM_MODEL`）。无 Key 时仅运行规则层。
+在 `.env` 中配置 `OPENAI_API_KEY`（及可选 `OPENAI_BASE_URL`、`LLM_MODEL`）。无 Key 时仅运行规则层，**摘录校验会跳过**（任务仍可导出）。
 
 ```powershell
 # 从 docx 解析并抽取（不写库）
@@ -178,9 +183,16 @@ curl -s -X POST http://localhost:8000/api/v1/jobs/{job_id}/run `
 # 轮询状态
 curl -s http://localhost:8000/api/v1/jobs/{job_id} -H "X-API-Key: YOUR_KEY"
 
-# 下载（status=exported 后）
+# 下载（status=exported 后，五表）
 curl -OJ http://localhost:8000/api/v1/jobs/{job_id}/download/product-elements -H "X-API-Key: YOUR_KEY"
 curl -OJ http://localhost:8000/api/v1/jobs/{job_id}/download/fee-rates -H "X-API-Key: YOUR_KEY"
+curl -OJ http://localhost:8000/api/v1/jobs/{job_id}/download/lock-periods -H "X-API-Key: YOUR_KEY"
+curl -OJ http://localhost:8000/api/v1/jobs/{job_id}/download/share-classes -H "X-API-Key: YOUR_KEY"
+curl -OJ http://localhost:8000/api/v1/jobs/{job_id}/download/subscription-fee-rates -H "X-API-Key: YOUR_KEY"
+
+# 路径 B / 摘录校验（status=extracted 起）
+curl -s http://localhost:8000/api/v1/jobs/{job_id}/path-b -H "X-API-Key: YOUR_KEY"
+curl -s http://localhost:8000/api/v1/jobs/{job_id}/validation -H "X-API-Key: YOUR_KEY"
 ```
 
 CLI（`parse` / `extract` / `export`）仍可用。
@@ -203,7 +215,9 @@ npm install
 npm run dev
 ```
 
-浏览器打开 **http://localhost:5173**：上传 docx → 选中任务 →「开始处理」→ 步骤条完成后下载两个 Excel。
+浏览器打开 **http://localhost:5173**：上传 docx →「开始处理」→ 完成后 **下载五个 Excel**；`extracted` 起可展开 **摘录校验**、**路径 B（CRM 手录）**；**导出预览** 含五 Tab（含申赎费率）。
+
+**LLM：** 生产环境请在根目录 `.env` 配置 `OPENAI_API_KEY`，否则仅规则抽取且无 LLM 校验明细。
 
 生产构建（可选 `VITE_API_KEY`）：
 
