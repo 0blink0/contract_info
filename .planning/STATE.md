@@ -19,32 +19,32 @@ progress:
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 10 — 前端与文档（待规划）
+**Current focus:** Phase 10 — 集成与文档（已讨论，待规划）
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: **9** — LLM 校验层 — **COMPLETE**
-Plan: 3/3 executed
+Phase: **10** — 集成与文档 — **CONTEXT READY**
+Plan: 0/3（待规划）
 
 | Field | Value |
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
-| Phase | 10 — 前端与文档 |
-| Status | 待讨论/规划 |
-| Next | `/gsd-discuss-phase 10` 或 `/gsd-plan-phase 10` |
+| Phase | 10 — 集成与文档 |
+| Status | 已讨论，可规划 |
+| Next | `/gsd-plan-phase 10` |
 
-## Phase 9 完成摘要
+## Phase 10 讨论要点
 
-- `backend/app/validate/` + extract 后自动校验
-- `validation_result` JSONB + `GET /jobs/{id}/validation`
-- advisory：fail 不阻止 export
+- 5 并列下载按钮；Path B 折叠 + 复制/下载 JSON
+- 独立 ValidationPanel；默认 fail+warn；懒加载
+- extracted+ 可见 path B/校验；ExportPreview 加申赎 Tab
+- README + FIELD_SPEC + .env.example
 
 ## Next Actions
 
-1. `alembic upgrade head`（含 007）
-2. `/gsd-discuss-phase 10` — 五表下载、path B 面板、校验高亮
-3. `/gsd-plan-phase 10`
+1. `/gsd-plan-phase 10`
+2. `/gsd-execute-phase 10`
 
 ---
 *Updated: 2026-05-26*
