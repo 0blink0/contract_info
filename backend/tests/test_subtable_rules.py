@@ -4,6 +4,16 @@ from backend.app.extract.rules.share_rules import extract_share_classes_rules
 from backend.app.extract.schemas import FieldValue, LockPeriodRow
 
 
+def test_lock_rules_no_lock_period_row():
+    rows = extract_lock_periods_rules(
+        "测试基金", FieldValue(value="", confidence="high", source="rule"), ""
+    )
+    assert len(rows) == 1
+    assert rows[0].锁定期 == "无"
+    assert rows[0].投资者类型 == "全部投资者"
+    assert rows[0].份额类型 == "全部"
+
+
 def test_lock_rules_minimal_row():
     lock_fv = FieldValue(value="锁定期 180天", confidence="high", source="rule")
     rows = extract_lock_periods_rules("测试基金", lock_fv, "锁定期 180天")

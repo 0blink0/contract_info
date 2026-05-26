@@ -55,7 +55,9 @@
       "销售服务费": { "rate_annual_pct": "0.5" },
       "基金服务费": { "rate_annual_pct": "0.01" }
     },
-    "lock_periods": [],
+    "lock_periods": [
+      { "锁定时间": "90天", "投资者类型": "一般投资者" }
+    ],
     "subscription_fees_by_share": {
       "A": { "认购费": "0.5", "申购费": "0.5" },
       "B": { "认购费": "0", "申购费": "0" },

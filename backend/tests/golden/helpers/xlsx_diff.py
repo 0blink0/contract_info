@@ -160,9 +160,18 @@ def assert_fee_types_present(
 
     found: dict[str, list[str]] = {}
     target_fund = normalize_cell(fund_name)
+    fund_prefix = target_fund[:12] if len(target_fund) >= 8 else target_fund
+
+    def _same_fund(fname: str) -> bool:
+        if not fname:
+            return True
+        if target_fund in fname or fname in target_fund:
+            return True
+        return bool(fund_prefix and fname.startswith(fund_prefix))
+
     for row in range(FEE_DATA_START_ROW, ws.max_row + 1):
         fname = normalize_cell(ws.cell(row, fund_col).value) if fund_col else ""
-        if fund_col and fname and target_fund not in fname and fname not in target_fund:
+        if fund_col and fname and not _same_fund(fname):
             continue
         fee_type = normalize_cell(ws.cell(row, type_col).value)
         if not fee_type:

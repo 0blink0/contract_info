@@ -7,6 +7,17 @@ from backend.app.extract.schemas import FieldValue, LockPeriodRow
 _RE_LOCK_TIME = re.compile(
     r"(\d+(?:\.\d+)?)\s*(天|月|年|开放日)", re.IGNORECASE
 )
+_RE_LOCK_NATURAL_DAYS = re.compile(r"(\d+(?:\.\d+)?)\s*个自然日", re.IGNORECASE)
+
+
+def _parse_lock_duration(text: str) -> str | None:
+    m = _RE_LOCK_NATURAL_DAYS.search(text)
+    if m:
+        return f"{m.group(1)}天"
+    m = _RE_LOCK_TIME.search(text)
+    if m:
+        return f"{m.group(1)}{m.group(2)}"
+    return None
 _RE_START_RULE = re.compile(
     r"交易(申请|确认)日[（(]?(含|不含)[）)]?"
 )
@@ -23,7 +34,24 @@ _INVESTOR_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 _RE_EMPLOYEE_LOCK = re.compile(
     r"管理人[及其和与]?员工|员工跟投|管理人跟投"
 )
-_RE_GENERAL_LOCK_CLAUSE = re.compile(r"份额锁定期限|本基金设置.{0,20}锁定期")
+_RE_GENERAL_LOCK_CLAUSE = re.compile(
+    r"份额锁定期限|本基金设置.{0,24}份额锁定期|基金份额锁定期"
+)
+
+
+def _lock_duration_in_subscription(subscription_text: str) -> str | None:
+    """Pick lock duration only when adjacent to share-lock wording (not 保存20年等)."""
+    for m in _RE_LOCK_NATURAL_DAYS.finditer(subscription_text):
+        start = max(0, m.start() - 48)
+        window = subscription_text[start : m.end() + 24]
+        if re.search(r"份额锁定|锁定期限|持有期低于", window):
+            return f"{m.group(1)}天"
+    for m in _RE_LOCK_TIME.finditer(subscription_text):
+        start = max(0, m.start() - 48)
+        window = subscription_text[start : m.end() + 24]
+        if re.search(r"份额锁定|锁定期限|持有期低于", window):
+            return f"{m.group(1)}{m.group(2)}"
+    return None
 
 
 def _field_text(fv: FieldValue | dict | None) -> str | None:
@@ -67,9 +95,11 @@ def _build_lock_row(
         投资者类型=investor_type,
     )
 
-    time_m = _RE_LOCK_TIME.search(combined)
-    if time_m:
-        row.锁定时间 = f"{time_m.group(1)}{time_m.group(2)}"
+    dur = _parse_lock_duration(lock_text)
+    if dur:
+        row.锁定时间 = dur
+    elif not row.锁定时间:
+        row.锁定时间 = _lock_duration_in_subscription(combined)
 
     start_m = _RE_START_RULE.search(combined)
     if start_m:
@@ -100,6 +130,24 @@ def _build_lock_row(
     return row
 
 
+def _no_lock_row(fund_name: str | None) -> LockPeriodRow:
+    """CRM 要求无锁定期也占一行：锁定期=无，全部投资者。"""
+    return LockPeriodRow(
+        产品名称=fund_name,
+        份额类型="全部",
+        锁定期="无",
+        投资者类型="全部投资者",
+    )
+
+
+def _subscription_implies_lock(subscription_text: str) -> bool:
+    if re.search(r"无锁定期|不设锁定期|不设锁", subscription_text):
+        return False
+    if _RE_GENERAL_LOCK_CLAUSE.search(subscription_text):
+        return True
+    return _lock_duration_in_subscription(subscription_text) is not None
+
+
 def extract_lock_periods_rules(
     fund_name: str | None,
     lock_summary: FieldValue | dict | None,
@@ -107,7 +155,15 @@ def extract_lock_periods_rules(
 ) -> list[LockPeriodRow]:
     lock_text = _field_text(lock_summary) or ""
     if not lock_text.strip():
-        return []
+        if not fund_name:
+            return []
+        if _subscription_implies_lock(subscription_text):
+            lock_text = _lock_duration_in_subscription(subscription_text) or "有"
+        else:
+            return [_no_lock_row(fund_name)]
+
+    if re.search(r"^(无|无锁定期|不设锁定期?)$", lock_text.strip()):
+        return [_no_lock_row(fund_name)]
 
     combined = f"{lock_text}\n{subscription_text}"
     if not fund_name and not lock_text:
@@ -161,9 +217,6 @@ def extract_lock_periods_rules(
         investor_type="全部投资者" if has_lock else None,
     )
 
-    if not any(
-        getattr(row, f) for f in ("锁定期", "锁定时间", "份额类型", "起始规则")
-    ):
-        if not has_lock and not lock_text:
-            return []
+    if not has_lock:
+        return [_no_lock_row(fund_name)]
     return [row]

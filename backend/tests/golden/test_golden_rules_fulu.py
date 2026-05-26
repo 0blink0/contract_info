@@ -1,6 +1,7 @@
 """Rule-layer golden regression for 石云福禄 (QUAL-01, QUAL-02)."""
 
 from backend.app.extract.rules.fee_rules import extract_fee_rates
+from backend.app.extract.schemas import FieldValue
 from backend.app.extract.rules.lock_rules import extract_lock_periods_rules
 from backend.app.extract.rules.party_helpers import is_valid_party_name
 from backend.app.extract.rules.product_rules import extract_product_rules
@@ -51,11 +52,27 @@ def test_critical_fee_rates_by_type(fulu_document):
         )
 
 
-def test_lock_periods_fulu_empty(fulu_document):
+def test_lock_periods_fulu_from_subscription_chapter(fulu_document):
+    """福禄主表锁定期常为空，但申购章有 90 个自然日 + 员工跟投条款。"""
     windows, _ = build_section_windows(fulu_document)
     product = extract_product_rules(fulu_document, windows)
     fund = str(product["基金全称"].value)
     locks = extract_lock_periods_rules(
         fund, product.get("锁定期"), windows.get("subscription", "")
     )
-    assert locks == []
+    assert len(locks) == 2
+    types = {r.投资者类型 for r in locks}
+    assert types == {"一般投资者", "管理人及其员工"}
+    assert all(r.锁定期 == "有" for r in locks)
+    assert any("90" in str(r.锁定时间 or "") for r in locks)
+
+
+def test_lock_periods_explicit_no_lock_row():
+    locks = extract_lock_periods_rules(
+        "测试基金",
+        FieldValue(value="无", confidence="high", source="rule"),
+        "",
+    )
+    assert len(locks) == 1
+    assert locks[0].锁定期 == "无"
+    assert locks[0].投资者类型 == "全部投资者"
