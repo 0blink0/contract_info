@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 抽取质量与导出扩展
 status: milestone_complete
-last_updated: "2026-05-26T22:00:00.000Z"
+last_updated: "2026-05-26T23:30:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 5
@@ -37,6 +37,7 @@ Phase 10 — 集成与文档 — **COMPLETE** (3/3 plans)
 - Phase 6–7：抽取质量 + 申赎第五表
 - Phase 8–9：path B JSON + LLM 校验
 - Phase 10：前端五下载、path B/校验面板、文档
+- **子表导出修复（运营反馈）：** 申赎/分级母版样例清空、分级 A–D 检测与命名、分级 LLM merge；锁定期 merge、单 sheet 下载 — 详见 `v1.1-TABLE-EXPORT-FIXES.md`
 
 ## Next Actions
 

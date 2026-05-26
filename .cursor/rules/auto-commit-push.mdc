@@ -1,0 +1,25 @@
+---
+description: Auto commit and push contract_info changes after completing work
+alwaysApply: true
+---
+
+# contract_info：自动提交与推送
+
+在 `contract_info/` 目录完成可交付改动后，**默认自动** `git commit` 并 `git push origin master`（用户未明确说「不要提交」时）。
+
+## 流程
+
+1. 仅暂存与本次任务相关的文件（不含 `.env`、密钥、`example/_golden_*` 等本地分析产物，除非用户明确要求）。
+2. 运行相关 `pytest`（改动涉及 export/extract 时）。
+3. 提交信息：`fix|feat(scope): 一句话说明 why`（与近期 `fix(export):` 风格一致）。
+4. `git push origin master`。
+5. 若 push 失败，报告错误并给出修复建议，不要静默跳过。
+
+## 规划文档
+
+子表/导出相关修复同步更新 `.planning/`（`STATE.md`、`v1.1-TABLE-EXPORT-FIXES.md`、必要时 `ROADMAP.md` / `MILESTONES.md`），纳入 **v1.1** 交付说明。
+
+## 例外
+
+- 用户明确说「先不要提交」「仅本地」→ 不提交。
+- 仅问答、无代码改动 → 不提交。

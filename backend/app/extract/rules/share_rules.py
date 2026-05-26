@@ -8,6 +8,7 @@ from typing import Any
 
 
 
+from backend.app.extract.rules.subscription_rules import format_subscription_fund_name
 from backend.app.extract.schemas import FieldValue, ShareClassRow
 
 
@@ -120,14 +121,15 @@ def extract_share_classes_rules(
         seen.add(code)
 
         label = f"{code}类份额"
-
         extra = m.group(2) or ""
+        display = format_subscription_fund_name(fund_name, code)
+        share_name = display or (label + (f"（{extra}）" if extra else ""))
 
         rows.append(
             ShareClassRow(
                 基金全称=fund_name,
                 基金代码=fund_code,
-                分级份额名称=label + (f"（{extra}）" if extra else ""),
+                分级份额名称=share_name,
                 分级份额简称=f"{code}类",
                 代码类型=label,
             )

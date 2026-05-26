@@ -34,3 +34,19 @@
 **Tag:** `v1.0`
 
 ---
+
+## v1.1 抽取质量与导出扩展 (Shipped: 2026-05-26)
+
+**Phases completed:** 5 phases (6–10), 15 plans
+
+**Delivered:** 黄金回归、申赎第五表、path B JSON、LLM 校验、五表 UI/预览/下载
+
+**Post-ship 子表修复（同一里程碑，见 `v1.1-TABLE-EXPORT-FIXES.md`）：**
+
+- 申赎/分级导出清空母版样例行（修复多基金 20 行假象）
+- 分级份额按份额分类 + A–D 抽取；福禄/石云命名；防 LLM 稀疏覆盖
+- 锁定期字段归一 + 规则/LLM merge；每文件单业务 sheet
+
+**Tag:** `v1.1`（规划内交付，含上表修复）
+
+---

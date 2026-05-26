@@ -95,3 +95,30 @@ def test_share_rules_from_subscription_classification():
     assert len(rows) == 4
     assert rows[0].预警线 == "无"
     assert all(r.基金全称 == "石云中证1000资产进取一号私募证券投资基金" for r in rows)
+    assert any("证券投资基金A" in (r.分级份额名称 or "") for r in rows)
+
+
+def test_merge_share_prefers_rules_when_llm_sparse():
+    from backend.app.extract.rules.share_merge import merge_share_classes
+    from backend.app.extract.schemas import ShareClassRow
+
+    rules = [
+        ShareClassRow(
+            基金全称="石云福禄1000指数增强一号私募证券投资基金",
+            分级份额名称="石云福禄1000指数增强一号A类",
+            分级份额简称="A类",
+            代码类型="A类份额",
+        ),
+        ShareClassRow(
+            基金全称="石云福禄1000指数增强一号私募证券投资基金",
+            分级份额名称="石云福禄1000指数增强一号B类",
+            分级份额简称="B类",
+            代码类型="B类份额",
+        ),
+    ]
+    llm = [
+        ShareClassRow(基金全称="石云福禄1000指数增强一号私募证券投资基金"),
+    ]
+    merged = merge_share_classes(rules, llm)
+    assert len(merged) == 2
+    assert merged[0].分级份额名称 == "石云福禄1000指数增强一号A类"

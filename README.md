@@ -215,7 +215,9 @@ npm install
 npm run dev
 ```
 
-浏览器打开 **http://localhost:5173**：上传 docx →「开始处理」→ 完成后 **下载五个 Excel**；`extracted` 起可展开 **摘录校验**、**路径 B（CRM 手录）**；**导出预览** 含五 Tab（含申赎费率）。
+浏览器打开 **http://localhost:5173**：上传 docx →「开始处理」→ 完成后 **下载五个 Excel**；`extracted` 起可展开 **摘录校验**、**路径 B（CRM 手录）**；**导出预览** 含五 Tab（含申赎费率、分级份额）。
+
+**子表说明（v1.1）：** 申赎/分级导出会清空母版样例行，仅写入当前合同抽取结果；分级产品按合同「份额分类」产出 A–D 行（基金/份额运营代码常需 CRM 补录）。详见 `.planning/v1.1-TABLE-EXPORT-FIXES.md`。
 
 **LLM：** 生产环境请在根目录 `.env` 配置 `OPENAI_API_KEY`，否则仅规则抽取且无 LLM 校验明细。
 

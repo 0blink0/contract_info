@@ -6,7 +6,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1–5（shipped 2026-05-26）→ [archive](milestones/1.0-ROADMAP.md)
-- 🚧 **v1.1 抽取质量与导出扩展** — Phases 6–10（规划中）
+- ✅ **v1.1 抽取质量与导出扩展** — Phases 6–10 + 子表导出修复（shipped 2026-05-26）
 
 ## Phases（v1.1）
 
@@ -121,6 +121,17 @@ Plans:
 **Requirements:** API-02, UI-01–02, TEST-03
 
 **Success criteria:** ① 5 xlsx + path B + 校验 UI ② README ③ LLM/alembic 说明
+
+### v1.1 子表导出修复（Phase 10 后，同一里程碑）
+
+**Goal:** 预览/下载与合同一致，避免母版样例残留与分级误判。
+
+**Doc:** [v1.1-TABLE-EXPORT-FIXES.md](v1.1-TABLE-EXPORT-FIXES.md)
+
+- [x] 申赎/分级导出前 `clear_data_rows`（母版黄金样例不泄漏）
+- [x] 分级份额：`is_graded_contract`（份额分类 / A–D）、福禄/石云份额命名
+- [x] `merge_share_classes`：LLM 不覆盖规则层完整 A–D 行
+- [x] 锁定期 normalize + merge（`7c20da8`）；下载单 sheet（`e9b1790`）
 
 ## Progress
 

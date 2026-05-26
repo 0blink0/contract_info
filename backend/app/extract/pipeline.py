@@ -29,6 +29,7 @@ from backend.app.extract.rules.fee_rules import enrich_fee_rates_from_product
 from backend.app.extract.rules.lock_normalize import merge_lock_rows
 from backend.app.extract.rules.lock_rules import extract_lock_periods_rules
 
+from backend.app.extract.rules.share_merge import merge_share_classes
 from backend.app.extract.rules.share_rules import (
     extract_share_classes_rules,
     is_graded_contract,
@@ -233,9 +234,7 @@ async def extract_document(
             warnings.extend(w_share)
 
             if llm_share:
-
-                share_classes = llm_share
-
+                share_classes = merge_share_classes(share_classes, llm_share)
                 chapters_called.append("share")
 
     subscription_fees = extract_subscription_fees_rules(
