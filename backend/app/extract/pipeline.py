@@ -26,6 +26,7 @@ from backend.app.extract.rules import extract_fee_rates, extract_product_rules
 
 from backend.app.extract.rules.fee_rules import enrich_fee_rates_from_product
 
+from backend.app.extract.rules.lock_normalize import merge_lock_rows
 from backend.app.extract.rules.lock_rules import extract_lock_periods_rules
 
 from backend.app.extract.rules.share_rules import extract_share_classes_rules
@@ -207,9 +208,11 @@ async def extract_document(
             warnings.extend(w_lock)
 
             if llm_lock:
-
-                lock_periods = llm_lock
-
+                lock_periods = merge_lock_rows(
+                    llm_lock,
+                    lock_periods,
+                    combined_text=sub_text,
+                )
                 chapters_called.append("lock")
 
         share_text = sub_text + "\n" + windows.get("basic", "")
