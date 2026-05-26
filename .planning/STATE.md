@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: MVP
-status: Awaiting next milestone
+milestone: v1.1
+milestone_name: 抽取质量与导出扩展
+status: planning
 last_updated: "2026-05-26"
-last_activity: 2026-05-26 — Milestone v1.0 archived and tagged
+last_activity: 2026-05-26 — Milestone v1.1 started (/gsd-new-milestone)
 progress:
   total_phases: 5
-  completed_phases: 5
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # State: CTRX
@@ -19,37 +19,39 @@ progress:
 
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
-**Core value:** 上传 docx → 可导入 Excel  
-**Current focus:** 规划 v1.1（`/gsd:new-milestone`）  
+**Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
+**Current focus:** v1.1 需求已定义，待 `/gsd:plan-phase 6`  
 **Project root:** `contract_info/`
 
 ## Current Position
 
 | Field | Value |
 |-------|-------|
-| Milestone | v1.0 **shipped** |
-| Phase | — (roadmap phases 1–5 complete) |
-| Status | Awaiting next milestone |
+| Milestone | v1.1 抽取质量与导出扩展 |
+| Phase | 未开始（定义需求完成） |
+| Plan | — |
+| Status | planning |
 
-## Deferred Items
+## Milestone v1.1 输入
 
-| Category | Item | Notes |
-|----------|------|-------|
-| verification | Phase 1 DB 集成验证 | Docker + alembic 手测 |
-| feature | 批量上传 DOC-11 | v1.1 候选 |
-| feature | 路径 B 业绩报酬/开放日 | CRM 手录，可辅助 JSON |
-| process | milestone audit | 未跑 audit-milestone |
+- 黄金样例：`example/产品要素 - 副本(1).xlsx`、`产品运营费率导入模板.xlsx`、`产品申赎费率导入模板.xlsx`
+- 合同：`石云中证1000…(1).docx`、`石云福禄1000…(1).docx`
+- 图中误抽（管理人/投顾/外包/锁定期）为 v1.0 已知问题；部分规则修复已在仓库，本里程碑做回归与 LLM/校验闭环
 
-## Progress (v1.0 — archived)
+## Deferred from v1.0
 
-- [x] Phases 1–5 全部 execute 完成（10/10 plans）
-- [ ] Phase 1 DB 集成验证（遗留）
+| Item | Notes |
+|------|-------|
+| Phase 1 DB 集成验证 | Docker + alembic |
+| 批量上传 | v2 BATCH-01 |
+| PDF | v2 DOC-10 |
+| audit-milestone v1.0 | 可选补跑 |
 
-## Operator Next Steps
+## Next Actions
 
-- `/gsd:new-milestone` — 定义 v1.1 需求与路线图
-- `/gsd:audit-milestone` — 可选，补 v1.0 验收报告
-- `/gsd:verify-work` — 对已部署环境做 UAT
+1. `/gsd:plan-phase 6` — 抽取质量 + 黄金 pytest
+2. 确认生产 `OPENAI_API_KEY`（LLM 抽取 + 校验层）
+3. 将 `example/*` 模板复制/同步到 `templates/`（若与现母版不一致）
 
 ---
-*Updated: 2026-05-26 after v1.0 milestone complete*
+*Updated: 2026-05-26*
