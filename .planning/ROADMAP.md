@@ -39,11 +39,17 @@
 
 **调研入档:** `phases/06-extract-quality/06-FIELD-MATRIX.md`（12 项可抽取性、四分类可空性、合同真值 vs 黄金表）。
 
-**Plans（待 `/gsd:plan-phase 6` 细化）:**
+**Plans:** 3 plans in 3 waves
 
-1. 合并规则修复入库（party_helpers、费用表、投资章节全文规则）+ `merge_field` 误抽策略
-2. `tests/golden/`：两 docx + 三 xlsx diff 框架（归一化日期/空码）
-3. LLM 开关与章节窗截断排查（石云/福禄）
+Plans:
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — Wave 0：`tests/golden/` 脚手架、contract_expected、helpers、修正 docx 路径
+- [ ] 06-02-PLAN.md — Wave 1：`merge_field` 误抽（QUAL-04）、福禄规则修复、规则层黄金测试（QUAL-01/02）
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 06-03-PLAN.md — Wave 2：导出 E2E diff（TEST-01）、可选 LLM e2e（QUAL-03）
 
 **Requirements:** QUAL-01–04, TEST-01
 
@@ -107,7 +113,7 @@
 
 | Phase | Milestone | Plans | Status | Completed |
 |-------|-----------|-------|--------|-----------|
-| 6 | v1.1 | 0/3 | Not started | — |
+| 6 | v1.1 | 0/3 | Planned | — |
 | 7 | v1.1 | 0/3 | Not started | — |
 | 8 | v1.1 | 0/3 | Not started | — |
 | 9 | v1.1 | 0/3 | Not started | — |

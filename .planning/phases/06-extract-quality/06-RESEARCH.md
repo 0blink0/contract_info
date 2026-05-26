@@ -406,18 +406,13 @@ def test_golden_extract_with_llm(shiyun_document):
 | A3 | Critical 长文本 LLM 阈值 80% | QUAL-03 | 需用户在 README 确认 |
 | A4 | 福禄基金服务费在费用章可规则补抽 | 当前代码库状态 | 若合同表述特殊需 LLM |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **福禄 `基金服务费` 费率行是否 Phase 6 Critical？**  
-   - 已知：规则层当前 3 行（缺基金服务费）[VERIFIED]。  
-   - 建议：纳入 Critical（FIELD-MATRIX #10）；优先扩展 `fee_rules._rates_from_fee_chapter`。
+1. **福禄 `基金服务费` 费率行是否 Phase 6 Critical？** → **是。** 纳入 `06-02` fee_rules 修复与 `test_golden_rules_fulu` 费率断言（FIELD-MATRIX #10）。
 
-2. **无 LLM 时分级份额 export 是否 assert？**  
-   - 已知：share_classes=[] [VERIFIED]。  
-   - 建议：Phase 6 Extended/warn only；Critical 留 `@pytest.mark.llm` 或 Phase 10。
+2. **无 LLM 时分级份额 export 是否 assert？** → **否（Critical）。** Phase 6 仅 Extended：export 文件可打开、sheet 存在；行数对齐留给 `@pytest.mark.llm` 或 Phase 10（`06-03-01`）。
 
-3. **`test_shiyun_*` 迁移还是改名？**  
-   - 建议：迁到 `tests/golden/test_golden_rules_shiyun.py`，旧文件删除或 re-export，避免双份维护。
+3. **`test_shiyun_*` 迁移还是改名？** → **迁移。** 断言迁入 `tests/golden/test_golden_rules_shiyun.py`；`test_shiyun_contract_rules.py` 薄包装或删除重复（`06-02-03`）。
 
 ## Environment Availability
 
