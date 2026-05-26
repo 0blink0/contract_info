@@ -96,13 +96,15 @@ Plans:
 
 **Goal:** 抽取后自动审查「值是否与摘录一致、是否合理」。
 
-**Plans:**
+**Plans:** 3 plans in 3 waves
 
-1. `validate/llm_validator.py`：字段批校验 prompt
-2. 与 `FieldValue.snippet` / block 原文联动
-3. warnings UI 分级（fail/warn/pass）
+- [ ] 09-01-PLAN.md — Wave 0：validate 包、evidence、llm_validator、TEST-02 mock
+- [ ] 09-02-PLAN.md — Wave 1：validation_result JSONB、validation_service、extract 挂钩
+- [ ] 09-03-PLAN.md — Wave 2：GET /validation、JobDetail 摘要、API 测试
 
 **Requirements:** VAL-01–04, TEST-02
+
+**Success criteria:** ① 矛盾样例 fail ② validation_result 持久化 ③ GET /validation（前端 Phase 10）
 
 ---
 
@@ -125,7 +127,7 @@ Plans:
 | 6 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 7 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 8 | v1.1 | 3/3 | Complete | 2026-05-26 |
-| 9 | v1.1 | 0/3 | Not started | — |
+| 9 | v1.1 | 0/3 | Planned | — |
 | 10 | v1.1 | 0/3 | Not started | — |
 
 ---

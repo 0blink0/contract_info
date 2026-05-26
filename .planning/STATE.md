@@ -19,31 +19,31 @@ progress:
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 09 — LLM 校验层（已讨论，待规划）
+**Current focus:** Phase 09 — LLM 校验层（已规划，待执行）
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: **9** — LLM 校验层 — **CONTEXT READY**
-Plan: 0/3（待规划）
+Phase: **9** — LLM 校验层 — **PLANNED**
+Plan: 0/3 executed（3 plans ready）
 
 | Field | Value |
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
 | Phase | 9 — LLM 校验层 |
-| Status | 已讨论，可规划 |
-| Next | `/gsd-plan-phase 9` |
+| Status | 已规划 |
+| Next | `/gsd-execute-phase 9` |
 
-## Phase 9 讨论要点
+## Phase 9 计划摘要
 
-- extract 后自动 LLM 校验；`validation_result` JSONB
-- 范围：product + 有摘录的 fee/申赎/path_b
-- fail 不阻止 export；前端 Phase 10
+- Wave 0：`backend/app/validate/` + llm_validator + TEST-02
+- Wave 1：`007_validation_result` + persist_extract 挂钩
+- Wave 2：`GET /jobs/{id}/validation`
 
 ## Next Actions
 
-1. `/gsd-plan-phase 9`
-2. `/gsd-execute-phase 9`
+1. `/gsd-execute-phase 9`
+2. `alembic upgrade head`（含 007）
 3. Phase 10 — 五表 UI + 校验高亮
 
 ---
