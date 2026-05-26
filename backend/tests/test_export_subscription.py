@@ -61,7 +61,7 @@ def test_subscription_export_from_contract(docx_key, tmp_path, monkeypatch):
         lambda: tmp_path / "exports",
     )
     doc = document_to_dict(parse_docx(str(docx)))
-    result, _ = extract_document_sync(doc, llm_client=LlmOff())  # type: ignore[arg-type]
+    result, _, _path_b = extract_document_sync(doc, llm_client=LlmOff())  # type: ignore[arg-type]
     fid = uuid.uuid4()
     *_, sub_rel, _ = export_xlsx(result.model_dump(mode="json"), fid)
     sub_path = tmp_path / "exports" / str(fid) / Path(sub_rel).name

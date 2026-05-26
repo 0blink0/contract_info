@@ -14,10 +14,12 @@ from backend.app.api.schemas import (
     JobListItem,
     JobListResponse,
     JobPreviewResponse,
+    PathBResponse,
     ProductPreviewItem,
     RunResponse,
     warnings_from_jsonb,
 )
+from backend.app.services.preview_service import PREVIEW_STATUSES
 from backend.app.services.delete_service import JobDeleteBusyError, delete_job_record
 from backend.app.services.preview_service import get_job_preview
 from backend.app.config import PROJECT_ROOT, exports_dir
@@ -61,6 +63,7 @@ def _record_to_detail(record: ContractFile) -> JobDetailResponse:
         lock_xlsx_path=getattr(record, "lock_xlsx_path", None),
         share_xlsx_path=getattr(record, "share_xlsx_path", None),
         subscription_xlsx_path=getattr(record, "subscription_xlsx_path", None),
+        path_b_available=bool(getattr(record, "path_b_json", None)),
         extraction_warnings=warnings,
         extraction_warnings_count=len(warnings),
         outline_preview_count=len(outline) if isinstance(outline, list) else None,
@@ -226,4 +229,23 @@ def download_subscription_fee_rates(job_id: uuid.UUID) -> FileResponse:
         path,
         media_type=XLSX_MEDIA,
         filename="subscription_fee_rates.xlsx",
+    )
+
+
+@router.get("/{job_id}/path-b", response_model=PathBResponse)
+def get_path_b(job_id: uuid.UUID) -> PathBResponse:
+    record = _get_record(job_id)
+    if record.status not in PREVIEW_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail="Job not extracted yet",
+        )
+    raw = getattr(record, "path_b_json", None)
+    if not raw or not isinstance(raw, dict):
+        raise HTTPException(status_code=404, detail="Path B JSON not available")
+    return PathBResponse(
+        job_id=record.id,
+        performance_fee=raw.get("performance_fee") or {},
+        open_day=raw.get("open_day") or {},
+        source_snippets=raw.get("source_snippets") or {},
     )

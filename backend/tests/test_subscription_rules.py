@@ -94,5 +94,6 @@ def test_extract_document_sync_has_subscription_fees():
     if not path.is_file():
         pytest.skip("missing shiyun docx")
     doc = document_to_dict(parse_docx(str(path)))
-    result, _ = extract_document_sync(doc, llm_client=LlmOff())  # type: ignore[arg-type]
+    result, _, path_b = extract_document_sync(doc, llm_client=LlmOff())  # type: ignore[arg-type]
+    assert path_b.get("performance_fee") or path_b.get("open_day")
     assert len(result.subscription_fees) >= 8

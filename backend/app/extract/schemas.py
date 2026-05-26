@@ -52,6 +52,44 @@ class ShareClassRow(BaseModel):
     止损线: str | None = None
 
 
+class PerformanceFeeTier(BaseModel):
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
+    share_class: str | None = None
+    benchmark: str | None = None
+    threshold: str | None = None
+    ratio_pct: str | None = None
+    description: str | None = None
+
+
+class PerformanceFeeModule(BaseModel):
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
+    extraction_method: str | None = None
+    benchmark_type: str | None = None
+    hurdle_nav: str | None = None
+    extraction_timing: str | None = None
+    summary: str | None = None
+    tiers: list[PerformanceFeeTier] = Field(default_factory=list)
+
+
+class OpenDayModule(BaseModel):
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
+    fixed_schedule: str | None = None
+    open_business: str | None = None
+    temporary_open: str | None = None
+    ad_hoc_rules: str | None = None
+
+
+class PathBDocument(BaseModel):
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
+    performance_fee: PerformanceFeeModule = Field(default_factory=PerformanceFeeModule)
+    open_day: OpenDayModule = Field(default_factory=OpenDayModule)
+    source_snippets: dict[str, str] = Field(default_factory=dict)
+
+
 class SubscriptionFeeRow(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 

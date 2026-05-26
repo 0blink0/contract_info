@@ -24,3 +24,6 @@ def test_export_persist_roundtrip(db_session, example_docx_path):
     assert row.share_xlsx_path
     assert row.subscription_xlsx_path
     assert subscription_path
+    assert row.path_b_json
+    assert row.path_b_json.get("open_day")
+    assert row.path_b_json.get("source_snippets")

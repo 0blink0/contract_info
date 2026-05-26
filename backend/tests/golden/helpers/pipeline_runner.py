@@ -40,7 +40,7 @@ def run_golden_pipeline(
         )
     doc = parse_docx(str(docx_path))
     document = document_to_dict(doc)
-    result, warnings = extract_document_sync(document, llm_client=LlmOff())  # type: ignore[arg-type]
+    result, warnings, _path_b = extract_document_sync(document, llm_client=LlmOff())  # type: ignore[arg-type]
     extraction = result.model_dump(mode="json")
     fid = uuid.uuid4()
     product_rel, fee_rel, lock_rel, share_rel, sub_rel, export_warnings = export_xlsx(

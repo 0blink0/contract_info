@@ -20,7 +20,8 @@ class _LlmOff:
 
 def test_pipeline_without_llm(sample_document):
     os.environ.pop("OPENAI_API_KEY", None)
-    result, warnings = extract_document_sync(sample_document, llm_client=_LlmOff())  # type: ignore[arg-type]
+    result, warnings, path_b = extract_document_sync(sample_document, llm_client=_LlmOff())  # type: ignore[arg-type]
+    assert isinstance(path_b, dict)
     pe = result.product_elements
     filled = sum(1 for fv in pe.values() if fv.value not in (None, ""))
     assert filled >= 7

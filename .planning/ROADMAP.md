@@ -82,9 +82,9 @@ Plans:
 
 **Plans:** 3 plans in 3 waves
 
-- [ ] 08-01-PLAN.md — Wave 0：PathB schema、path_b_rules、assemble、pipeline 三元组、contract_expected
-- [ ] 08-02-PLAN.md — Wave 1：Alembic `path_b_json`、extract_service 持久化
-- [ ] 08-03-PLAN.md — Wave 2：`GET /path-b`、JobDetail 摘要、API 测试（可选 LLM）
+- [x] 08-01-PLAN.md — Wave 0：PathB schema、path_b_rules、assemble、pipeline 三元组、contract_expected
+- [x] 08-02-PLAN.md — Wave 1：Alembic `path_b_json`、extract_service 持久化
+- [x] 08-03-PLAN.md — Wave 2：`GET /path-b`、JobDetail 摘要、API 测试（可选 LLM）
 
 **Requirements:** PATHB-01–04
 
@@ -124,7 +124,7 @@ Plans:
 |-------|-----------|-------|--------|-----------|
 | 6 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 7 | v1.1 | 3/3 | Complete | 2026-05-26 |
-| 8 | v1.1 | 0/3 | Planned | — |
+| 8 | v1.1 | 3/3 | Complete | 2026-05-26 |
 | 9 | v1.1 | 0/3 | Not started | — |
 | 10 | v1.1 | 0/3 | Not started | — |
 

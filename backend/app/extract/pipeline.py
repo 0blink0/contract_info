@@ -29,6 +29,7 @@ from backend.app.extract.rules.fee_rules import enrich_fee_rates_from_product
 from backend.app.extract.rules.lock_rules import extract_lock_periods_rules
 
 from backend.app.extract.rules.share_rules import extract_share_classes_rules
+from backend.app.extract.rules.path_b_rules import extract_path_b_rules
 from backend.app.extract.rules.subscription_rules import extract_subscription_fees_rules
 
 from backend.app.extract.schemas import (
@@ -85,7 +86,7 @@ async def extract_document(
 
     llm_client: LlmClient | None = None,
 
-) -> tuple[ExtractionResult, list[ExtractionWarning]]:
+) -> tuple[ExtractionResult, list[ExtractionWarning], dict[str, Any]]:
 
     windows, truncated = build_section_windows(document)
 
@@ -259,7 +260,15 @@ async def extract_document(
 
     warnings.extend(validate_enums(result))
 
-    return result, warnings
+    path_b_dict, path_b_warnings = extract_path_b_rules(
+        document,
+        windows,
+        fund_name=fund_name,
+        product_elements=merged_product,
+    )
+    warnings.extend(path_b_warnings)
+
+    return result, warnings, path_b_dict
 
 
 
@@ -273,7 +282,7 @@ def extract_document_sync(
 
     llm_client: LlmClient | None = None,
 
-) -> tuple[ExtractionResult, list[ExtractionWarning]]:
+) -> tuple[ExtractionResult, list[ExtractionWarning], dict[str, Any]]:
 
     return asyncio.run(extract_document(document, llm_client=llm_client))
 

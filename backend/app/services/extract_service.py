@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from backend.app.config import PROJECT_ROOT
 from backend.app.db.session import SessionLocal
 from backend.app.extract.pipeline import extract_document_sync
 from backend.app.extract.schemas import extraction_result_to_dict, warnings_to_list
@@ -13,9 +12,9 @@ from backend.app.parse.schemas import document_to_dict
 from backend.app.services.parse_service import persist_parse
 
 
-def _run_extract_on_document(document: dict) -> tuple[dict, list]:
-    result, warnings = extract_document_sync(document)
-    return extraction_result_to_dict(result), warnings_to_list(warnings)
+def _run_extract_on_document(document: dict) -> tuple[dict, list, dict]:
+    result, warnings, path_b = extract_document_sync(document)
+    return extraction_result_to_dict(result), warnings_to_list(warnings), path_b
 
 
 def persist_extract_from_path(file_path: str) -> uuid.UUID:
@@ -36,8 +35,9 @@ def persist_extract(file_id: uuid.UUID) -> uuid.UUID:
         session.commit()
 
         try:
-            result_dict, warnings = _run_extract_on_document(record.parse_json)
+            result_dict, warnings, path_b = _run_extract_on_document(record.parse_json)
             record.extraction_result = result_dict
+            record.path_b_json = path_b
             record.extraction_warnings = warnings
             record.status = "extracted"
             record.error_message = None
@@ -55,7 +55,7 @@ def persist_extract(file_id: uuid.UUID) -> uuid.UUID:
         session.close()
 
 
-def extract_from_docx_path(file_path: str) -> tuple[dict, list]:
+def extract_from_docx_path(file_path: str) -> tuple[dict, list, dict]:
     path = Path(file_path).resolve()
     if not path.is_file():
         raise FileNotFoundError(file_path)
@@ -63,7 +63,7 @@ def extract_from_docx_path(file_path: str) -> tuple[dict, list]:
     return _run_extract_on_document(document_to_dict(document))
 
 
-def extract_from_file_id(file_id: uuid.UUID) -> tuple[dict, list]:
+def extract_from_file_id(file_id: uuid.UUID) -> tuple[dict, list, dict]:
     session = SessionLocal()
     try:
         record = session.get(ContractFile, file_id)

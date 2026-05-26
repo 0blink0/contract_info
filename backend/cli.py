@@ -74,9 +74,9 @@ def extract_cmd(
         return
 
     if file_id:
-        result, warnings = extract_from_file_id(uuid.UUID(file_id))
+        result, warnings, path_b = extract_from_file_id(uuid.UUID(file_id))
     elif docx_path:
-        result, warnings = extract_from_docx_path(docx_path)
+        result, warnings, path_b = extract_from_docx_path(docx_path)
     else:
         click.echo("Provide docx_path or --file-id", err=True)
         sys.exit(1)
@@ -88,10 +88,11 @@ def extract_cmd(
     pe = result.get("product_elements") or {}
     fee = result.get("fee_rates") or []
     click.echo(
-        f"fields={len(pe)} fee_rows={len(fee)} warnings={len(warnings)}"
+        f"fields={len(pe)} fee_rows={len(fee)} warnings={len(warnings)} "
+        f"path_b_keys={len(path_b) if path_b else 0}"
     )
     if out:
-        payload = {"extraction": result, "warnings": warnings}
+        payload = {"extraction": result, "warnings": warnings, "path_b": path_b}
         Path(out).write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )

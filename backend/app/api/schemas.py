@@ -58,6 +58,13 @@ class JobPreviewResponse(BaseModel):
     share_rows: list[dict[str, str | None]] = Field(default_factory=list)
 
 
+class PathBResponse(BaseModel):
+    job_id: uuid.UUID
+    performance_fee: dict[str, Any] = Field(default_factory=dict)
+    open_day: dict[str, Any] = Field(default_factory=dict)
+    source_snippets: dict[str, str] = Field(default_factory=dict)
+
+
 class JobDetailResponse(BaseModel):
     job_id: uuid.UUID
     filename: str
@@ -68,6 +75,7 @@ class JobDetailResponse(BaseModel):
     lock_xlsx_path: str | None = None
     share_xlsx_path: str | None = None
     subscription_xlsx_path: str | None = None
+    path_b_available: bool = False
     extraction_warnings: list[WarningItem] = Field(default_factory=list)
     extraction_warnings_count: int = 0
     outline_preview_count: int | None = None

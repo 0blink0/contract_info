@@ -51,8 +51,8 @@ def test_golden_llm_fill_rate(request, docx_fixture, expected_key):
     doc = parse_docx(str(docx_path))
     document = document_to_dict(doc)
 
-    ext_rule, _ = extract_document_sync(document, llm_client=LlmOff())  # type: ignore[arg-type]
-    ext_llm, _ = extract_document_sync(document, llm_client=client)
+    ext_rule, _, _ = extract_document_sync(document, llm_client=LlmOff())  # type: ignore[arg-type]
+    ext_llm, _, _ = extract_document_sync(document, llm_client=client)
 
     rate_rule = _fill_rate(ext_rule, CRITICAL_LLM_TEXT_FIELDS)
     rate_llm = _fill_rate(ext_llm, CRITICAL_LLM_TEXT_FIELDS)
