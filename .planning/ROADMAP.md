@@ -12,7 +12,7 @@
 
 | # | Phase | Goal | Requirements | Success criteria |
 |---|-------|------|--------------|----------------|
-| 6 | 抽取质量与黄金回归 | 修复当事人/锁定期等误抽；两合同 pytest 对齐 example | QUAL-01–04, TEST-01 | ① 石云两合同管理人/托管人无风险散文 ② 锁定期=180天、开放日含排期 ③ 黄金 diff 测试 CI 通过 |
+| 6 | 抽取质量与黄金回归 | 3/3 | Complete   | 2026-05-26 |
 | 7 | 申赎费率导出 | 第 5 个 xlsx + DB/API | XLS-01–04, API-01 | ① 申赎模板列正确 ② 每份额类≥认购/申购/赎回行 ③ 下载端点可用 |
 | 8 | 路径 B JSON | 业绩报酬 + 开放日手录草稿 | PATHB-01–04 | ① JSON schema 稳定 ② 含摘录 ③ API/前端可查看 |
 | 9 | LLM 校验层 | 值 vs 摘录合理性审查 | VAL-01–04, TEST-02 | ① 矛盾样例 fail ② 结果持久化 ③ 前端高亮 |
@@ -39,17 +39,17 @@
 
 **调研入档:** `phases/06-extract-quality/06-FIELD-MATRIX.md`（12 项可抽取性、四分类可空性、合同真值 vs 黄金表）。
 
-**Plans:** 3 plans in 3 waves
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Wave 0：`tests/golden/` 脚手架、contract_expected、helpers、修正 docx 路径
-- [ ] 06-02-PLAN.md — Wave 1：`merge_field` 误抽（QUAL-04）、福禄规则修复、规则层黄金测试（QUAL-01/02）
+- [x] 06-01-PLAN.md — Wave 0：`tests/golden/` 脚手架、contract_expected、helpers、修正 docx 路径
+- [x] 06-02-PLAN.md — Wave 1：`merge_field` 误抽（QUAL-04）、福禄规则修复、规则层黄金测试（QUAL-01/02）
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-03-PLAN.md — Wave 2：导出 E2E diff（TEST-01）、可选 LLM e2e（QUAL-03）
+- [x] 06-03-PLAN.md — Wave 2：导出 E2E diff（TEST-01）、可选 LLM e2e（QUAL-03）
 
 **Requirements:** QUAL-01–04, TEST-01
 

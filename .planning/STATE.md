@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 抽取质量与导出扩展
-status: Phase 6 planned
-last_updated: "2026-05-26T07:30:16.173Z"
+status: ready_to_plan
+last_updated: 2026-05-26T07:40:10.495Z
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 13
+  percent: 20
+stopped_at: Phase 06 complete (3/3) — ready to discuss Phase 7
 ---
 
 # State: CTRX
@@ -19,11 +20,13 @@ progress:
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 6 已规划 → `/gsd:execute-phase 6`  
+**Current focus:** Phase 7 — 申赎费率导出
 **Project root:** `contract_info/`
 
 ## Current Position
 
+Phase: 7
+Plan: Not started
 | Field | Value |
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
