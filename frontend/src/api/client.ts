@@ -1,4 +1,10 @@
-import type { DownloadKind, JobDetail, JobListResponse, UploadResponse } from './types'
+import type {
+  DownloadKind,
+  JobDetail,
+  JobListResponse,
+  JobPreview,
+  UploadResponse,
+} from './types'
 
 const API_BASE = '/api/v1'
 
@@ -39,6 +45,13 @@ export async function listJobs(limit = 20): Promise<JobListResponse> {
 
 export async function getJob(jobId: string): Promise<JobDetail> {
   const res = await apiFetch(`/jobs/${jobId}`)
+  return res.json()
+}
+
+export type { JobPreview } from './types'
+
+export async function getJobPreview(jobId: string): Promise<JobPreview> {
+  const res = await apiFetch(`/jobs/${jobId}/preview`)
   return res.json()
 }
 

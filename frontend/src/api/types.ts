@@ -28,6 +28,19 @@ export interface JobDetail {
   outline_preview_count?: number | null
 }
 
+export interface ProductPreviewItem {
+  field: string
+  value: string | null
+}
+
+export interface JobPreview {
+  job_id: string
+  source: string
+  product_rows: ProductPreviewItem[]
+  fee_columns: string[]
+  fee_rows: Record<string, string | null>[]
+}
+
 export interface UploadResponse {
   job_id: string
   status: string

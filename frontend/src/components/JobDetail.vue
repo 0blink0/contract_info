@@ -12,6 +12,7 @@ import {
 import { useJobPoll } from '@/composables/useJobPoll'
 import ProcessStepper from './ProcessStepper.vue'
 import WarningsList from './WarningsList.vue'
+import ExportPreview from './ExportPreview.vue'
 
 const props = defineProps<{
   jobId: string | null
@@ -150,6 +151,8 @@ async function onDownload(kind: 'product-elements' | 'fee-rates', filename: stri
         :warnings="detail.extraction_warnings"
         :count="detail.extraction_warnings_count"
       />
+
+      <ExportPreview :job-id="jobId" :status="detail.status" />
     </template>
   </div>
 </template>

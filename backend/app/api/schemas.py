@@ -36,6 +36,19 @@ class JobListResponse(BaseModel):
     items: list[JobListItem]
 
 
+class ProductPreviewItem(BaseModel):
+    field: str
+    value: str | None = None
+
+
+class JobPreviewResponse(BaseModel):
+    job_id: uuid.UUID
+    source: str  # xlsx | extraction
+    product_rows: list[ProductPreviewItem] = Field(default_factory=list)
+    fee_columns: list[str] = Field(default_factory=list)
+    fee_rows: list[dict[str, str | None]] = Field(default_factory=list)
+
+
 class JobDetailResponse(BaseModel):
     job_id: uuid.UUID
     filename: str

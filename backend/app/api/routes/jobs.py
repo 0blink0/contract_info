@@ -12,9 +12,12 @@ from backend.app.api.schemas import (
     JobDetailResponse,
     JobListItem,
     JobListResponse,
+    JobPreviewResponse,
+    ProductPreviewItem,
     RunResponse,
     warnings_from_jsonb,
 )
+from backend.app.services.preview_service import get_job_preview
 from backend.app.config import PROJECT_ROOT, exports_dir
 from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
@@ -101,6 +104,23 @@ def list_jobs(limit: int = Query(20, ge=1, le=50)) -> JobListResponse:
 def get_job(job_id: uuid.UUID) -> JobDetailResponse:
     record = _get_record(job_id)
     return _record_to_detail(record)
+
+
+@router.get("/{job_id}/preview", response_model=JobPreviewResponse)
+def preview_job(job_id: uuid.UUID) -> JobPreviewResponse:
+    try:
+        data = get_job_preview(job_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return JobPreviewResponse(
+        job_id=data["job_id"],
+        source=data["source"],
+        product_rows=[ProductPreviewItem.model_validate(r) for r in data["product_rows"]],
+        fee_columns=data["fee_columns"],
+        fee_rows=data["fee_rows"],
+    )
 
 
 @router.post("/{job_id}/run", response_model=RunResponse, status_code=202)
