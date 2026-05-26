@@ -10,6 +10,14 @@ FEE_SHEET = "产品运营费率导入模板"
 FEE_HEADER_ROW = 3
 FEE_DATA_START_ROW = 4
 
+LOCK_SHEET = "份额锁定期模板"
+LOCK_HEADER_ROW = 2
+LOCK_DATA_START_ROW = 3
+
+SHARE_SHEET = "分级份额导入模板"
+SHARE_HEADER_ROW = 2
+SHARE_DATA_START_ROW = 3
+
 PRODUCT_DATE_FIELDS = frozenset(
     {
         "成立日期",

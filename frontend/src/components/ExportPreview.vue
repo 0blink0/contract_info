@@ -85,6 +85,52 @@ watch(
             />
           </el-table>
         </el-tab-pane>
+        <el-tab-pane :label="`份额锁定期（${preview.lock_rows.length} 行）`" name="lock">
+          <el-table
+            :data="preview.lock_rows"
+            size="small"
+            stripe
+            border
+            max-height="360"
+            empty-text="暂无锁定期子表数据"
+          >
+            <el-table-column
+              v-for="col in preview.lock_columns.length
+                ? preview.lock_columns
+                : preview.lock_rows.length
+                  ? Object.keys(preview.lock_rows[0])
+                  : []"
+              :key="col"
+              :prop="col"
+              :label="col"
+              min-width="120"
+              show-overflow-tooltip
+            />
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane :label="`分级份额（${preview.share_rows.length} 行）`" name="share">
+          <el-table
+            :data="preview.share_rows"
+            size="small"
+            stripe
+            border
+            max-height="360"
+            empty-text="暂无分级份额数据（非分级产品可能为空）"
+          >
+            <el-table-column
+              v-for="col in preview.share_columns.length
+                ? preview.share_columns
+                : preview.share_rows.length
+                  ? Object.keys(preview.share_rows[0])
+                  : []"
+              :key="col"
+              :prop="col"
+              :label="col"
+              min-width="120"
+              show-overflow-tooltip
+            />
+          </el-table>
+        </el-tab-pane>
       </el-tabs>
     </template>
   </div>

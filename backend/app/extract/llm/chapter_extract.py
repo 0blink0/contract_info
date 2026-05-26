@@ -5,7 +5,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, create_model
 
 from backend.app.config import get_settings
-from backend.app.extract.llm.chapter_prompts import CHAPTER_FIELDS, build_messages
+from backend.app.extract.field_catalog import CHAPTER_FIELDS
+from backend.app.extract.llm.chapter_prompts import build_messages
 from backend.app.extract.schemas import ExtractionWarning, FieldValue
 from backend.app.llm.client import LlmClient
 

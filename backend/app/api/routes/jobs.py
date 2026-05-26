@@ -58,6 +58,8 @@ def _record_to_detail(record: ContractFile) -> JobDetailResponse:
         error_message=record.error_message,
         product_xlsx_path=record.product_xlsx_path,
         fee_xlsx_path=record.fee_xlsx_path,
+        lock_xlsx_path=getattr(record, "lock_xlsx_path", None),
+        share_xlsx_path=getattr(record, "share_xlsx_path", None),
         extraction_warnings=warnings,
         extraction_warnings_count=len(warnings),
         outline_preview_count=len(outline) if isinstance(outline, list) else None,
@@ -122,6 +124,10 @@ def preview_job(job_id: uuid.UUID) -> JobPreviewResponse:
         product_rows=[ProductPreviewItem.model_validate(r) for r in data["product_rows"]],
         fee_columns=data["fee_columns"],
         fee_rows=data["fee_rows"],
+        lock_columns=data["lock_columns"],
+        lock_rows=data["lock_rows"],
+        share_columns=data["share_columns"],
+        share_rows=data["share_rows"],
     )
 
 
@@ -178,4 +184,30 @@ def download_fee_rates(job_id: uuid.UUID) -> FileResponse:
         path,
         media_type=XLSX_MEDIA,
         filename="fee_rates.xlsx",
+    )
+
+
+@router.get("/{job_id}/download/lock-periods")
+def download_lock_periods(job_id: uuid.UUID) -> FileResponse:
+    record = _get_record(job_id)
+    if record.status != "exported":
+        raise HTTPException(status_code=409, detail="Job not exported yet")
+    path = _resolve_export_path(record.lock_xlsx_path)
+    return FileResponse(
+        path,
+        media_type=XLSX_MEDIA,
+        filename="lock_periods.xlsx",
+    )
+
+
+@router.get("/{job_id}/download/share-classes")
+def download_share_classes(job_id: uuid.UUID) -> FileResponse:
+    record = _get_record(job_id)
+    if record.status != "exported":
+        raise HTTPException(status_code=409, detail="Job not exported yet")
+    path = _resolve_export_path(record.share_xlsx_path)
+    return FileResponse(
+        path,
+        media_type=XLSX_MEDIA,
+        filename="share_classes.xlsx",
     )

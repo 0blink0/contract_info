@@ -52,6 +52,10 @@ class JobPreviewResponse(BaseModel):
     product_rows: list[ProductPreviewItem] = Field(default_factory=list)
     fee_columns: list[str] = Field(default_factory=list)
     fee_rows: list[dict[str, str | None]] = Field(default_factory=list)
+    lock_columns: list[str] = Field(default_factory=list)
+    lock_rows: list[dict[str, str | None]] = Field(default_factory=list)
+    share_columns: list[str] = Field(default_factory=list)
+    share_rows: list[dict[str, str | None]] = Field(default_factory=list)
 
 
 class JobDetailResponse(BaseModel):
@@ -61,6 +65,8 @@ class JobDetailResponse(BaseModel):
     error_message: str | None = None
     product_xlsx_path: str | None = None
     fee_xlsx_path: str | None = None
+    lock_xlsx_path: str | None = None
+    share_xlsx_path: str | None = None
     extraction_warnings: list[WarningItem] = Field(default_factory=list)
     extraction_warnings_count: int = 0
     outline_preview_count: int | None = None

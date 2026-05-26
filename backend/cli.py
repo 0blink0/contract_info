@@ -117,20 +117,30 @@ def export_cmd(file_id: str | None, from_json: str | None, persist: bool) -> Non
     warnings: list = []
     if from_json:
         fid = uuid.UUID(file_id) if file_id else uuid.uuid4()
-        product_path, fee_path, warnings = export_from_json(from_json, fid)
+        product_path, fee_path, lock_path, share_path, warnings = export_from_json(
+            from_json, fid
+        )
     elif file_id:
         if persist:
-            product_path, fee_path = persist_export(uuid.UUID(file_id))
+            product_path, fee_path, lock_path, share_path = persist_export(
+                uuid.UUID(file_id)
+            )
             click.echo(f"product={product_path}")
             click.echo(f"fee={fee_path}")
+            click.echo(f"lock={lock_path}")
+            click.echo(f"share={share_path}")
             return
-        product_path, fee_path, warnings = export_from_file_id(uuid.UUID(file_id))
+        product_path, fee_path, lock_path, share_path, warnings = export_from_file_id(
+            uuid.UUID(file_id)
+        )
     else:
         click.echo("Provide --file-id or --from-json", err=True)
         sys.exit(1)
 
     click.echo(f"product={product_path}")
     click.echo(f"fee={fee_path}")
+    click.echo(f"lock={lock_path}")
+    click.echo(f"share={share_path}")
     click.echo(f"warnings={len(warnings)}")
 
 

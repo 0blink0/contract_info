@@ -19,9 +19,15 @@ def test_export_xlsx_paths(tmp_path, monkeypatch):
     )
     extraction = json.loads(FIXTURE.read_text(encoding="utf-8"))
     fid = uuid.uuid4()
-    product_rel, fee_rel, warnings = export_xlsx(extraction, fid)
+    product_rel, fee_rel, lock_rel, share_rel, warnings = export_xlsx(extraction, fid)
     product_abs = tmp_path / "exports" / str(fid) / "product_elements.xlsx"
+    lock_abs = tmp_path / "exports" / str(fid) / "lock_periods.xlsx"
+    share_abs = tmp_path / "exports" / str(fid) / "share_classes.xlsx"
     assert product_abs.is_file()
+    assert lock_abs.is_file()
+    assert share_abs.is_file()
+    assert lock_rel.endswith("lock_periods.xlsx")
+    assert share_rel.endswith("share_classes.xlsx")
     wb = load_workbook(product_abs, read_only=True)
     ws = wb[PRODUCT_SHEET]
     assert ws.cell(PRODUCT_DATA_ROW, 2).value  # 基金全称 col 2 typical

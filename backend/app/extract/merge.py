@@ -30,6 +30,8 @@ def merge_extraction(
     fee_rates: list[FeeRateRow],
     *,
     meta: ExtractionMeta,
+    lock_periods: list | None = None,
+    share_classes: list | None = None,
 ) -> ExtractionResult:
     merged: dict[str, FieldValue] = dict(product_rules)
     for key, llm_fv in llm_fields.items():
@@ -37,5 +39,7 @@ def merge_extraction(
     return ExtractionResult(
         product_elements=merged,
         fee_rates=fee_rates,
+        lock_periods=lock_periods or [],
+        share_classes=share_classes or [],
         meta=meta,
     )

@@ -23,6 +23,8 @@ export interface JobDetail {
   error_message?: string | null
   product_xlsx_path?: string | null
   fee_xlsx_path?: string | null
+  lock_xlsx_path?: string | null
+  share_xlsx_path?: string | null
   extraction_warnings: WarningItem[]
   extraction_warnings_count: number
   outline_preview_count?: number | null
@@ -39,6 +41,10 @@ export interface JobPreview {
   product_rows: ProductPreviewItem[]
   fee_columns: string[]
   fee_rows: Record<string, string | null>[]
+  lock_columns: string[]
+  lock_rows: Record<string, string | null>[]
+  share_columns: string[]
+  share_rows: Record<string, string | null>[]
 }
 
 export interface UploadResponse {
@@ -47,4 +53,8 @@ export interface UploadResponse {
   filename: string
 }
 
-export type DownloadKind = 'product-elements' | 'fee-rates'
+export type DownloadKind =
+  | 'product-elements'
+  | 'fee-rates'
+  | 'lock-periods'
+  | 'share-classes'

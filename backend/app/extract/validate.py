@@ -11,6 +11,7 @@ DICTS_DIR = PROJECT_ROOT / "dicts"
 _ENUM_CHECKS: dict[str, str] = {
     "销售机构信息": "销售机构及名称对应表",
     "业绩比较基准": "业绩比较基准指数表",
+    "产品分类": "产品分类字典",
 }
 
 

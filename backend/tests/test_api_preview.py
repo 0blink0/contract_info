@@ -11,6 +11,8 @@ def test_build_preview_from_extraction():
         status="exported",
         product_xlsx_path=None,
         fee_xlsx_path=None,
+        lock_xlsx_path=None,
+        share_xlsx_path=None,
         extraction_result={
             "product_elements": {
                 "基金全称": {"value": "测试基金"},
@@ -41,6 +43,10 @@ def test_preview_api(api_client, api_headers):
             "product_rows": [{"field": "基金全称", "value": "A"}],
             "fee_columns": ["运营费类型"],
             "fee_rows": [{"运营费类型": "管理费"}],
+            "lock_columns": [],
+            "lock_rows": [],
+            "share_columns": [],
+            "share_rows": [],
         },
     ):
         res = api_client.get(f"/api/v1/jobs/{job_id}/preview", headers=api_headers)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { JobDetail } from '@/api/types'
+import type { DownloadKind, JobDetail } from '@/api/types'
 import { deleteJob, downloadBlob, getJob, runJob } from '@/api/client'
 import {
   canRetry,
@@ -113,7 +113,7 @@ async function onDelete() {
   }
 }
 
-async function onDownload(kind: 'product-elements' | 'fee-rates', filename: string) {
+async function onDownload(kind: DownloadKind, filename: string) {
   if (!props.jobId) return
   try {
     await downloadBlob(props.jobId, kind, filename)
@@ -179,6 +179,12 @@ async function onDownload(kind: 'product-elements' | 'fee-rates', filename: stri
           </el-button>
           <el-button type="success" @click="onDownload('fee-rates', 'fee_rates.xlsx')">
             下载运营费率
+          </el-button>
+          <el-button type="success" @click="onDownload('lock-periods', 'lock_periods.xlsx')">
+            下载份额锁定期
+          </el-button>
+          <el-button type="success" @click="onDownload('share-classes', 'share_classes.xlsx')">
+            下载分级份额
           </el-button>
         </template>
       </div>
