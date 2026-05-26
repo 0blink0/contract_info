@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 抽取质量与导出扩展
-status: planning
+status: Phase 6 context gathered
 last_updated: "2026-05-26"
-last_activity: 2026-05-26 — Milestone v1.1 started (/gsd-new-milestone)
+last_activity: 2026-05-26 — Phase 6 discuss-phase complete
 progress:
   total_phases: 5
   completed_phases: 0
@@ -20,7 +20,7 @@ progress:
 See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** v1.1 需求已定义，待 `/gsd:plan-phase 6`  
+**Current focus:** Phase 6 CONTEXT 已就绪 → `/gsd:plan-phase 6`  
 **Project root:** `contract_info/`
 
 ## Current Position
@@ -28,9 +28,9 @@ See: `contract_info/.planning/PROJECT.md` (updated 2026-05-26)
 | Field | Value |
 |-------|-------|
 | Milestone | v1.1 抽取质量与导出扩展 |
-| Phase | 未开始（定义需求完成） |
+| Phase | **6** — 抽取质量与黄金回归 |
 | Plan | — |
-| Status | planning |
+| Status | Context gathered |
 
 ## Milestone v1.1 输入
 
