@@ -47,13 +47,15 @@ async def run_llm_validation(
         parsed = await client.chat_json(messages, ValidationBatchResponse)
         by_field = {c.field: c for c in batch}
         for row in parsed.items:
+            if not row.field:
+                continue
             cand = by_field.get(row.field)
             all_items.append(
                 ValidationItem(
                     field=row.field,
                     status=row.status,
                     value=cand.value if cand else None,
-                    reason=row.reason,
+                    reason=row.reason or "（模型未返回原因）",
                     suggestion=row.suggestion,
                 )
             )

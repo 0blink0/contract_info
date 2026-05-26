@@ -71,16 +71,27 @@ def persist_validation(
         if not record.extraction_result:
             return None
 
-        result = run_llm_validation_sync(
-            record.extraction_result,
-            record.path_b_json,
-            record.parse_json or {},
-        )
+        try:
+            result = run_llm_validation_sync(
+                record.extraction_result,
+                record.path_b_json,
+                record.parse_json or {},
+            )
+            record.extraction_warnings = _apply_validation_warnings(
+                record.extraction_warnings,
+                result,
+            )
+        except Exception as exc:
+            result = ValidationResult(skipped=True, items=[])
+            result.compute_summary()
+            record.extraction_warnings = _append_warning(
+                record.extraction_warnings or [],
+                field="_validation",
+                code="validation_failed",
+                message=f"LLM validation failed: {exc}"[:500],
+                suggestion="抽取结果已保留，可重试或检查 LLM 响应格式",
+            )
         record.validation_result = result.model_dump()
-        record.extraction_warnings = _apply_validation_warnings(
-            record.extraction_warnings,
-            result,
-        )
         if own_session:
             session.commit()
         return record.validation_result

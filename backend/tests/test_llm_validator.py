@@ -91,3 +91,47 @@ def test_llm_off_returns_skipped():
     result = run_llm_validation_sync({}, None, {}, llm_client=UnavailableClient())
     assert result.skipped is True
     assert result.items == []
+
+
+def test_batch_response_coerces_null_reason():
+    parsed = ValidationBatchResponse.model_validate(
+        {
+            "items": [
+                {"field": "管理人", "status": "pass", "reason": None},
+                {"field": "托管人", "status": "warn", "reason": ""},
+            ]
+        }
+    )
+    assert parsed.items[0].reason
+    assert parsed.items[1].reason
+
+
+def test_llm_null_reason_does_not_crash():
+    extraction = {
+        "product_elements": {
+            "管理人": {
+                "value": "测试管理人有限公司",
+                "snippet": "基金管理人为测试管理人有限公司，依法登记。",
+            },
+        }
+    }
+
+    class NullReasonClient(MockLlmClient):
+        async def chat_json(self, messages, response_model):
+            return response_model.model_validate(
+                {
+                    "items": [
+                        {
+                            "field": "管理人",
+                            "status": "pass",
+                            "reason": None,
+                        }
+                    ]
+                }
+            )
+
+    result = run_llm_validation_sync(
+        extraction, None, {}, llm_client=NullReasonClient()
+    )
+    assert result.items
+    assert result.items[0].reason

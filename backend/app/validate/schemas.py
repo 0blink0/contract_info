@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 ValidationStatus = Literal["pass", "warn", "fail"]
 
@@ -26,8 +26,31 @@ class ValidationItem(BaseModel):
 class ValidationBatchItem(BaseModel):
     field: str
     status: ValidationStatus
-    reason: str
+    reason: str = ""
     suggestion: str | None = None
+
+    @field_validator("field", mode="before")
+    @classmethod
+    def _field_str(cls, v: object) -> str:
+        return str(v or "").strip()
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def _reason_str(cls, v: object) -> str:
+        if v is None:
+            return "（模型未返回原因）"
+        text = str(v).strip()
+        return text or "（模型未返回原因）"
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _status_literal(cls, v: object) -> str:
+        if v is None:
+            return "warn"
+        s = str(v).lower().strip()
+        if s in ("pass", "warn", "fail"):
+            return s
+        return "warn"
 
 
 class ValidationBatchResponse(BaseModel):
