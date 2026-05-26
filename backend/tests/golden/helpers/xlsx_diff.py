@@ -158,7 +158,7 @@ def assert_fee_types_present(
         wb.close()
         raise AssertionError("Fee sheet missing 运营费类型 or 费率 column")
 
-    found: dict[str, str] = {}
+    found: dict[str, list[str]] = {}
     target_fund = normalize_cell(fund_name)
     for row in range(FEE_DATA_START_ROW, ws.max_row + 1):
         fname = normalize_cell(ws.cell(row, fund_col).value) if fund_col else ""
@@ -168,16 +168,17 @@ def assert_fee_types_present(
         if not fee_type:
             continue
         rate = normalize_pct(ws.cell(row, rate_col).value)
-        if fee_type not in found:
-            found[fee_type] = rate
+        found.setdefault(fee_type, []).append(rate)
 
     wb.close()
     for fee_type, spec in expected_by_type.items():
         exp_rate = spec.get("rate_annual_pct") if isinstance(spec, dict) else spec
-        assert fee_type in found, f"Missing fee type {fee_type!r} in export"
-        assert normalize_pct(found[fee_type]) == normalize_pct(
-            exp_rate
-        ), f"{fee_type}: expected rate {exp_rate!r}, got {found[fee_type]!r}"
+        rates = found.get(fee_type) or []
+        assert rates, f"Missing fee type {fee_type!r} in export"
+        exp = normalize_pct(exp_rate)
+        assert any(normalize_pct(r) == exp for r in rates), (
+            f"{fee_type}: expected rate {exp_rate!r} among rows, got {rates!r}"
+        )
 
 
 def assert_export_structure(paths: dict[str, Path]) -> None:

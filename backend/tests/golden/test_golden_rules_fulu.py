@@ -40,10 +40,14 @@ def test_critical_fee_rates_by_type(fulu_document):
     product = extract_product_rules(fulu_document, windows)
     fund = str(product["基金全称"].value)
     fees = extract_fee_rates(windows["fees"], fund, fulu_document)
-    by_type = {r.运营费类型: r.rate_annual_pct for r in fees}
     for fee_type, spec in expected.items():
-        assert by_type.get(fee_type) == spec["rate_annual_pct"], (
-            f"{fee_type}: expected {spec['rate_annual_pct']!r}, got {by_type.get(fee_type)!r}"
+        rates = [
+            r.rate_annual_pct
+            for r in fees
+            if r.运营费类型 == fee_type and r.rate_annual_pct
+        ]
+        assert spec["rate_annual_pct"] in rates, (
+            f"{fee_type}: expected {spec['rate_annual_pct']!r} among {rates!r}"
         )
 
 

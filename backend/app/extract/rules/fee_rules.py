@@ -3,7 +3,14 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from backend.app.extract.rules.subscription_rules import format_subscription_fund_name
 from backend.app.extract.schemas import FeeRateRow
+
+_SHARE_COL = re.compile(r"^([A-D])\s*类", re.IGNORECASE)
+_SHARE_TABLE_FEE_ROWS: dict[str, str] = {
+    "年管理费率": "管理费",
+    "销售服务费率": "销售服务费",
+}
 
 _FEE_TYPE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("管理费", re.compile(r"管理费")),
@@ -177,6 +184,60 @@ def _rates_from_document_text(document: dict[str, Any]) -> dict[str, str]:
     return rates
 
 
+def _fee_rows_from_share_classification_table(
+    document: dict[str, Any],
+    fund_name: str | None,
+) -> list[FeeRateRow]:
+    """One operating-fee row per share class when 份额分类表 lists rates by A–D."""
+    rows: list[FeeRateRow] = []
+    name = fund_name or ""
+    for block in document.get("blocks") or []:
+        if block.get("type") != "table":
+            continue
+        table_rows = block.get("rows") or []
+        if len(table_rows) < 2:
+            continue
+        header = [str(c or "").strip() for c in table_rows[0]]
+        col_letters: dict[int, str] = {}
+        for idx, cell in enumerate(header):
+            if idx == 0:
+                continue
+            m = _SHARE_COL.search(cell)
+            if m:
+                col_letters[idx] = m.group(1).upper()
+        if len(col_letters) < 2:
+            continue
+        parsed_any = False
+        for tr in table_rows[1:]:
+            if not tr:
+                continue
+            label = str(tr[0] or "").strip()
+            fee_type: str | None = None
+            for key, ft in _SHARE_TABLE_FEE_ROWS.items():
+                if key in label:
+                    fee_type = ft
+                    break
+            if not fee_type:
+                continue
+            for col_idx, letter in col_letters.items():
+                if col_idx >= len(tr):
+                    continue
+                pct = _RATE_PCT.search(str(tr[col_idx] or ""))
+                if not pct:
+                    continue
+                row = FeeRateRow(
+                    基金名称=format_subscription_fund_name(name, letter) or name,
+                    运营费类型=fee_type,
+                    计费频率="按年",
+                )
+                _apply_rate(row, pct.group(1))
+                rows.append(row)
+                parsed_any = True
+        if parsed_any:
+            break
+    return rows
+
+
 def _rates_from_share_table(document: dict[str, Any]) -> dict[str, str]:
     rates: dict[str, str] = {}
     for block in document.get("blocks") or []:
@@ -217,6 +278,13 @@ def extract_fee_rates(
     seen_types: set[str] = set()
     name = fund_name or ""
 
+    per_class_rows = (
+        _fee_rows_from_share_classification_table(document, fund_name)
+        if document
+        else []
+    )
+    per_class_types = {r.运营费类型 for r in per_class_rows if r.运营费类型}
+
     chapter_rates = _rates_from_fee_chapter(fees_text)
     if document:
         chapter_rates = {
@@ -252,6 +320,8 @@ def extract_fee_rates(
                 rows.append(row)
                 seen_types.add("基金服务费")
         for fee_type, _pattern in _FEE_TYPE_PATTERNS:
+            if fee_type in per_class_types:
+                continue
             row = _row_from_line(
                 line,
                 fee_type,
@@ -269,7 +339,9 @@ def extract_fee_rates(
         cells = [c.strip() for c in line.split("\t")]
         joined = " ".join(cells)
         for fee_type, pattern in _FEE_TYPE_PATTERNS:
-            if fee_type in seen_types or not pattern.search(joined):
+            if fee_type in seen_types or fee_type in per_class_types:
+                continue
+            if not pattern.search(joined):
                 continue
             row = _row_from_line(
                 joined,
@@ -284,7 +356,7 @@ def extract_fee_rates(
 
     if len(rows) < 2:
         for fee_type, pattern in _FEE_TYPE_PATTERNS[:2]:
-            if fee_type in seen_types:
+            if fee_type in seen_types or fee_type in per_class_types:
                 continue
             for m in re.finditer(
                 rf"{pattern.pattern}[^。\n]{{0,160}}", fees_text, re.IGNORECASE
@@ -303,6 +375,8 @@ def extract_fee_rates(
                     break
 
     for fee_type, rate in chapter_rates.items():
+        if fee_type in per_class_types:
+            continue
         if fee_type in seen_types:
             for row in rows:
                 if row.运营费类型 == fee_type and not row.rate_annual_pct:
@@ -317,7 +391,7 @@ def extract_fee_rates(
         rows.append(row)
         seen_types.add(fee_type)
 
-    return rows
+    return per_class_rows + rows
 
 
 def enrich_fee_rates_from_product(

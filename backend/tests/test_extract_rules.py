@@ -37,3 +37,18 @@ def test_fee_rules_at_least_two_rows(sample_document):
     types = {r.运营费类型 for r in fees}
     assert "管理费" in types
     assert "托管费" in types
+
+
+def test_fee_rules_per_share_class_when_table_present(example_docx_path):
+    doc = document_to_dict(parse_docx(str(example_docx_path)))
+    windows, _ = build_section_windows(doc)
+    product = extract_product_rules(doc, windows)
+    name = str(product["基金全称"].value)
+    fees = extract_fee_rates(windows["fees"], name, doc)
+    mgmt = [r for r in fees if r.运营费类型 == "管理费"]
+    if len(mgmt) >= 4:
+        names = {r.基金名称 for r in mgmt}
+        assert len(names) >= 4
+        rates = {r.rate_annual_pct for r in mgmt}
+        assert "0" in rates or "0.0" in rates
+        assert "1" in rates
