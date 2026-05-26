@@ -16,6 +16,7 @@ from backend.app.export.column_map import LOCK_DATA_START_ROW, LOCK_HEADER_ROW, 
 
 from backend.app.export.xlsx_utils import (
     build_header_index,
+    clear_data_rows,
     keep_only_sheet,
     write_cell_values,
 )
@@ -57,6 +58,8 @@ def fill_lock_workbook(
     ws = wb[LOCK_SHEET]
 
     header_index = build_header_index(ws, LOCK_HEADER_ROW)
+
+    clear_data_rows(ws, LOCK_DATA_START_ROW)
 
     for offset, row in enumerate(lock_periods):
 

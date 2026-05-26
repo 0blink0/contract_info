@@ -14,6 +14,7 @@ from backend.app.export.column_map import (
 )
 from backend.app.export.xlsx_utils import (
     build_header_index,
+    clear_data_rows,
     keep_only_sheet,
     write_cell_values,
 )
@@ -46,6 +47,8 @@ def fill_fee_workbook(
         norm = normalize_header(raw)
         if norm and norm not in display_names:
             display_names[norm] = str(raw).strip() if raw else norm
+
+    clear_data_rows(ws, FEE_DATA_START_ROW)
 
     for offset, row in enumerate(fee_rates):
         data = row if isinstance(row, dict) else row.model_dump(by_alias=True)

@@ -39,4 +39,19 @@ def test_fill_fee_workbook(tmp_path, sample_extraction):
     }
     assert "管理费" in types
     assert "托管费" in types
+    code_col = None
+    for c in range(1, ws.max_column + 1):
+        if normalize_header(ws.cell(FEE_HEADER_ROW, c).value) == "基金代码":
+            code_col = c
+            break
+    assert code_col
+    data_rows = 0
+    for i in range(20):
+        r = FEE_DATA_START_ROW + i
+        if ws.cell(r, type_col).value:
+            data_rows += 1
+            code = ws.cell(r, code_col).value
+            assert code not in ("X1111", "X2222", "X333"), f"template sample leaked: {code}"
+            assert not str(ws.cell(r, 1).value or "").startswith("产品")
+    assert data_rows == len(sample_extraction["fee_rates"])
     wb.close()
