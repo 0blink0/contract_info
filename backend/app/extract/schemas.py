@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 Confidence = Literal["high", "medium", "low"]
-FieldSource = Literal["rule", "llm", "manual"]
+FieldSource = Literal["rule", "llm", "manual", "fixed"]
 
 
 class FieldValue(BaseModel):
