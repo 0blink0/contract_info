@@ -19,6 +19,7 @@ SKIP_PRODUCT_FIELDS: frozenset[str] = frozenset(
     {
         "基金简称",
         "银行账户信息",
+        "募集期",
     }
 )
 
@@ -135,7 +136,6 @@ RULE_PRODUCT_FIELDS: frozenset[str] = frozenset(
         "锁定期",
         "最低持有类型",
         "最低持有数量",
-        "募集期",
         "封闭期",
         "封闭期起始日",
         "银行账户信息",
@@ -206,7 +206,6 @@ CHAPTER_FIELDS: dict[str, list[str]] = {
         "投资经理",
     ],
     "raising": [
-        "募集期",
         "发行机构",
         "销售机构信息",
         "冷静期回访",

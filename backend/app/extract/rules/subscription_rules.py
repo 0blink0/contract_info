@@ -18,6 +18,7 @@ _REDEEM_RANGE = re.compile(
 _REDEEM_GTE = re.compile(
     r"[（(]t[）)]?\s*[≥>＞=]\s*(\d+)\s*日[^。\n]{0,80}?不收取短期赎回"
 )
+_RE_RANGE_BEFORE_LT = re.compile(r"\d+\s*日\s*[≤<=]")
 
 
 def format_subscription_fund_name(full_name: str | None, share_letter: str) -> str:
@@ -113,38 +114,81 @@ def _parse_share_fee_table(document: dict[str, Any]) -> dict[str, dict[str, str]
     return out
 
 
-def _extract_redeem_tiers(subscription_text: str) -> list[dict[str, str]]:
-    if "短期赎回" not in subscription_text:
+def _tier_from_redeem_line(line: str) -> dict[str, str] | None:
+    """Parse one numbered short-redemption bullet; avoid matching t<360 inside 180≤t<360."""
+    text = line.strip()
+    if "短期赎回" not in text and "t" not in text.lower():
+        return None
+
+    m = _REDEEM_GTE.search(text)
+    if m:
+        return {
+            "计费基准": "区间（P≥B）",
+            "区间开始": m.group(1),
+            "时间区间单位": "天",
+            "费率": "0",
+        }
+
+    m = _REDEEM_RANGE.search(text)
+    if m:
+        return {
+            "计费基准": "区间（A≤P＜B）",
+            "区间开始": m.group(1),
+            "区间结束": m.group(2),
+            "时间区间单位": "天",
+            "费率": m.group(3),
+        }
+
+    if _RE_RANGE_BEFORE_LT.search(text):
+        return None
+    m = _REDEEM_LT.search(text)
+    if m:
+        return {
+            "计费基准": "区间（P＜A）",
+            "区间结束": m.group(1),
+            "时间区间单位": "天",
+            "费率": m.group(2),
+        }
+    return None
+
+
+def _collect_short_redemption_lines(
+    subscription_text: str, document: dict[str, Any]
+) -> list[str]:
+    lines: list[str] = []
+    if subscription_text.strip():
+        lines.extend(subscription_text.splitlines())
+    for block in document.get("blocks") or []:
+        if block.get("type") != "paragraph":
+            continue
+        chunk = str(block.get("text") or "").strip()
+        if "短期赎回" in chunk:
+            lines.extend(chunk.splitlines())
+    return lines
+
+
+def _extract_redeem_tiers(
+    subscription_text: str, document: dict[str, Any]
+) -> list[dict[str, str]]:
+    lines = _collect_short_redemption_lines(subscription_text, document)
+    if not any("短期赎回" in ln for ln in lines):
         return []
     tiers: list[dict[str, str]] = []
-    for m in _REDEEM_LT.finditer(subscription_text):
-        tiers.append(
-            {
-                "计费基准": "区间（P＜A）",
-                "区间结束": m.group(1),
-                "时间区间单位": "天",
-                "费率": m.group(2),
-            }
+    seen: set[tuple[str, ...]] = set()
+    for line in lines:
+        tier = _tier_from_redeem_line(line)
+        if not tier:
+            continue
+        key = (
+            tier.get("计费基准", ""),
+            tier.get("区间开始", ""),
+            tier.get("区间结束", ""),
+            tier.get("费率", ""),
         )
-    for m in _REDEEM_RANGE.finditer(subscription_text):
-        tiers.append(
-            {
-                "计费基准": "区间（A≤P＜B）",
-                "区间开始": m.group(1),
-                "区间结束": m.group(2),
-                "时间区间单位": "天",
-                "费率": m.group(3),
-            }
-        )
-    for m in _REDEEM_GTE.finditer(subscription_text):
-        tiers.append(
-            {
-                "计费基准": "区间（P≥A）",
-                "区间开始": m.group(1),
-                "时间区间单位": "天",
-                "费率": "0",
-            }
-        )
+        if key in seen:
+            continue
+        seen.add(key)
+        tiers.append(tier)
     return tiers
 
 
@@ -199,13 +243,7 @@ def extract_subscription_fees_rules(
             )
 
     sub_text = windows.get("subscription", "") or ""
-    if "短期赎回" not in sub_text:
-        for block in document.get("blocks") or []:
-            if block.get("type") == "paragraph":
-                chunk = str(block.get("text") or "")
-                if "短期赎回" in chunk:
-                    sub_text += "\n" + chunk
-    tiers = _extract_redeem_tiers(sub_text)
+    tiers = _extract_redeem_tiers(sub_text, document)
     if tiers and fund_name:
         parent_code: str | None = None
         for sc in share_classes:

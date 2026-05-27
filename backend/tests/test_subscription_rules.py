@@ -84,9 +84,28 @@ def test_fulu_subscription_rates_match_contract():
 def test_fulu_redeem_tier_rows():
     rows = _run_rules(FULU_KEY)
     redeem = [r for r in rows if r.申赎费类型 == "赎回费" and r.计费基准]
-    assert len(redeem) >= 3
+    assert len(redeem) == 3
     bases = {r.计费基准 for r in redeem}
-    assert "区间（P＜A）" in bases
+    assert bases == {"区间（P＜A）", "区间（A≤P＜B）", "区间（P≥B）"}
+    ends = {r.区间结束 for r in redeem if r.计费基准 == "区间（P＜A）"}
+    assert ends == {"180"}
+
+
+def test_redeem_line_skips_range_inner_lt():
+    from backend.app.extract.rules.subscription_rules import _tier_from_redeem_line
+
+    assert _tier_from_redeem_line(
+        "2）若投资者赎回的基金份额持有天数：180日≤（t）＜360日，则短期赎回费率为0.2%。"
+    ) == {
+        "计费基准": "区间（A≤P＜B）",
+        "区间开始": "180",
+        "区间结束": "360",
+        "时间区间单位": "天",
+        "费率": "0.2",
+    }
+    assert _tier_from_redeem_line(
+        "1）若投资者赎回的基金份额持有天数：（t）＜180日，则短期赎回费率为1%。"
+    )["计费基准"] == "区间（P＜A）"
 
 
 def test_extract_document_sync_has_subscription_fees():

@@ -48,7 +48,6 @@ _RE_ORG_FORM = re.compile(
     r"基金组织形式[：:\s]*(契约型|公司型|合伙型)", re.IGNORECASE
 )
 _RE_ISSUER = re.compile(r"发行机构[：:\s]*([^\n\r，,；;]+)")
-_RE_RAISING = re.compile(r"募集期[：:\s]*([^\n\r。]{4,80})")
 _RE_MIN_HOLD = re.compile(
     r"最低持有(?:份额|金额|数量)?[：:\s]*(\d+(?:\.\d+)?)\s*(万份|份|元)?",
     re.IGNORECASE,
@@ -451,11 +450,6 @@ def extract_product_rules(
                     section_id=block.get("section_id"),
                 )
                 break
-
-    raising_text = windows.get("raising", "") + "\n" + cover
-    m = _RE_RAISING.search(raising_text)
-    if m and "返还投资人" not in m.group(1):
-        out["募集期"] = _fv(m.group(1).strip(), snippet=m.group(0))
 
     full_text = "\n".join(
         _block_text(b)
