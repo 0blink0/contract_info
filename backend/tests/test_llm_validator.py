@@ -88,9 +88,11 @@ class UnavailableClient:
 
 
 def test_llm_off_returns_skipped():
-    result = run_llm_validation_sync({}, None, {}, llm_client=UnavailableClient())
+    result = run_llm_validation_sync(
+        {"product_elements": {}}, None, {}, llm_client=UnavailableClient()
+    )
     assert result.skipped is True
-    assert result.items == []
+    assert all(i.status == "warn" for i in result.items)
 
 
 def test_batch_response_coerces_null_reason():

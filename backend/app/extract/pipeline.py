@@ -33,7 +33,10 @@ from backend.app.extract.rules.fee_rules import (
 from backend.app.extract.rules.lock_normalize import merge_lock_rows
 from backend.app.extract.rules.lock_rules import extract_lock_periods_rules
 
-from backend.app.extract.rules.share_merge import merge_share_classes
+from backend.app.extract.rules.classification_rules import (
+    extract_classification_rules,
+    infer_share_structure,
+)
 from backend.app.extract.rules.share_rules import (
     extract_share_classes_rules,
     is_graded_contract,
@@ -273,6 +276,19 @@ async def extract_document(
         subscription_fees=subscription_fees,
 
     )
+
+    pe = result.product_elements
+    for key, fv in extract_classification_rules(
+        document, windows, {k: v for k, v in pe.items()}
+    ).items():
+        pe[key] = merge_field(pe.get(key), fv, field_name=key) or fv
+
+    structure_fv = infer_share_structure(share_classes, windows)
+    if structure_fv:
+        pe["份额结构"] = (
+            merge_field(pe.get("份额结构"), structure_fv, field_name="份额结构")
+            or structure_fv
+        )
 
     warnings.extend(validate_enums(result))
 

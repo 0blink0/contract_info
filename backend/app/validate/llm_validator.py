@@ -6,6 +6,7 @@ from typing import Any
 from backend.app.llm.client import LlmClient
 from backend.app.validate.deterministic import deterministic_validation_items
 from backend.app.validate.evidence import collect_validation_candidates
+from backend.app.validate.policy import apply_validation_policy
 from backend.app.validate.prompts import build_validation_messages
 from backend.app.validate.schemas import (
     ValidationBatchResponse,
@@ -29,18 +30,30 @@ async def run_llm_validation(
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> ValidationResult:
     client = llm_client or LlmClient()
-    if not client.available:
-        result = ValidationResult(skipped=True, items=[])
+
+    def _finish(
+        items: list[ValidationItem],
+        *,
+        skipped: bool,
+        model: str | None = None,
+    ) -> ValidationResult:
+        merged = apply_validation_policy(items, extraction_result)
+        result = ValidationResult(
+            model=model,
+            skipped=skipped,
+            items=merged,
+        )
         result.compute_summary()
         return result
+
+    if not client.available:
+        return _finish([], skipped=True)
 
     candidates = collect_validation_candidates(
         extraction_result, path_b_json, parse_json
     )
     if not candidates:
-        result = ValidationResult(model=client.model_name, skipped=False, items=[])
-        result.compute_summary()
-        return result
+        return _finish([], skipped=False, model=client.model_name)
 
     all_items: list[ValidationItem] = []
     for batch in _chunk(candidates, batch_size):
@@ -65,11 +78,7 @@ async def run_llm_validation(
     by_field = {item.field: item for item in all_items}
     for field, item in overrides.items():
         by_field[field] = item
-    all_items = list(by_field.values())
-
-    result = ValidationResult(model=client.model_name, skipped=False, items=all_items)
-    result.compute_summary()
-    return result
+    return _finish(list(by_field.values()), skipped=False, model=client.model_name)
 
 
 def run_llm_validation_sync(

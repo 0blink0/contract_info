@@ -22,6 +22,14 @@ SKIP_PRODUCT_FIELDS: frozenset[str] = frozenset(
     }
 )
 
+# CRM/导出真正必填；其余产品要素列合同无则留空
+CORE_REQUIRED_PRODUCT: frozenset[str] = frozenset({"基金全称", "管理人"})
+
+# 导出阶段额外检查的必填（合同通常有，无则 warning）
+EXPORT_REQUIRED_PRODUCT: frozenset[str] = frozenset(
+    CORE_REQUIRED_PRODUCT | {"是否支持金额赎回"}
+)
+
 # 产品要素 77 列（与 templates/产品要素-2.xlsx 表头一致）
 ALL_PRODUCT_FIELDS: tuple[str, ...] = (
     "基金代码",

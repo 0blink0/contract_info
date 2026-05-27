@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.app.extract.field_catalog import EXPORT_REQUIRED_PRODUCT
 from backend.app.extract.schemas import ExtractionWarning
 
-REQUIRED_PRODUCT = ["基金全称", "基金简称", "管理人"]
+REQUIRED_PRODUCT = sorted(EXPORT_REQUIRED_PRODUCT)
 REQUIRED_FEE_PER_ROW = ["基金名称", "运营费类型", "计费频率", "费率（单位：%/年）"]
 REQUIRED_SUBSCRIPTION_PER_ROW = ["基金名称", "申赎费类型", "费率"]
 

@@ -290,7 +290,7 @@ def _extract_investment_manager_names(text: str) -> tuple[str | None, str | None
 
 
 def _extract_investment_chapter(inv_text: str) -> dict[str, FieldValue]:
-    from backend.app.extract.field_snippets import resolve_field_snippet
+    from backend.app.extract.field_snippets import extract_section_body, resolve_field_snippet
 
     out: dict[str, FieldValue] = {}
     for label, pattern in (
@@ -300,29 +300,46 @@ def _extract_investment_chapter(inv_text: str) -> dict[str, FieldValue]:
         ("投资限制", _RE_INV_LIMITS),
     ):
         m = pattern.search(inv_text)
-        if not m:
-            continue
-        body = re.sub(r"\s+", " ", m.group(1).strip())
-        if len(body) >= 8:
-            snip = resolve_field_snippet(label, inv_text, body[:80]) or body[:500]
-            out[label] = _fv(body[:4000], snippet=snip)
+        if m:
+            body = re.sub(r"\s+", " ", m.group(1).strip())
+            if len(body) >= 8:
+                snip = resolve_field_snippet(label, inv_text, body[:80]) or body[:500]
+                out[label] = _fv(body[:4000], snippet=snip)
+        elif label not in out:
+            plain_body, plain_snip = extract_section_body(label, inv_text)
+            if plain_body and len(plain_body) >= 8:
+                out[label] = _fv(plain_body, snippet=plain_snip or plain_body[:500])
 
-    m = _RE_BENCHMARK_SECTION.search(inv_text) or _RE_BENCHMARK_LINE.search(
-        inv_text
-    )
-    if m:
-        raw = m.group(1).strip()
-        snip = m.group(0)[:500]
-        if re.search(r"不设|无业绩|不存在业绩", raw):
-            out["业绩比较基准"] = _fv("无", snippet=snip)
-        elif len(raw) >= 2:
-            out["业绩比较基准"] = _fv(raw, snippet=snip)
+    bench_body, bench_snip = extract_section_body("业绩比较基准", inv_text)
+    if bench_body:
+        if re.search(r"不设|无业绩|不存在业绩|不设置业绩", bench_body):
+            out["业绩比较基准"] = _fv("无", snippet=bench_snip or bench_body[:500])
+        else:
+            out["业绩比较基准"] = _fv(bench_body, snippet=bench_snip or bench_body[:500])
+    else:
+        m = _RE_BENCHMARK_SECTION.search(inv_text) or _RE_BENCHMARK_LINE.search(
+            inv_text
+        )
+        if m:
+            raw = m.group(1).strip()
+            snip = m.group(0)[:500]
+            if re.search(r"不设|无业绩|不存在业绩", raw):
+                out["业绩比较基准"] = _fv("无", snippet=snip)
+            elif len(raw) >= 2:
+                out["业绩比较基准"] = _fv(raw, snippet=snip)
 
-    m = _RE_RISK_RETURN_SECTION.search(inv_text)
-    if m:
-        body = re.sub(r"\s+", " ", m.group(1).strip())
-        snip = resolve_field_snippet("风险收益特征", inv_text, body[:80]) or body[:500]
-        out["风险收益特征"] = _fv(body[:4000], snippet=snip)
+    risk_body, risk_snip = extract_section_body("风险收益特征", inv_text)
+    if risk_body:
+        out["风险收益特征"] = _fv(
+            risk_body,
+            snippet=risk_snip or resolve_field_snippet("风险收益特征", inv_text, risk_body[:80]),
+        )
+    else:
+        m = _RE_RISK_RETURN_SECTION.search(inv_text)
+        if m:
+            body = re.sub(r"\s+", " ", m.group(1).strip())
+            snip = resolve_field_snippet("风险收益特征", inv_text, body[:80]) or body[:500]
+            out["风险收益特征"] = _fv(body[:4000], snippet=snip)
 
     return out
 
@@ -527,6 +544,25 @@ def extract_product_rules(
     if m:
         out["风险等级"] = _fv(m.group(1).upper(), snippet=m.group(0))
 
+    out.update(_extract_investment_chapter(inv_text))
+    missing_inv = {
+        k
+        for k in (
+            "投资目标",
+            "投资范围",
+            "投资策略",
+            "投资限制",
+            "业绩比较基准",
+            "风险收益特征",
+        )
+        if k not in out
+    }
+    if missing_inv:
+        fallback = _extract_investment_chapter(full_text)
+        for key in missing_inv:
+            if key in fallback:
+                out[key] = fallback[key]
+
     inv_combined = "\n".join(
         filter(
             None,
@@ -537,9 +573,6 @@ def extract_product_rules(
             ),
         )
     )
-    out.update(_extract_investment_chapter(inv_combined))
-    if "投资策略" not in out or "投资范围" not in out:
-        out.update(_extract_investment_chapter(full_text))
 
     from backend.app.extract.field_snippets import resolve_field_snippet
 

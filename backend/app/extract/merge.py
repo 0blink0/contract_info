@@ -29,6 +29,9 @@ _INVESTMENT_TEXT_FIELDS = frozenset(
 _SUBSCRIPTION_RULE_FIELDS = frozenset(
     {"是否封闭", "封闭期", "是否支持金额赎回", "开放日规则", "锁定期"}
 )
+_CLASSIFICATION_RULE_FIELDS = frozenset(
+    {"份额结构", "基金类型", "产品类型（协会）", "管理类型"}
+)
 _LINE_FIELDS = frozenset({"预警线", "止损线"})
 _MIS_EXTRACT_MARKERS = (
     "保证",
@@ -72,6 +75,9 @@ def merge_field(
         return effective_rule
 
     if field_name in _SUBSCRIPTION_RULE_FIELDS and effective_rule:
+        return effective_rule
+
+    if field_name in _CLASSIFICATION_RULE_FIELDS and effective_rule:
         return effective_rule
 
     if field_name in _LONG_TEXT_FIELDS and effective_rule and llm_val:

@@ -64,9 +64,9 @@ def _classify_section(title: str) -> str:
 
 
 _INVESTMENT_CHAPTER_START = re.compile(
-    r"^基金的投资\s*$|（[二三四五]）投资(目标|范围|策略|限制)|"
-    r"（八）业绩比较基准|（十）风险收益特征|（十一）.*预警|（十二）投资经理|"
-    r"（五）投资限制|二、基金的投资",
+    r"^基金的投资\s*$|"
+    r"^十[一二三四五六七八九]?、\s*(?:私募)?基金的投资\s*$|"
+    r"^二、\s*基金的投资\s*$",
 )
 
 
@@ -74,7 +74,9 @@ def _is_outline_toc_line(text: str) -> bool:
     t = text.strip()
     return len(t) < 120 and bool(re.search(r"\t\d{1,4}\s*$", t))
 _INVESTMENT_CHAPTER_END = re.compile(
-    r"^七、|^（七）|基金的申购、赎回与转让|基金的申购、赎回",
+    r"^七、\s*基金的申购|^八、\s*基金|"
+    r"^十二、\s*(?:私募)?基金的财产|"
+    r"基金的申购、赎回与转让|基金的申购、赎回",
 )
 
 
@@ -94,8 +96,10 @@ def _rebuild_investment_window(
         if not active:
             if _is_outline_toc_line(text):
                 continue
-            if title in ("基金的投资",) or _INVESTMENT_CHAPTER_START.search(
-                head[:200]
+            if (
+                title in ("基金的投资",)
+                or _INVESTMENT_CHAPTER_START.search(text[:160])
+                or _INVESTMENT_CHAPTER_START.search(head[:200])
             ):
                 active = True
             else:

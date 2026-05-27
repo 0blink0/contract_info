@@ -27,6 +27,11 @@ _FIELD_ANCHORS: dict[str, tuple[str, ...]] = {
 }
 
 _SECTION_HEAD = re.compile(r"（[一二三四五六七八九十百]+）")
+_STRICT_SECTION_FIELDS = frozenset({"风险收益特征", "业绩比较基准"})
+_PLAIN_SECTION_STOP = re.compile(
+    r"\n(?:投资目标|投资范围|投资策略|投资限制|业绩比较基准|风险收益特征|"
+    r"投资经理|预警止损机制|十二、|七、)(?:\s*\n|\s*$)"
+)
 
 
 def _slice_from_anchor(text: str, anchor: str, *, max_len: int = 1200) -> str | None:
@@ -46,6 +51,69 @@ def _slice_from_anchor(text: str, anchor: str, *, max_len: int = 1200) -> str | 
     if len(chunk) > 20:
         return chunk
     return None
+
+
+def _plain_section_body(
+    field: str,
+    window_text: str,
+    *,
+    max_body_len: int = 4000,
+) -> tuple[str | None, str | None]:
+    m = re.search(rf"(?:^|\n){re.escape(field)}\s*\n", window_text)
+    if not m:
+        return None, None
+    tail = window_text[m.end() : m.end() + max_body_len + 400]
+    stop = _PLAIN_SECTION_STOP.search(tail)
+    stop2 = _SECTION_HEAD.search(tail)
+    end = len(tail)
+    if stop:
+        end = min(end, stop.start())
+    if stop2 and stop2.start() > 4:
+        end = min(end, stop2.start())
+    body = re.sub(r"\s+", " ", tail[:end].strip())
+    if len(body) < 4:
+        return None, None
+    snip = f"{field}\n{body[:400]}"
+    return body[:max_body_len], snip[:800]
+
+
+def extract_section_body(
+    field: str,
+    window_text: str,
+    *,
+    max_body_len: int = 4000,
+) -> tuple[str | None, str | None]:
+    """Body text between section anchor and the next numbered subsection header."""
+    if not window_text.strip():
+        return None, None
+    if field not in _STRICT_SECTION_FIELDS:
+        plain = _plain_section_body(field, window_text, max_body_len=max_body_len)
+        if plain[0]:
+            return plain
+    anchors = _FIELD_ANCHORS.get(field, ())
+    if field in _STRICT_SECTION_FIELDS:
+        anchors = tuple(a for a in anchors if a.startswith("（"))
+    for anchor in anchors:
+        pos = window_text.find(anchor)
+        if pos < 0:
+            continue
+        start = pos + len(anchor)
+        tail = window_text[start : start + max_body_len + 400]
+        tail = re.sub(r"^[：:\s]+", "", tail)
+        next_sec = _SECTION_HEAD.search(tail)
+        if next_sec and next_sec.start() > 4:
+            body = tail[: next_sec.start()].strip()
+        else:
+            body = tail[:max_body_len].strip()
+        body = re.sub(r"\s+", " ", body)
+        if len(body) < 4:
+            continue
+        snippet = resolve_field_snippet(field, window_text, body[:80]) or _slice_from_anchor(
+            window_text, anchor
+        )
+        return body[:max_body_len], (snippet or body[:500])
+
+    return None, None
 
 
 def resolve_field_snippet(

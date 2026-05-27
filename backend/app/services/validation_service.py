@@ -6,9 +6,11 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from backend.app.db.session import SessionLocal
+from backend.app.extract.field_catalog import CORE_REQUIRED_PRODUCT
 from backend.app.extract.schemas import ExtractionWarning
 from backend.app.models.contract_file import ContractFile
 from backend.app.validate.llm_validator import run_llm_validation_sync
+from backend.app.validate.optional_fields import is_optional_validation_field
 from backend.app.validate.schemas import ValidationResult
 
 
@@ -46,13 +48,25 @@ def _apply_validation_warnings(
         )
     fail_n = result.summary.get("fail", 0)
     warn_n = result.summary.get("warn", 0)
+    blocking_fail = sum(
+        1
+        for item in result.items
+        if item.status == "fail"
+        and (
+            item.field in CORE_REQUIRED_PRODUCT
+            or not is_optional_validation_field(item.field)
+        )
+    )
     if fail_n or warn_n:
+        msg = f"摘录校验: {fail_n} fail, {warn_n} warn"
+        if blocking_fail < fail_n:
+            msg += f"（其中 {fail_n - blocking_fail} 项已按非必填降为提示）"
         return _append_warning(
             out,
             field="_validation",
             code="validation_issues",
-            message=f"LLM validation: {fail_n} fail, {warn_n} warn",
-            suggestion="See GET /jobs/{id}/validation for details",
+            message=msg,
+            suggestion="详见校验面板；非必填项可留空导出",
         )
     return out
 
