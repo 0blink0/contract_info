@@ -120,7 +120,14 @@ def test_zhengren_narrative_subscription_fees():
     assert purchase[0].计费方式 == "价外法"
     assert purchase[0].基金名称 and not purchase[0].基金名称.endswith("A")
     redeem = [r for r in rows if r.申赎费类型 == "赎回费" and r.计费基准]
-    assert len(redeem) >= 3
+    assert len(redeem) == 3
+    assert {r.计费基准 for r in redeem} == {
+        "区间（P＜A）",
+        "区间（A≤P＜B）",
+        "区间（P≥B）",
+    }
+    gte = [r for r in redeem if r.计费基准 == "区间（P≥B）"]
+    assert len(gte) == 1 and gte[0].区间开始 == "365" and gte[0].费率 == "0"
     assert all(r.snippet for r in rows)
 
 
