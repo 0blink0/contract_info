@@ -130,11 +130,28 @@ def test_fulu_compose_snippet_table_and_formula():
     assert "认购资金从在中国境内开立" not in snip[:120]
 
 
+def test_subscribe_billing_exclusive_from_fee_over_one_plus_rate():
+    from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
+
+    text = (
+        "认购费用=认购金额×认购费率/（1+认购费率）；"
+        "净认购金额=认购金额-认购费用。"
+    )
+    assert infer_subscription_billing_rules(text).get("认购费") == "价外法"
+
+
+def test_purchase_billing_exclusive_from_fee_formula():
+    from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
+
+    text = "申购费用=申购金额×申购费率/（1+申购费率）"
+    assert infer_subscription_billing_rules(text).get("申购费") == "价外法"
+
+
 def test_purchase_billing_inclusive_from_share_minus_fee_formula():
     from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
 
     text = (
-        "1、申购份额计算 申购份额 = (申购金额 - 申购费用) / "
+        "1、申购份额计算 申购份额＝（申购金额-申购费用）/"
         "申购申请日（对应类别）基金份额净值。"
     )
     assert infer_subscription_billing_rules(text).get("申购费") == "价内法"

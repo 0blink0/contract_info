@@ -72,3 +72,29 @@ def test_subscription_billing_method_pass_from_formula_snippet():
     }
     items = deterministic_validation_items(extraction)
     assert items["subscription_fees[0].计费方式"].status == "pass"
+
+
+def test_subscribe_billing_pass_uses_combined_snippet_across_rows():
+    formula = (
+        "【合同条款·计费公式】\n"
+        "认购费用=认购金额×认购费率/（1+认购费率）；"
+        "净认购金额=认购金额-认购费用。"
+    )
+    extraction = {
+        "product_elements": {},
+        "subscription_fees": [
+            {
+                "申赎费类型": "认购费",
+                "计费方式": "价外法",
+                "snippet": "【基本情况·份额分类表】A类 0.5%",
+            },
+            {
+                "申赎费类型": "认购费",
+                "计费方式": "价外法",
+                "snippet": formula,
+            },
+        ],
+    }
+    items = deterministic_validation_items(extraction)
+    assert items["subscription_fees[0].计费方式"].status == "pass"
+    assert items["subscription_fees[1].计费方式"].status == "pass"

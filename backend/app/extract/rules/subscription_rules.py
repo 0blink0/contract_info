@@ -512,13 +512,23 @@ def _collect_fee_section_text(
 
 
 def infer_subscription_billing_rules(text: str) -> dict[str, str]:
-    """规则 fallback：按认购/申购/赎回计算公式分别推断价内/价外。"""
+    """按合同公式推断价内/价外（与运营申赎费率模板口径一致）。
+
+    价外：费用=金额×费率/(1+费率)；净认/申购金额=金额/(1+费率)；份额=金额/(1+费率)/价格。
+    价内：认/申购份额=(金额-费用)/净值；赎回金额扣减赎回费用。
+    """
     if not text.strip():
         return {}
     out: dict[str, str] = {}
+    _eq = r"[=＝]"
 
     if re.search(
-        r"申购份额\s*=\s*申购金额\s*/\s*（?\s*1\s*\+\s*申购费率",
+        rf"申购份额\s*{_eq}\s*[（(]?\s*申购金额\s*[-－]\s*申购费用",
+        text,
+    ):
+        out["申购费"] = "价内法"
+    elif re.search(
+        rf"申购份额\s*{_eq}\s*申购金额\s*/\s*（?\s*1\s*\+\s*申购费率",
         text,
     ) or re.search(
         r"申购金额\s*/\s*（?\s*1\s*\+\s*申购费率\s*）?\s*/\s*申购价格",
@@ -526,41 +536,41 @@ def infer_subscription_billing_rules(text: str) -> dict[str, str]:
     ):
         out["申购费"] = "价外法"
     elif re.search(
-        r"申购费用\s*=\s*申购金额\s*[×x＊]?\s*申购费率\s*/\s*（?\s*1\s*\+\s*申购费率",
+        rf"申购费用\s*{_eq}\s*申购金额\s*[×x＊]?\s*申购费率\s*/\s*（?\s*1\s*\+\s*申购费率",
         text,
     ) or re.search(
-        r"申购份额\s*=\s*[（(]?\s*申购金额\s*[-－]\s*申购费用",
+        rf"净申购金额\s*{_eq}\s*申购金额\s*/\s*（?\s*1\s*\+\s*申购费率",
         text,
     ):
-        out["申购费"] = "价内法"
+        out["申购费"] = "价外法"
 
     if re.search(
-        r"认购费用\s*=\s*认购金额\s*[×x＊]\s*认购费率\s*/\s*（?\s*1\s*\+\s*认购费率",
+        rf"认购费用\s*{_eq}\s*认购金额\s*[×x＊]\s*认购费率\s*/\s*（?\s*1\s*\+\s*认购费率",
         text,
     ) or re.search(
-        r"认购份额\s*=\s*[（(]?\s*认购金额\s*[-－]\s*认购费用",
+        rf"净认购金额\s*{_eq}\s*认购金额\s*/\s*（?\s*1\s*\+\s*认购费率",
         text,
-    ):
-        out["认购费"] = "价内法"
-    elif re.search(
+    ) or re.search(
         r"认购金额\s*/\s*（?\s*1\s*\+\s*认购费率",
-        text,
-    ) or re.search(
-        r"净认购金额\s*=\s*认购金额\s*/\s*（?\s*1\s*\+\s*认购费率",
         text,
     ):
         out["认购费"] = "价外法"
+    elif re.search(
+        rf"认购份额\s*{_eq}\s*[（(]?\s*认购金额\s*[-－]\s*认购费用",
+        text,
+    ):
+        out["认购费"] = "价内法"
 
     if re.search(
-        r"赎回金额\s*=\s*[^。\n]{0,160}?赎回费用",
+        rf"赎回金额\s*{_eq}[^。\n]{{0,160}}?赎回费用",
         text,
     ) or re.search(
-        r"赎回费用\s*=\s*赎回(?:份数|份额)\s*[×x＊]\s*赎回价格\s*[×x＊]\s*赎回费率",
+        rf"赎回费用\s*{_eq}\s*赎回(?:份数|份额)\s*[×x＊]\s*赎回价格\s*[×x＊]\s*赎回费率",
         text,
     ):
         out["赎回费"] = "价内法"
     elif re.search(
-        r"赎回份额\s*=\s*赎回金额\s*/\s*（?\s*1\s*\+\s*赎回费率",
+        rf"赎回份额\s*{_eq}\s*赎回金额\s*/\s*（?\s*1\s*\+\s*赎回费率",
         text,
     ):
         out["赎回费"] = "价外法"

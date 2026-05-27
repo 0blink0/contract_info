@@ -194,6 +194,29 @@ def deterministic_validation_items(
 
     sub_rows = extraction_result.get("subscription_fees") or []
     if isinstance(sub_rows, list):
+        combined_by_type: dict[str, str] = {}
+        for row in sub_rows:
+            if not isinstance(row, dict):
+                continue
+            fee_type = str(row.get("申赎费类型") or "").strip()
+            if fee_type not in ("认购费", "申购费", "赎回费"):
+                continue
+            snippet = str(
+                row.get("snippet") or row.get("_snippet") or row.get("摘录") or ""
+            ).strip()
+            if not snippet:
+                continue
+            combined_by_type[fee_type] = (
+                f"{combined_by_type[fee_type]}\n\n{snippet}".strip()
+                if fee_type in combined_by_type
+                else snippet
+            )
+
+        inferred_by_type = {
+            fee_type: infer_subscription_billing_rules(text).get(fee_type)
+            for fee_type, text in combined_by_type.items()
+        }
+
         for idx, row in enumerate(sub_rows):
             if not isinstance(row, dict):
                 continue
@@ -204,12 +227,7 @@ def deterministic_validation_items(
                 "价外法",
             ):
                 continue
-            snippet = str(
-                row.get("snippet") or row.get("_snippet") or row.get("摘录") or ""
-            ).strip()
-            if not snippet:
-                continue
-            inferred = infer_subscription_billing_rules(snippet).get(fee_type)
+            inferred = inferred_by_type.get(fee_type)
             if inferred != billing:
                 continue
             field = f"subscription_fees[{idx}].计费方式"
@@ -219,7 +237,8 @@ def deterministic_validation_items(
                 value=billing,
                 reason=(
                     f"摘录中的{fee_type}计算公式与「{billing}」一致"
-                    "（如份额=金额减费用为价内法，份额=金额/(1+费率)为价外法）。"
+                    "（费用=金额×费率/(1+费率)、净额=金额/(1+费率)、份额=金额/(1+费率)/价格为价外；"
+                    "份额=(金额-费用)/净值为价内）。"
                 ),
                 suggestion=None,
             )
