@@ -362,7 +362,7 @@ def _collect_fee_section_text(
 
 
 def infer_subscription_billing_rules(text: str) -> dict[str, str]:
-    """规则 fallback：按认购/申购公式分别推断价内/价外。"""
+    """规则 fallback：按认购/申购/赎回计算公式分别推断价内/价外。"""
     if not text.strip():
         return {}
     out: dict[str, str] = {}
@@ -395,6 +395,20 @@ def infer_subscription_billing_rules(text: str) -> dict[str, str]:
     ):
         out["认购费"] = "价外法"
 
+    if re.search(
+        r"赎回金额\s*=\s*[^。\n]{0,160}?赎回费用",
+        text,
+    ) or re.search(
+        r"赎回费用\s*=\s*赎回(?:份数|份额)\s*[×x＊]\s*赎回价格\s*[×x＊]\s*赎回费率",
+        text,
+    ):
+        out["赎回费"] = "价内法"
+    elif re.search(
+        r"赎回份额\s*=\s*赎回金额\s*/\s*（?\s*1\s*\+\s*赎回费率",
+        text,
+    ):
+        out["赎回费"] = "价外法"
+
     if "价内法" in text or "价内收费" in text:
         if "认购" in text and "认购费" not in out:
             out.setdefault("认购费", "价内法")
@@ -414,7 +428,7 @@ def apply_subscription_billing(
 ) -> None:
     for row in rows:
         fee_type = row.申赎费类型
-        if fee_type in ("认购费", "申购费") and billing_by_type.get(fee_type):
+        if fee_type in ("认购费", "申购费", "赎回费") and billing_by_type.get(fee_type):
             row.计费方式 = billing_by_type[fee_type]
 
 
@@ -504,6 +518,9 @@ def _extract_narrative_subscription_fees(
         ]
     }
     redeem_snip = subscription_fee_snippet("赎回费", document, windows)
+    redeem_billing = infer_subscription_billing_rules(sub_text or fee_text).get(
+        "赎回费"
+    )
     for tier in _holding_period_redeem_tiers(sub_text or fee_text):
         rows.append(
             SubscriptionFeeRow(
@@ -511,6 +528,7 @@ def _extract_narrative_subscription_fees(
                 基金代码=fund_code,
                 申赎费类型="赎回费",
                 费率类型="百分比",
+                计费方式=redeem_billing,
                 snippet=redeem_snip,
                 **tier,
             )
@@ -522,6 +540,7 @@ def _extract_narrative_subscription_fees(
                 基金代码=fund_code,
                 申赎费类型="赎回费",
                 费率类型="百分比",
+                计费方式=redeem_billing,
                 snippet=redeem_snip,
                 **tier,
             )
@@ -624,6 +643,7 @@ def extract_subscription_fees_rules(
                     基金代码=parent_code,
                     申赎费类型="赎回费",
                     费率类型="百分比",
+                    计费方式=billing_map.get("赎回费"),
                     snippet=tier_snip,
                     **tier,
                 )

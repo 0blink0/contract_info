@@ -155,6 +155,7 @@ def test_zhengren_narrative_subscription_fees():
     assert len(gte) == 1 and gte[0].费率 == "0"
     assert all(r.snippet for r in rows)
     assert redeem[0].snippet and "赎回费率" in redeem[0].snippet
+    assert all(r.计费方式 == "价内法" for r in redeem)
 
 
 def test_extract_document_sync_has_subscription_fees():

@@ -17,6 +17,7 @@ class SubscriptionBillingResponse(BaseModel):
 
     认购费计费方式: str | None = None
     申购费计费方式: str | None = None
+    赎回费计费方式: str | None = None
 
 
 def _normalize_method(raw: str | None) -> str | None:
@@ -40,6 +41,9 @@ def billing_map_from_response(parsed: SubscriptionBillingResponse) -> dict[str, 
         out["认购费"] = sub
     if pur:
         out["申购费"] = pur
+    redeem = _normalize_method(parsed.赎回费计费方式)
+    if redeem:
+        out["赎回费"] = redeem
     return out
 
 
@@ -52,7 +56,7 @@ async def extract_subscription_billing_llm(
 
     system = (
         "你是私募基金合同申赎费用计费方式判断助手。"
-        "根据合同片段判断认购费、申购费各自采用「价内法」还是「价外法」。"
+        "根据合同片段判断认购费、申购费、赎回费各自采用「价内法」还是「价外法」。"
         "价内法常见表述：申购（认）费用 = 缴款金额 × 费率 / (1+费率)，费用从缴款额中内扣。"
         "价外法常见表述：申购份额 = 申购金额 / (1+申购费率) / 价格，或净申购金额 = 申购金额/(1+费率)。"
         "认购费公式若在募集章、申购费在申赎章，需分别判断，二者可能不同。"
@@ -61,7 +65,7 @@ async def extract_subscription_billing_llm(
     user = (
         "【合同片段（含募集章认购、申赎章申购赎回）】\n"
         f"{text_for_llm_prompt(text)}\n\n"
-        '请输出 JSON：{"认购费计费方式":"","申购费计费方式":""}，'
+        '请输出 JSON：{"认购费计费方式":"","申购费计费方式":"","赎回费计费方式":""}，'
         "取值仅限「价内法」「价外法」或空字符串。"
     )
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
