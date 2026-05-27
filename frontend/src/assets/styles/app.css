@@ -1,0 +1,59 @@
+:root {
+  --app-bg: #f4f6fb;
+  --app-surface: #ffffff;
+  --app-aside-bg: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  --app-aside-text: #e2e8f0;
+  --app-aside-muted: #94a3b8;
+  --app-primary: #3b82f6;
+  --app-primary-soft: #eff6ff;
+  --app-border: #e2e8f0;
+  --app-radius: 12px;
+  --app-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Helvetica Neue',
+    Helvetica,
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  background: var(--app-bg);
+  color: #1e293b;
+}
+
+.page-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.page-desc {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.surface-card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  box-shadow: var(--app-shadow);
+  padding: 20px;
+}
+
+.surface-card + .surface-card {
+  margin-top: 16px;
+}

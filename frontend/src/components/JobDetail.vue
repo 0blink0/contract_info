@@ -417,34 +417,22 @@ async function onDownload(kind: DownloadKind, filename: string) {
 
 
       <ValidationPanel
-
+        :key="`validation-${jobId}`"
         :job-id="jobId"
-
         :visible="showPanels"
-
         :available="detail.validation_available"
-
         :fail-count="detail.validation_fail_count"
-
         :warn-count="detail.validation_warn_count"
-
       />
-
-
 
       <PathBPanel
-
+        :key="`pathb-${jobId}`"
         :job-id="jobId"
-
         :visible="showPanels"
-
         :available="detail.path_b_available"
-
       />
 
-
-
-      <ExportPreview :job-id="jobId" :status="detail.status" />
+      <ExportPreview :key="`preview-${jobId}`" :job-id="jobId" :status="detail.status" />
 
     </template>
 
@@ -455,74 +443,53 @@ async function onDownload(kind: DownloadKind, filename: string) {
 
 
 <style scoped>
-
 .job-detail {
-
-  padding: 8px 16px;
-
+  padding: 0;
 }
 
 .title-row {
-
   display: flex;
-
   align-items: flex-start;
-
   justify-content: space-between;
-
   gap: 12px;
-
-  margin-bottom: 8px;
-
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--app-border);
 }
 
 .filename {
-
-  font-size: 18px;
-
+  font-size: 20px;
+  font-weight: 600;
   margin: 0;
-
   word-break: break-all;
-
   flex: 1;
-
+  color: #0f172a;
 }
 
 .status-line {
-
-  margin: 0 0 12px;
-
-  color: #606266;
-
+  margin: 0 0 16px;
+  color: #64748b;
 }
 
 .raw-status {
-
   margin-left: 8px;
-
   font-size: 12px;
-
-  color: #909399;
-
+  color: #94a3b8;
 }
 
 .error-box {
-
   margin-bottom: 12px;
-
 }
 
 .actions {
-
   display: flex;
-
   flex-wrap: wrap;
-
   gap: 8px;
-
-  margin-bottom: 16px;
-
+  margin-bottom: 20px;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid var(--app-border);
 }
-
 </style>
 

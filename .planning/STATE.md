@@ -38,6 +38,7 @@ Phase 10 — 集成与文档 — **COMPLETE** (3/3 plans)
 - Phase 8–9：path B JSON + LLM 校验
 - Phase 10：前端五下载、path B/校验面板、文档
 - **子表导出修复（运营反馈）：** 申赎/分级母版样例清空、分级 A–D 检测与命名、分级 LLM merge；锁定期 merge、单 sheet 下载 — 详见 `v1.1-TABLE-EXPORT-FIXES.md`
+- **前端导航（运营反馈）：** 上传/列表/详情三页、侧栏菜单、切换文件时校验面板刷新 — 详见 `v1.1-FRONTEND-NAV.md`
 
 ## Next Actions
 

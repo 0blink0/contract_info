@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getValidation } from '@/api/client'
 import type { ValidationItem, ValidationResponse } from '@/api/types'
@@ -16,6 +16,21 @@ const loaded = ref(false)
 const loading = ref(false)
 const data = ref<ValidationResponse | null>(null)
 const showPass = ref(false)
+const activeNames = ref<string[]>([])
+
+function resetState() {
+  loaded.value = false
+  loading.value = false
+  data.value = null
+  activeNames.value = []
+}
+
+watch(
+  () => props.jobId,
+  () => {
+    resetState()
+  },
+)
 
 const displayItems = computed(() => {
   const items = data.value?.items ?? []
@@ -61,13 +76,14 @@ async function onExpand(names: string | string[]) {
 async function refresh() {
   if (!props.jobId) return
   loaded.value = false
+  data.value = null
   await load()
 }
 </script>
 
 <template>
   <div v-if="visible" class="validation-panel">
-    <el-collapse @change="onExpand">
+    <el-collapse v-model="activeNames" @change="onExpand">
       <el-collapse-item name="validation">
         <template #title>
           <span class="panel-title">摘录一致性校验（LLM）</span>

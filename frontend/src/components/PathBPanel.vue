@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getPathB } from '@/api/client'
 import type { PathBResponse } from '@/api/types'
@@ -13,6 +13,17 @@ const props = defineProps<{
 const loaded = ref(false)
 const loading = ref(false)
 const data = ref<PathBResponse | null>(null)
+const activeNames = ref<string[]>([])
+
+watch(
+  () => props.jobId,
+  () => {
+    loaded.value = false
+    loading.value = false
+    data.value = null
+    activeNames.value = []
+  },
+)
 
 const snippetRows = computed(() => {
   if (!data.value?.source_snippets) return []
@@ -79,7 +90,7 @@ function downloadJson() {
 
 <template>
   <div v-if="visible" class="path-b-panel">
-    <el-collapse @change="onExpand">
+    <el-collapse v-model="activeNames" @change="onExpand">
       <el-collapse-item name="pathb">
         <template #title>
           <span class="panel-title">路径 B（需 CRM 手录）</span>

@@ -2,7 +2,7 @@
 
 从私募基金合同 **docx** 解析结构化 JSON、抽取字段并生成可导入 Excel。
 
-**v1.1（当前）**：五表 Excel 导出、路径 B JSON（CRM 手录辅助）、LLM 摘录一致性校验、Web 端完整预览与下载。
+**v1.1（当前）**：五表 Excel 导出、路径 B JSON（CRM 手录辅助）、LLM 摘录一致性校验、Web 端（上传/列表/详情导航、预览与下载）。
 
 **v1.0**：解析 → 抽取 → xlsx → HTTP API → Web 界面（Phase 1–5）。
 
@@ -197,7 +197,7 @@ curl -s http://localhost:8000/api/v1/jobs/{job_id}/validation -H "X-API-Key: YOU
 
 CLI（`parse` / `extract` / `export`）仍可用。
 
-## 前端（Phase 5）
+## 前端（v1.1）
 
 需同时启动 **后端 API** 与 **Vite 开发服务器**：
 
@@ -215,9 +215,17 @@ npm install
 npm run dev
 ```
 
-浏览器打开 **http://localhost:5173**：上传 docx →「开始处理」→ 完成后 **下载五个 Excel**；`extracted` 起可展开 **摘录校验**、**路径 B（CRM 手录）**；**导出预览** 含五 Tab（含申赎费率、分级份额）。
+浏览器打开 **http://localhost:5173**：
+
+| 菜单 | 说明 |
+|------|------|
+| **文件上传解析** | 上传 docx →「开始处理」→ 查看进度 → 完成后「查看结果」 |
+| **文件列表** | 历史任务，进入详情或删除 |
+| **文件详情** | 五表下载、摘录校验、路径 B、导出预览（五 Tab） |
 
 **子表说明（v1.1）：** 申赎/分级导出会清空母版样例行，仅写入当前合同抽取结果；分级产品按合同「份额分类」产出 A–D 行（基金/份额运营代码常需 CRM 补录）。详见 `.planning/v1.1-TABLE-EXPORT-FIXES.md`。
+
+**前端说明：** 侧栏三页导航与切换任务时校验刷新，详见 `.planning/v1.1-FRONTEND-NAV.md`。
 
 **LLM：** 生产环境请在根目录 `.env` 配置 `OPENAI_API_KEY`，否则仅规则抽取且无 LLM 校验明细。
 

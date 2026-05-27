@@ -133,6 +133,14 @@ Plans:
 - [x] `merge_share_classes`：LLM 不覆盖规则层完整 A–D 行
 - [x] 锁定期 normalize + merge（`7c20da8`）；下载单 sheet（`e9b1790`）
 
+### v1.1 前端导航（Phase 10 后，同一里程碑）
+
+**Doc:** [v1.1-FRONTEND-NAV.md](v1.1-FRONTEND-NAV.md)
+
+- [x] Vue Router：上传解析 / 文件列表 / 文件详情
+- [x] 切换任务时校验、Path B 面板随 job 刷新
+- [x] 侧栏导航与页面样式优化
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
