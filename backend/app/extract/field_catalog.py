@@ -48,6 +48,11 @@ SKIP_SHARE_FIELDS: frozenset[str] = frozenset(
     {"基金代码", "实际成立日期", "投资起始日", "分级份额代码"}
 )
 
+# 运营表固定值：不从合同抽取、不参与摘录 LLM 校验
+FIXED_PRODUCT_VALUES: dict[str, str] = {
+    "基金类型": "私募证券投资基金",
+}
+
 # CRM/导出真正必填；其余产品要素列合同无则留空
 CORE_REQUIRED_PRODUCT: frozenset[str] = frozenset({"基金全称", "管理人"})
 
@@ -163,7 +168,6 @@ CHAPTER_FIELDS: dict[str, list[str]] = {
         "基金面值",
         "币种",
         "产品类型（协会）",
-        "基金类型",
         "基金组织形式",
         "合伙人类型",
         "管理类型",

@@ -65,8 +65,12 @@ def is_graded_contract(
     struct_type = _field_text(product_elements.get("结构类型"))
     if struct_type and "母子" in struct_type:
         return True
-    sub = (windows or {}).get("subscription", "")
-    if "份额分类" in sub:
+    win = windows or {}
+    basic = win.get("basic", "")
+    sub = win.get("subscription", "")
+    if "份额分类" in basic or "份额分类" in sub:
+        return True
+    if len(_share_letters_in_text(basic)) >= 2:
         return True
     return len(_share_letters_in_text(sub)) >= 2
 

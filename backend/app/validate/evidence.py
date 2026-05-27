@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.app.extract.field_catalog import FIXED_PRODUCT_VALUES
 from backend.app.validate.schemas import ValidationCandidate
 
 MIN_SNIPPET_LEN = 20
@@ -110,6 +111,8 @@ def _collect_product_elements(
         return
     for name, raw in elements.items():
         if not isinstance(raw, dict):
+            continue
+        if name in FIXED_PRODUCT_VALUES:
             continue
         value = _stringify(raw.get("value"))
         snippet = raw.get("snippet")

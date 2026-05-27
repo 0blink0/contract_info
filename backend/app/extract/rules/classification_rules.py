@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from backend.app.extract.rules.share_rules import is_graded_contract
+from backend.app.extract.rules.share_rules import _share_letters_in_text, is_graded_contract
 from backend.app.extract.schemas import FieldValue, ShareClassRow
 from backend.app.extract.text_limits import excerpt_for_display
 
@@ -26,8 +26,6 @@ _RE_MGMT_TYPE = re.compile(
     r"券商委外合作\(信托通道\)|其他)",
     re.IGNORECASE,
 )
-_RE_FUND_SECURITIES = re.compile(r"私募证券投资基金")
-_RE_FUND_EQUITY = re.compile(r"股权投资基金")
 _RE_DEFS_SECTION = re.compile(r"^二、释义\s*$|^释义\s*$")
 _RE_BASIC_SECTION = re.compile(r"基金的基本情况|四、基金的基本情况")
 
@@ -73,21 +71,43 @@ def _field_text(product_elements: dict[str, Any], key: str) -> str | None:
     return str(val).strip()
 
 
+def _graded_snippet_from_basic(windows: dict[str, str]) -> str | None:
+    basic = (windows.get("basic") or "").strip()
+    if not basic:
+        return None
+    if "份额分类" in basic or len(_share_letters_in_text(basic)) >= 2:
+        return excerpt_for_display(basic)
+    return None
+
+
 def infer_share_structure(
     share_classes: list[ShareClassRow],
     windows: dict[str, str],
 ) -> FieldValue | None:
-    """分级份额子表能产出行 → 分级结构；申购章无分级迹象 → 不分级。"""
+    """基本情况份额分类表或 A–D 类份额 → 分级结构；否则不分级。"""
     if share_classes:
-        sub = windows.get("subscription", "")
-        snip = excerpt_for_display(sub) if "份额分类" in sub or "类份额" in sub else ""
+        snip = _graded_snippet_from_basic(windows)
+        if not snip:
+            sub = windows.get("subscription", "")
+            snip = (
+                excerpt_for_display(sub)
+                if "份额分类" in sub or "类份额" in sub
+                else ""
+            )
         if not snip and share_classes[0].分级份额名称:
             snip = f"分级份额：{share_classes[0].分级份额名称}"
         return _fv("分级结构", snippet=snip or "份额分类/A–D类份额")
+    basic_snip = _graded_snippet_from_basic(windows)
+    if basic_snip:
+        return _fv("分级结构", snippet=basic_snip)
     if not is_graded_contract({}, windows):
         return _fv(
             "不分级",
-            snippet=excerpt_for_display(windows.get("subscription", "") or "无份额分类"),
+            snippet=excerpt_for_display(
+                windows.get("basic", "")
+                or windows.get("subscription", "")
+                or "无份额分类"
+            ),
         )
     return None
 
@@ -102,30 +122,6 @@ def extract_classification_rules(
     cover = windows.get("cover_parties", "")
     defs = _definitions_text(document, windows)
     search = "\n".join(filter(None, (basic, defs, cover)))
-
-    title = str((document.get("metadata") or {}).get("title") or "").strip()
-    if _RE_FUND_SECURITIES.search(title):
-        out["基金类型"] = _fv("私募证券投资基金", snippet=title)
-    elif _RE_FUND_EQUITY.search(title):
-        out["基金类型"] = _fv("股权投资基金", snippet=title)
-
-    if "基金类型" not in out:
-        for block in document.get("blocks") or []:
-            text = str(block.get("text") or "")
-            if "4、本基金：" in text and _RE_FUND_SECURITIES.search(text):
-                out["基金类型"] = _fv(
-                    "私募证券投资基金", snippet=excerpt_for_display(text)
-                )
-                break
-            if _RE_FUND_SECURITIES.search(text) and "是指" in text:
-                out["基金类型"] = _fv(
-                    "私募证券投资基金", snippet=excerpt_for_display(text)
-                )
-                break
-        if "基金类型" not in out and _RE_FUND_SECURITIES.search(defs):
-            m = re.search(r"[^\n]{0,40}私募证券投资基金[^\n]{0,80}", defs)
-            snip = m.group(0) if m else "私募证券投资基金"
-            out["基金类型"] = _fv("私募证券投资基金", snippet=snip)
 
     m = _RE_ASSOC_TYPE.search(search)
     if m:

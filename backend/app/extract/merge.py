@@ -30,7 +30,7 @@ _SUBSCRIPTION_RULE_FIELDS = frozenset(
     {"是否封闭", "封闭期", "是否支持金额赎回", "开放日规则", "锁定期"}
 )
 _CLASSIFICATION_RULE_FIELDS = frozenset(
-    {"份额结构", "基金类型", "产品类型（协会）", "管理类型"}
+    {"份额结构", "产品类型（协会）", "管理类型"}
 )
 _LINE_FIELDS = frozenset({"预警线", "止损线"})
 _MIS_EXTRACT_MARKERS = (

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from backend.app.extract.rules.share_rules import _share_letters_in_text
 from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
 from backend.app.validate.schemas import ValidationItem
 
@@ -41,6 +42,18 @@ def deterministic_validation_items(
         return {}
 
     out: dict[str, ValidationItem] = {}
+
+    structure_val = _field_value(elements, "份额结构")
+    structure_snip = _field_snippet(elements, "份额结构")
+    if structure_val == "分级结构" and structure_snip:
+        if "份额分类" in structure_snip or len(_share_letters_in_text(structure_snip)) >= 2:
+            out["份额结构"] = ValidationItem(
+                field="份额结构",
+                status="pass",
+                value=structure_val,
+                reason="基本情况或份额分类表列明 A–D 类份额，与「分级结构」一致。",
+                suggestion=None,
+            )
 
     warn_snip = _field_snippet(elements, "预警线")
     stop_snip = _field_snippet(elements, "止损线")

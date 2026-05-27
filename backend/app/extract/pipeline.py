@@ -8,7 +8,8 @@ from typing import Any, cast
 
 
 
-from backend.app.extract.field_catalog import LLM_WINDOW_KEYS
+from backend.app.extract.field_catalog import FIXED_PRODUCT_VALUES, LLM_WINDOW_KEYS
+from backend.app.extract.schemas import FieldValue
 
 from backend.app.extract.llm.chapter_extract import extract_chapter_fields
 
@@ -309,6 +310,9 @@ async def extract_document(
             merge_field(pe.get("份额结构"), structure_fv, field_name="份额结构")
             or structure_fv
         )
+
+    for fname, fval in FIXED_PRODUCT_VALUES.items():
+        pe[fname] = FieldValue(value=fval, confidence="high", source="fixed")
 
     warnings.extend(validate_enums(result))
 
