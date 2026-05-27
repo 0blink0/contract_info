@@ -17,6 +17,11 @@ WINDOW_KEYS = (
 
 MAX_WINDOW_CHARS = 12000
 
+_INVESTOR_COMMITMENT = re.compile(
+    r"合格投资者|投资者承诺|适当性管理办法|风险承受能力|"
+    r"私募基金投资者承诺|本人/本单位承诺",
+)
+
 _SECTION_PATTERNS: dict[str, re.Pattern[str]] = {
     "fees": re.compile(r"费用与税收|费用|税收|管理费|托管费|基金服务费|业绩报酬|计提"),
     "subscription": re.compile(
@@ -47,10 +52,78 @@ def _section_title_map(document: dict[str, Any]) -> dict[str, str]:
 
 
 def _classify_section(title: str) -> str:
+    t = title.strip()
+    if _INVESTOR_COMMITMENT.search(t):
+        return "risk"
+    if t in ("基金的投资",) or re.match(r"^基金的投资\s*\d*$", t):
+        return "investment"
     for key, pattern in _SECTION_PATTERNS.items():
-        if pattern.search(title):
+        if pattern.search(t):
             return key
     return "cover_parties"
+
+
+_INVESTMENT_CHAPTER_START = re.compile(
+    r"^基金的投资\s*$|（[二三四五]）投资(目标|范围|策略|限制)|"
+    r"（八）业绩比较基准|（十）风险收益特征|（十一）.*预警|（十二）投资经理|"
+    r"（五）投资限制|二、基金的投资",
+)
+
+
+def _is_outline_toc_line(text: str) -> bool:
+    t = text.strip()
+    return len(t) < 120 and bool(re.search(r"\t\d{1,4}\s*$", t))
+_INVESTMENT_CHAPTER_END = re.compile(
+    r"^七、|^（七）|基金的申购、赎回与转让|基金的申购、赎回",
+)
+
+
+def _rebuild_investment_window(
+    blocks: list[dict[str, Any]],
+    title_map: dict[str, str],
+) -> str:
+    """Full 基金的投资 chapter from start marker through 申购赎回前（含后半段业绩基准/经理等）。"""
+    lines: list[str] = []
+    active = False
+    for block in blocks:
+        text = _block_text(block).strip()
+        if not text:
+            continue
+        title = title_map.get(block.get("section_id") or "", "").strip()
+        head = f"{title}\n{text}" if title else text
+        if not active:
+            if _is_outline_toc_line(text):
+                continue
+            if title in ("基金的投资",) or _INVESTMENT_CHAPTER_START.search(
+                head[:200]
+            ):
+                active = True
+            else:
+                continue
+        if active and _INVESTMENT_CHAPTER_END.search(text[:80]):
+            break
+        if _INVESTOR_COMMITMENT.search(text[:400]):
+            continue
+        lines.append(text)
+    return "\n".join(lines)
+
+
+def _append_missing_sections(target: str, source: str, markers: tuple[str, ...]) -> str:
+    if not source.strip():
+        return target
+    parts = [target] if target.strip() else []
+    for marker in markers:
+        if marker in target:
+            continue
+        if marker not in source:
+            continue
+        pos = source.find(marker)
+        tail = source[pos : pos + 2500]
+        next_m = _INVESTMENT_CHAPTER_END.search(tail[80:])
+        chunk = tail[: next_m.start() + 80] if next_m else tail
+        if chunk.strip():
+            parts.append(chunk.strip())
+    return "\n\n".join(parts)
 
 
 def _block_text(block: dict[str, Any]) -> str:
@@ -90,4 +163,25 @@ def build_section_windows(document: dict[str, Any]) -> tuple[dict[str, str], lis
             joined = joined[:MAX_WINDOW_CHARS]
             truncated.append(key)
         result[key] = joined
+
+    investment_slice = _rebuild_investment_window(blocks, title_map)
+    risk_text = result.get("risk", "")
+    investment_slice = _append_missing_sections(
+        investment_slice,
+        risk_text,
+        (
+            "（十）风险收益特征",
+            "（十一）",
+            "基金的预警与止损",
+            "（八）业绩比较基准",
+            "业绩比较基准",
+            "（十二）投资经理",
+        ),
+    )
+    if len(investment_slice) > 200:
+        if len(investment_slice) > MAX_WINDOW_CHARS:
+            investment_slice = investment_slice[:MAX_WINDOW_CHARS]
+            truncated.append("investment")
+        result["investment"] = investment_slice
+
     return result, truncated

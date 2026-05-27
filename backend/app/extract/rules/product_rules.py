@@ -65,6 +65,11 @@ _RE_NO_STOP_LINES = re.compile(
     re.IGNORECASE,
 )
 _RE_NOT_CLOSED = re.compile(r"不封闭|不存在封闭期|无封闭期", re.IGNORECASE)
+_RE_FUND_CLOSED_NONE = re.compile(r"本基金的封闭期[：:\s]*无", re.IGNORECASE)
+_RE_REDEEM_BY_SHARE = re.compile(
+    r"基金赎回采用份额申请|赎回采用份额申请", re.IGNORECASE
+)
+_RE_REDEEM_BY_AMOUNT = re.compile(r"支持[^。\n]{0,20}金额赎回", re.IGNORECASE)
 _RE_FIRST_SUB_WAN = re.compile(
     r"首次(?:净)?申购[^。\n]{0,48}?应不低于\s*(\d+(?:\.\d+)?)\s*万元",
     re.IGNORECASE,
@@ -138,6 +143,19 @@ _RE_INV_STRATEGY = re.compile(
 )
 _RE_INV_LIMITS = re.compile(
     r"（五）投资限制\s*\n?\s*(.*?)(?=（六）|本基金为|$)", re.DOTALL
+)
+_RE_BENCHMARK_SECTION = re.compile(
+    r"（八）业绩比较基准[\s\S]{0,600}?(本基金[^。]{4,200}。)", re.DOTALL
+)
+_RE_BENCHMARK_LINE = re.compile(
+    r"业绩比较基准[：:\s]*([^。\n]{4,120})", re.IGNORECASE
+)
+_RE_RISK_RETURN_SECTION = re.compile(
+    r"（十）风险收益特征[\s\S]{0,500}?(本基金[^。]{10,300}。)", re.DOTALL
+)
+_RE_MANAGER_SECTION = re.compile(
+    r"（十二）投资经理[\s\S]{0,2500}?(?:1、)?投资经理简介",
+    re.DOTALL,
 )
 
 
@@ -216,6 +234,8 @@ def _find_party(
 
 
 def _extract_investment_chapter(inv_text: str) -> dict[str, FieldValue]:
+    from backend.app.extract.field_snippets import resolve_field_snippet
+
     out: dict[str, FieldValue] = {}
     for label, pattern in (
         ("投资目标", _RE_INV_OBJECTIVE),
@@ -228,7 +248,26 @@ def _extract_investment_chapter(inv_text: str) -> dict[str, FieldValue]:
             continue
         body = re.sub(r"\s+", " ", m.group(1).strip())
         if len(body) >= 8:
-            out[label] = _fv(body[:4000], snippet=body[:500])
+            snip = resolve_field_snippet(label, inv_text, body[:80]) or body[:500]
+            out[label] = _fv(body[:4000], snippet=snip)
+
+    m = _RE_BENCHMARK_SECTION.search(inv_text) or _RE_BENCHMARK_LINE.search(
+        inv_text
+    )
+    if m:
+        raw = m.group(1).strip()
+        snip = m.group(0)[:500]
+        if re.search(r"不设|无业绩|不存在业绩", raw):
+            out["业绩比较基准"] = _fv("无", snippet=snip)
+        elif len(raw) >= 2:
+            out["业绩比较基准"] = _fv(raw, snippet=snip)
+
+    m = _RE_RISK_RETURN_SECTION.search(inv_text)
+    if m:
+        body = re.sub(r"\s+", " ", m.group(1).strip())
+        snip = resolve_field_snippet("风险收益特征", inv_text, body[:80]) or body[:500]
+        out["风险收益特征"] = _fv(body[:4000], snippet=snip)
+
     return out
 
 
@@ -382,10 +421,21 @@ def extract_product_rules(
         unit = m.group(2) or ""
         out["最低持有数量"] = _fv(f"{m.group(1)}{unit}", snippet=m.group(0))
 
-    if not _RE_NOT_CLOSED.search(search_sub):
+    closed_none = _RE_FUND_CLOSED_NONE.search(search_sub)
+    if closed_none:
+        out["是否封闭"] = _fv("不封闭", snippet=closed_none.group(0))
+        out["封闭期"] = _fv("无", snippet=closed_none.group(0))
+    elif not _RE_NOT_CLOSED.search(search_sub):
         m = _RE_CLOSED_PERIOD.search(search_sub)
         if m and "锁定期" not in m.group(1) and "最短持有" not in m.group(1):
             out["封闭期"] = _fv(m.group(1).strip(), snippet=m.group(0))
+
+    if _RE_REDEEM_BY_SHARE.search(search_sub):
+        m = _RE_REDEEM_BY_SHARE.search(search_sub)
+        out["是否支持金额赎回"] = _fv("不支持", snippet=m.group(0))
+    elif _RE_REDEEM_BY_AMOUNT.search(search_sub):
+        m = _RE_REDEEM_BY_AMOUNT.search(search_sub)
+        out["是否支持金额赎回"] = _fv("支持", snippet=m.group(0))
 
     stop_search = inv_text + risk_text + full_text[:80000]
     no_stop = _RE_NO_STOP_LINES.search(stop_search)
@@ -421,18 +471,33 @@ def extract_product_rules(
     if m:
         out["风险等级"] = _fv(m.group(1).upper(), snippet=m.group(0))
 
+    inv_combined = "\n".join(
+        filter(
+            None,
+            (
+                inv_text,
+                risk_text,
+                windows.get("basic", "")[:8000],
+            ),
+        )
+    )
+    out.update(_extract_investment_chapter(inv_combined))
+    if "投资策略" not in out or "投资范围" not in out:
+        out.update(_extract_investment_chapter(full_text))
+
+    from backend.app.extract.field_snippets import resolve_field_snippet
+
     for pattern in (_RE_INV_MANAGER, _RE_INV_MANAGER_ALT):
-        m = pattern.search(inv_text + "\n" + full_text[:100000])
+        m = pattern.search(inv_combined + "\n" + full_text[:100000])
         if m:
             names = m.group(1).strip().strip("：:")
             if names and "可" not in names[:3] and "变更" not in names:
-                out["投资经理"] = _fv(names, snippet=m.group(0))
-                out["投资经理信息"] = _fv(names, snippet=m.group(0))
+                snip = resolve_field_snippet("投资经理", inv_combined, names) or m.group(
+                    0
+                )
+                out["投资经理"] = _fv(names, snippet=snip)
+                out["投资经理信息"] = _fv(names, snippet=snip)
                 break
-
-    out.update(_extract_investment_chapter(inv_text))
-    if "投资策略" not in out or "投资范围" not in out:
-        out.update(_extract_investment_chapter(full_text))
 
     basic_text = windows.get("basic", "") + "\n" + cover
     m = _RE_FACE_VALUE.search(basic_text)

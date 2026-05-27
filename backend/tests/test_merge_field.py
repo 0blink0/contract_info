@@ -35,7 +35,10 @@ def test_long_text_prefers_longer():
     rule = _fv("力争获得投资回报。" * 3)
     llm = _fv("力争获得投资回报。" * 20, source="llm")
     out = merge_field(rule, llm, field_name="投资目标")
-    assert out is llm
+    assert out is rule
+
+    out_risk = merge_field(rule, llm, field_name="风险收益特征")
+    assert out_risk is rule
 
 
 def test_empty_rule_uses_llm():

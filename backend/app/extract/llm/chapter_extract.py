@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, create_model
 
 from backend.app.config import get_settings
 from backend.app.extract.field_catalog import CHAPTER_FIELDS
+from backend.app.extract.field_snippets import resolve_field_snippet
 from backend.app.extract.llm.chapter_prompts import build_messages
 from backend.app.extract.schemas import ExtractionWarning, FieldValue
 from backend.app.llm.client import LlmClient
@@ -45,11 +46,12 @@ async def extract_chapter_fields(
             for key, val in parsed.model_dump().items():
                 if val is None or str(val).strip() == "":
                     continue
+                value = str(val).strip()
                 out[key] = FieldValue(
-                    value=str(val).strip(),
+                    value=value,
                     confidence="medium",
                     source="llm",
-                    snippet=text[:300],
+                    snippet=resolve_field_snippet(key, text, value),
                 )
             return out, []
         except Exception as exc:  # noqa: BLE001

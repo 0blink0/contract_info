@@ -93,6 +93,42 @@ def deterministic_validation_items(
                 suggestion=None,
             )
 
+    closed_val = _field_value(elements, "是否封闭")
+    closed_snip = _field_snippet(elements, "是否封闭")
+    if closed_val == "不封闭" and re.search(r"本基金的封闭期[：:\s]*无", closed_snip):
+        out["是否封闭"] = ValidationItem(
+            field="是否封闭",
+            status="pass",
+            value=closed_val,
+            reason="申购赎回章节写明「本基金的封闭期：无」，与不封闭一致。",
+            suggestion=None,
+        )
+
+    redeem_val = _field_value(elements, "是否支持金额赎回")
+    redeem_snip = _field_snippet(elements, "是否支持金额赎回")
+    if redeem_val == "不支持" and re.search(
+        r"基金赎回采用份额申请|赎回采用份额申请", redeem_snip
+    ):
+        out["是否支持金额赎回"] = ValidationItem(
+            field="是否支持金额赎回",
+            status="pass",
+            value=redeem_val,
+            reason="摘录写明赎回采用份额申请，与「不支持」金额赎回一致。",
+            suggestion=None,
+        )
+
+    limits_val = _field_value(elements, "投资限制")
+    limits_snip = _field_snippet(elements, "投资限制")
+    if limits_val and re.search(r"（五）投资限制|投资限制", limits_snip):
+        if limits_val[:20] in limits_snip or limits_snip.find("基金总资产") >= 0:
+            out["投资限制"] = ValidationItem(
+                field="投资限制",
+                status="pass",
+                value=limits_val[:80] + ("…" if len(limits_val) > 80 else ""),
+                reason="摘录来自投资章节「投资限制」条款，与抽取值一致。",
+                suggestion=None,
+            )
+
     add_val = _field_value(elements, "追加起点")
     add_snip = _field_snippet(elements, "追加起点")
     step_val = _field_value(elements, "最小变动单位")
