@@ -14,6 +14,7 @@ from backend.app.api.schemas import (
     JobListItem,
     JobListResponse,
     JobPreviewResponse,
+    CrmHandoffItem,
     PathBResponse,
     ProductPreviewItem,
     ValidationItemResponse,
@@ -25,6 +26,7 @@ from backend.app.services.preview_service import PREVIEW_STATUSES
 from backend.app.services.delete_service import JobDeleteBusyError, delete_job_record
 from backend.app.services.preview_service import get_job_preview
 from backend.app.config import PROJECT_ROOT, exports_dir
+from backend.app.extract.path_b_crm import build_crm_handoff
 from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
 from backend.app.services.pipeline_service import (
@@ -296,9 +298,16 @@ def get_path_b(job_id: uuid.UUID) -> PathBResponse:
     raw = getattr(record, "path_b_json", None)
     if not raw or not isinstance(raw, dict):
         raise HTTPException(status_code=404, detail="Path B JSON not available")
+    perf = raw.get("performance_fee") or {}
+    fees_ctx = str(perf.get("summary") or "")
+    for t in perf.get("tiers") or []:
+        if isinstance(t, dict) and t.get("description"):
+            fees_ctx += " " + str(t["description"])
+    handoff = build_crm_handoff(raw, fees_context=fees_ctx)
     return PathBResponse(
         job_id=record.id,
-        performance_fee=raw.get("performance_fee") or {},
+        performance_fee=perf,
         open_day=raw.get("open_day") or {},
         source_snippets=raw.get("source_snippets") or {},
+        crm_handoff=[CrmHandoffItem(**item) for item in handoff],
     )

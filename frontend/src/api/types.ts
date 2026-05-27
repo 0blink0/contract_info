@@ -54,11 +54,19 @@ export interface JobPreview {
   subscription_rows: Record<string, string | null>[]
 }
 
+export interface CrmHandoffItem {
+  crm_field: string
+  suggested_value?: string | null
+  snippet?: string | null
+  coverage: string
+}
+
 export interface PathBResponse {
   job_id: string
   performance_fee: Record<string, unknown>
   open_day: Record<string, unknown>
   source_snippets: Record<string, string>
+  crm_handoff: CrmHandoffItem[]
 }
 
 export interface ValidationItem {

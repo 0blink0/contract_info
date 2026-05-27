@@ -16,6 +16,13 @@ _RE_OPEN_BUSINESS = re.compile(
     r"(申购|赎回)[^。\n]{0,120}(开放日|申请日|确认)",
 )
 _RE_TEMP_OPEN = re.compile(r"临时开放[^。\n]{0,400}")
+_RE_SHARE_NAV_METHOD = re.compile(r"份额净值[^。\n]{0,120}")
+_TIMING_CHECKS: list[tuple[str, re.Pattern[str]]] = [
+    ("固定时点", re.compile(r"开放日|估值日|计提日|固定.*?开放")),
+    ("分红", re.compile(r"分红|收益分配")),
+    ("赎回", re.compile(r"赎回")),
+    ("基金清算", re.compile(r"清算|合同终止|基金终止|解散")),
+]
 
 
 def _field_text(fv: FieldValue | dict | None) -> str | None:
@@ -86,6 +93,52 @@ def _parse_performance_tiers_from_table(document: dict[str, Any]) -> list[Perfor
         if tiers:
             return tiers
     return tiers
+
+
+def _extract_hurdle_nav(
+    fees_text: str, tiers: list[PerformanceFeeTier]
+) -> FieldValue | None:
+    for t in tiers:
+        desc = t.description or ""
+        if "正收益" in desc:
+            return _fv(
+                "有收益门槛（正收益基础）",
+                snippet=desc,
+            )
+    if re.search(r"无门槛|不设门槛", fees_text):
+        m = re.search(r"无门槛|不设门槛", fees_text)
+        return _fv("无门槛", snippet=m.group(0) if m else "无门槛")
+    if re.search(r"初始净值|初始份额净值", fees_text):
+        m = re.search(r"初始净值|初始份额净值", fees_text)
+        return _fv("初始净值", snippet=m.group(0) if m else "初始净值")
+    return None
+
+
+def _extract_extraction_timing(
+    fees_text: str, *, has_fixed_schedule: bool
+) -> FieldValue | None:
+    hits: list[str] = []
+    snips: list[str] = []
+    if has_fixed_schedule:
+        hits.append("固定时点")
+    for label, pat in _TIMING_CHECKS:
+        m = pat.search(fees_text)
+        if m and label not in hits:
+            hits.append(label)
+            snips.append(m.group(0))
+    if not hits:
+        return None
+    return _fv("、".join(hits), snippet="；".join(snips)[:400] or "、".join(hits))
+
+
+def _extract_extraction_method(fees_text: str) -> FieldValue | None:
+    m = _RE_PERF_METHOD.search(fees_text)
+    if m:
+        return _fv(m.group(0).strip()[:200], snippet=m.group(0).strip())
+    m = _RE_SHARE_NAV_METHOD.search(fees_text)
+    if m:
+        return _fv(m.group(0).strip()[:200], snippet=m.group(0).strip())
+    return None
 
 
 def _performance_summary_from_fees(fees_text: str) -> FieldValue | None:
@@ -165,12 +218,9 @@ def extract_path_b_rules(
                 )
             )
     else:
-        m_method = _RE_PERF_METHOD.search(fees_text)
-        if m_method:
-            perf_fields["extraction_method"] = _fv(
-                m_method.group(0).strip()[:200],
-                snippet=m_method.group(0).strip(),
-            )
+        method = _extract_extraction_method(fees_text)
+        if method:
+            perf_fields["extraction_method"] = method
         if "超额" in fees_text or any("超额" in (t.description or "") for t in tiers):
             perf_fields["benchmark_type"] = _fv(
                 "超额收益",
@@ -183,8 +233,15 @@ def extract_path_b_rules(
                     "超额收益",
                 ),
             )
+        hurdle = _extract_hurdle_nav(fees_text, tiers)
+        if hurdle:
+            perf_fields["hurdle_nav"] = hurdle
 
     open_fields = _extract_open_day_fields(document, windows, product_elements)
+    has_schedule = bool(_field_text(open_fields.get("fixed_schedule")))
+    timing = _extract_extraction_timing(fees_text, has_fixed_schedule=has_schedule)
+    if timing and tiers:
+        perf_fields["extraction_timing"] = timing
     if not _field_text(open_fields.get("fixed_schedule")):
         warnings.append(
             ExtractionWarning(

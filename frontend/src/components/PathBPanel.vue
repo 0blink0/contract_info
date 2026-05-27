@@ -14,6 +14,7 @@ const loaded = ref(false)
 const loading = ref(false)
 const data = ref<PathBResponse | null>(null)
 const activeNames = ref<string[]>([])
+const showJson = ref(false)
 
 watch(
   () => props.jobId,
@@ -22,25 +23,31 @@ watch(
     loading.value = false
     data.value = null
     activeNames.value = []
+    showJson.value = false
   },
 )
 
-const snippetRows = computed(() => {
-  if (!data.value?.source_snippets) return []
-  return Object.entries(data.value.source_snippets).map(([path, text]) => ({
-    path,
-    text,
-  }))
-})
+const crmRows = computed(() => data.value?.crm_handoff ?? [])
+
+const coverageLabel = (c: string) => {
+  if (c === 'full') return '可直接填'
+  if (c === 'partial') return '建议核对'
+  return '需手录'
+}
+
+const coverageTagType = (c: string) => {
+  if (c === 'full') return 'success'
+  if (c === 'partial') return 'warning'
+  return 'info'
+}
+
+const filledCount = computed(() =>
+  crmRows.value.filter((r) => r.suggested_value && r.coverage !== 'missing').length,
+)
 
 const jsonText = computed(() =>
   data.value ? JSON.stringify(data.value, null, 2) : '',
 )
-
-const tierRows = computed(() => {
-  const tiers = data.value?.performance_fee?.tiers
-  return Array.isArray(tiers) ? tiers : []
-})
 
 async function load() {
   if (!props.jobId || loaded.value) return
@@ -102,35 +109,44 @@ function downloadJson() {
         <template v-else>
           <div class="actions">
             <el-button size="small" :loading="loading" @click="refresh">刷新</el-button>
+            <el-button size="small" :disabled="!data" @click="showJson = !showJson">
+              {{ showJson ? '隐藏 JSON' : '查看 JSON' }}
+            </el-button>
             <el-button size="small" :disabled="!data" @click="copyJson">复制 JSON</el-button>
             <el-button size="small" :disabled="!data" @click="downloadJson">下载 JSON</el-button>
           </div>
           <el-skeleton v-if="loading && !data" :rows="4" animated />
           <template v-else-if="data">
-            <p v-if="data.open_day?.fixed_schedule" class="field-line">
-              <strong>固定开放日：</strong>{{ data.open_day.fixed_schedule }}
+            <p class="summary-line">
+              CRM 业绩报酬设置：已建议
+              <strong>{{ filledCount }}</strong>
+              / 6 项（对照图二「业绩报酬提取设置」手录）
             </p>
             <el-table
-              v-if="tierRows.length"
-              :data="tierRows"
+              :data="crmRows"
               size="small"
               stripe
               border
               class="section-table"
-              empty-text="无业绩报酬档位"
+              empty-text="暂无 CRM 字段建议"
             >
-              <el-table-column prop="share_class" label="份额" width="80" />
-              <el-table-column prop="description" label="说明" min-width="200" show-overflow-tooltip />
-              <el-table-column prop="ratio_pct" label="比例%" width="90" />
+              <el-table-column prop="crm_field" label="CRM 字段" width="160" />
+              <el-table-column label="建议填写" min-width="200">
+                <template #default="{ row }">
+                  <span v-if="row.suggested_value">{{ row.suggested_value }}</span>
+                  <el-text v-else type="info">— 未从合同推断 —</el-text>
+                </template>
+              </el-table-column>
+              <el-table-column label="置信" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="coverageTagType(row.coverage)" size="small">
+                    {{ coverageLabel(row.coverage) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="snippet" label="合同摘录" min-width="280" show-overflow-tooltip />
             </el-table>
-            <div v-if="snippetRows.length" class="snippets">
-              <div class="sub-title">合同摘录（source_snippets）</div>
-              <el-table :data="snippetRows" size="small" stripe border max-height="200">
-                <el-table-column prop="path" label="字段路径" width="200" show-overflow-tooltip />
-                <el-table-column prop="text" label="摘录" min-width="240" show-overflow-tooltip />
-              </el-table>
-            </div>
-            <pre class="json-block">{{ jsonText }}</pre>
+            <pre v-if="showJson" class="json-block">{{ jsonText }}</pre>
           </template>
         </template>
       </el-collapse-item>
@@ -158,14 +174,10 @@ function downloadJson() {
 .section-table {
   margin-bottom: 12px;
 }
-.sub-title {
+.summary-line {
+  margin: 0 0 10px;
   font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.field-line {
-  margin: 0 0 8px;
-  font-size: 13px;
+  color: #606266;
 }
 .json-block {
   margin-top: 12px;

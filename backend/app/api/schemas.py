@@ -60,11 +60,19 @@ class JobPreviewResponse(BaseModel):
     subscription_rows: list[dict[str, str | None]] = Field(default_factory=list)
 
 
+class CrmHandoffItem(BaseModel):
+    crm_field: str
+    suggested_value: str | None = None
+    snippet: str | None = None
+    coverage: str = "missing"
+
+
 class PathBResponse(BaseModel):
     job_id: uuid.UUID
     performance_fee: dict[str, Any] = Field(default_factory=dict)
     open_day: dict[str, Any] = Field(default_factory=dict)
     source_snippets: dict[str, str] = Field(default_factory=dict)
+    crm_handoff: list[CrmHandoffItem] = Field(default_factory=list)
 
 
 class ValidationItemResponse(BaseModel):
