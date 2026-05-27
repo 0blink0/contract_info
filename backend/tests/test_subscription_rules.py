@@ -113,6 +113,23 @@ def test_redeem_line_skips_range_inner_lt():
 ZHENGREN_DOCX = "正仁1号私募证券投资基金私募基金合同.docx"
 
 
+def test_fulu_compose_snippet_table_and_formula():
+    from backend.tests.golden.conftest import FULU_KEY
+
+    rows = _run_rules(FULU_KEY)
+    sub_a = [
+        r
+        for r in rows
+        if r.申赎费类型 == "认购费" and r.基金名称 and "A" in (r.基金名称 or "").upper()
+    ]
+    assert sub_a, "missing A-class 认购费 row"
+    snip = sub_a[0].snippet or ""
+    assert "份额分类" in snip or "基本情况" in snip
+    assert "0.5" in snip or "0.5%" in snip
+    assert "净认购金额" in snip or "认购份额" in snip
+    assert "认购资金从在中国境内开立" not in snip[:120]
+
+
 def test_fulu_subscription_billing_inclusive_purchase():
     from backend.app.extract.rules.subscription_rules import (
         gather_subscription_rules_text,

@@ -4,7 +4,11 @@ import re
 from typing import Any
 
 from backend.app.extract.schemas import ShareClassRow, SubscriptionFeeRow
-from backend.app.extract.section_windows import gather_outline_chapter_text
+from backend.app.extract.section_windows import (
+    _classify_section,
+    gather_outline_chapter_text,
+    section_title_map,
+)
 from backend.app.extract.text_limits import excerpt_for_display
 
 _SHARE_COL = re.compile(r"([A-D])\s*类(?:份额)?", re.IGNORECASE)
@@ -90,51 +94,123 @@ def _letters_from_share_classes(share_classes: list[ShareClassRow]) -> list[str]
     return letters
 
 
-def _parse_share_fee_table(document: dict[str, Any]) -> dict[str, dict[str, str]]:
-    """Parse 份额分类表 → {letter: {认购费, 申购费, 赎回费}}."""
+def _normalize_section_title(title: str) -> str:
+    return re.sub(r"\t\d+\s*$", "", (title or "").strip())
+
+
+def _is_basic_info_section(section_id: str | None, title_map: dict[str, str]) -> bool:
+    title = _normalize_section_title(title_map.get(section_id or "", ""))
+    if _classify_section(title) == "basic":
+        return True
+    return bool(re.search(r"基本情况|份额分类", title))
+
+
+def _parse_share_fee_table_block(
+    block: dict[str, Any],
+) -> dict[str, dict[str, str]] | None:
+    """Parse one table block → {letter: {认购费, 申购费, 赎回费}}."""
+    if block.get("type") != "table":
+        return None
+    rows = block.get("rows") or []
+    if len(rows) < 2:
+        return None
+    header = [str(c or "").strip() for c in rows[0]]
+    col_letters: dict[int, str] = {}
+    for idx, cell in enumerate(header):
+        if idx == 0:
+            continue
+        m = _SHARE_COL.search(cell)
+        if m:
+            col_letters[idx] = m.group(1).upper()
+    if len(col_letters) < 2:
+        return None
+    has_sub = any("认购" in str(r[0]) for r in rows[1:] if r)
+    if not has_sub:
+        return None
     out: dict[str, dict[str, str]] = {}
+    for row in rows[1:]:
+        if not row:
+            continue
+        label = str(row[0] or "").strip()
+        fee_key: str | None = None
+        if "认购" in label:
+            fee_key = "认购费"
+        elif "申购" in label:
+            fee_key = "申购费"
+        elif "赎回" in label:
+            fee_key = "赎回费"
+        else:
+            continue
+        for col_idx, letter in col_letters.items():
+            if col_idx >= len(row):
+                continue
+            rate = _parse_rate_cell(row[col_idx])
+            if rate is None:
+                continue
+            out.setdefault(letter, {})[fee_key] = rate
+    return out or None
+
+
+def _format_share_fee_table_excerpt(
+    block: dict[str, Any],
+    *,
+    letter: str | None = None,
+    fee_type: str | None = None,
+) -> str:
+    rows = block.get("rows") or []
+    if not rows:
+        return ""
+    lines: list[str] = []
+    header = [str(c or "").strip() for c in rows[0]]
+    lines.append("\t".join(header))
+    fee_label = {"认购费": "认购", "申购费": "申购", "赎回费": "赎回"}.get(fee_type or "", "")
+    for row in rows[1:]:
+        if not row:
+            continue
+        label = str(row[0] or "").strip()
+        if fee_label and fee_label not in label:
+            continue
+        if letter:
+            col_idx = None
+            for idx, cell in enumerate(header):
+                if idx == 0:
+                    continue
+                m = _SHARE_COL.search(str(cell))
+                if m and m.group(1).upper() == letter.upper():
+                    col_idx = idx
+                    break
+            if col_idx is not None and col_idx < len(row):
+                lines.append(f"{label}\t{row[col_idx]}")
+                continue
+        lines.append("\t".join(str(c or "").strip() for c in row))
+    return excerpt_for_display("\n".join(lines))
+
+
+def parse_share_fee_table(
+    document: dict[str, Any],
+) -> tuple[dict[str, dict[str, str]], dict[str, Any] | None]:
+    """
+    基本情况中的份额分类表优先；返回 (费率, 表 block)。
+    费率供导出；表摘录供校验「费率」列。
+    """
+    title_map = section_title_map(document)
+    best: tuple[int, int, dict[str, Any], dict[str, dict[str, str]]] | None = None
     for block in document.get("blocks") or []:
-        if block.get("type") != "table":
+        rates = _parse_share_fee_table_block(block)
+        if not rates:
             continue
-        rows = block.get("rows") or []
-        if len(rows) < 2:
-            continue
-        header = [str(c or "").strip() for c in rows[0]]
-        col_letters: dict[int, str] = {}
-        for idx, cell in enumerate(header):
-            if idx == 0:
-                continue
-            m = _SHARE_COL.search(cell)
-            if m:
-                col_letters[idx] = m.group(1).upper()
-        if len(col_letters) < 2:
-            continue
-        has_sub = any("认购" in str(r[0]) for r in rows[1:] if r)
-        if not has_sub:
-            continue
-        for row in rows[1:]:
-            if not row:
-                continue
-            label = str(row[0] or "").strip()
-            fee_key: str | None = None
-            if "认购" in label:
-                fee_key = "认购费"
-            elif "申购" in label:
-                fee_key = "申购费"
-            elif "赎回" in label:
-                fee_key = "赎回费"
-            else:
-                continue
-            for col_idx, letter in col_letters.items():
-                if col_idx >= len(row):
-                    continue
-                rate = _parse_rate_cell(row[col_idx])
-                if rate is None:
-                    continue
-                out.setdefault(letter, {})[fee_key] = rate
-        if out:
-            return out
-    return out
+        in_basic = _is_basic_info_section(block.get("section_id"), title_map)
+        score = (3 if in_basic else 1, sum(len(v) for v in rates.values()))
+        if best is None or score > (best[0], best[1]):
+            best = (score[0], score[1], block, rates)
+    if not best:
+        return {}, None
+    return best[3], best[2]
+
+
+def _parse_share_fee_table(document: dict[str, Any]) -> dict[str, dict[str, str]]:
+    rates, _ = parse_share_fee_table(document)
+    return rates
 
 
 def _tier_from_redeem_line(line: str) -> dict[str, str] | None:
@@ -227,23 +303,28 @@ _SUBSCRIPTION_BLOCK_MARKERS = (
 )
 _COMBINED_RULE_MARKERS = _RAISING_BLOCK_MARKERS + _SUBSCRIPTION_BLOCK_MARKERS
 
-_SNIPPET_MARKERS_SUBSCRIBE = (
-    "认购费率为",
-    "认购费率",
-    "认购的费率",
-    "认购费用",
+_RATE_MARKERS_SUBSCRIBE = ("认购费率为", "认购费率")
+_RATE_MARKERS_PURCHASE = ("申购费率为", "申购费率", "申购和赎回的费率")
+_BILLING_MARKERS_SUBSCRIBE = (
+    "净认购金额=",
+    "净认购金额＝",
     "认购份额=",
     "认购份额＝",
-    "净认购金额",
+    "认购费用=认购金额",
+    "认购费用＝认购金额",
+    "认购金额×认购费率/（1+认购费率）",
 )
-_SNIPPET_MARKERS_PURCHASE = (
-    "申购费率为",
-    "申购费率",
-    "申购和赎回的费率",
-    "申购费用",
-    "申购份额",
-    "净申购金额",
+_BILLING_MARKERS_PURCHASE = (
+    "净申购金额=",
+    "净申购金额＝",
+    "申购份额=",
+    "申购份额＝",
+    "申购费用=申购金额",
+    "申购费用＝申购金额",
+    "申购金额×申购费率/（1+申购费率）",
 )
+_SNIPPET_MARKERS_SUBSCRIBE = _RATE_MARKERS_SUBSCRIBE + _BILLING_MARKERS_SUBSCRIBE
+_SNIPPET_MARKERS_PURCHASE = _RATE_MARKERS_PURCHASE + _BILLING_MARKERS_PURCHASE
 _SNIPPET_MARKERS_REDEEM = (
     "赎回费率为",
     "赎回费率",
@@ -331,12 +412,81 @@ def _best_snippet_around_markers(text: str, markers: tuple[str, ...]) -> str:
     return excerpt_for_display(text)
 
 
+def _billing_snippet_from_chapter(
+    fee_type: str,
+    document: dict[str, Any],
+    windows: dict[str, str],
+) -> str | None:
+    """价内/价外依据：募集章（认购）或申赎章（申购/赎回）中的计算公式。"""
+    if fee_type == "认购费":
+        source = gather_raising_fee_text(document, windows)
+        markers = _BILLING_MARKERS_SUBSCRIBE
+    elif fee_type == "申购费":
+        source = gather_subscription_chapter_text(document, windows)
+        markers = _BILLING_MARKERS_PURCHASE
+    else:
+        source = gather_subscription_chapter_text(document, windows)
+        markers = _SNIPPET_MARKERS_REDEEM
+    if not source.strip():
+        return None
+    return _best_snippet_around_markers(source, markers) or None
+
+
+def _rate_snippet_from_chapter(
+    fee_type: str,
+    document: dict[str, Any],
+    windows: dict[str, str],
+) -> str | None:
+    """无份额分类表时，从对应章节叙述中取费率摘录。"""
+    if fee_type == "认购费":
+        source = gather_raising_fee_text(document, windows)
+        markers = _RATE_MARKERS_SUBSCRIBE
+    elif fee_type == "申购费":
+        source = gather_subscription_chapter_text(document, windows)
+        markers = _RATE_MARKERS_PURCHASE
+    else:
+        source = gather_subscription_chapter_text(document, windows)
+        markers = _SNIPPET_MARKERS_REDEEM
+    if not source.strip():
+        return None
+    return _best_snippet_around_markers(source, markers) or None
+
+
+def compose_subscription_row_snippet(
+    fee_type: str,
+    document: dict[str, Any],
+    windows: dict[str, str],
+    *,
+    table_block: dict[str, Any] | None = None,
+    letter: str | None = None,
+    rate_from_table: bool = False,
+) -> str | None:
+    """摘录：有基本情况份额分类表则费率引表；价内/价外公式引募集或申赎章；无表则均在相应章节。"""
+    parts: list[str] = []
+    if rate_from_table and table_block:
+        table_part = _format_share_fee_table_excerpt(
+            table_block, letter=letter, fee_type=fee_type
+        )
+        if table_part:
+            parts.append(f"【基本情况·份额分类表】\n{table_part}")
+    elif not rate_from_table:
+        rate_part = _rate_snippet_from_chapter(fee_type, document, windows)
+        if rate_part:
+            parts.append(f"【合同条款·费率】\n{rate_part}")
+    billing_part = _billing_snippet_from_chapter(fee_type, document, windows)
+    if billing_part:
+        parts.append(f"【合同条款·计费公式】\n{billing_part}")
+    if not parts:
+        return subscription_fee_snippet(fee_type, document, windows)
+    return excerpt_for_display("\n\n".join(parts))
+
+
 def subscription_fee_snippet(
     fee_type: str | None,
     document: dict[str, Any],
     windows: dict[str, str],
 ) -> str | None:
-    """按费种取对应章节摘录，避免合并全文前 4000 字误用募集章开头。"""
+    """Fallback：按费种取对应章节摘录。"""
     if not fee_type:
         return None
     if fee_type == "认购费":
@@ -492,7 +642,9 @@ def _extract_narrative_subscription_fees(
                 费率类型="百分比",
                 计费基准=_BASIS_FLAT,
                 计费方式=billing_map.get("认购费"),
-                snippet=subscription_fee_snippet("认购费", document, windows),
+                snippet=compose_subscription_row_snippet(
+                    "认购费", document, windows, rate_from_table=False
+                ),
             )
         )
     purchase_src = sub_text or fee_text
@@ -506,7 +658,9 @@ def _extract_narrative_subscription_fees(
                 费率类型="百分比",
                 计费基准=_BASIS_FLAT,
                 计费方式=billing_map.get("申购费"),
-                snippet=subscription_fee_snippet("申购费", document, windows),
+                snippet=compose_subscription_row_snippet(
+                    "申购费", document, windows, rate_from_table=False
+                ),
             )
         )
 
@@ -517,7 +671,9 @@ def _extract_narrative_subscription_fees(
             if line.strip()
         ]
     }
-    redeem_snip = subscription_fee_snippet("赎回费", document, windows)
+    redeem_snip = compose_subscription_row_snippet(
+        "赎回费", document, windows, rate_from_table=False
+    )
     redeem_billing = infer_subscription_billing_rules(sub_text or fee_text).get(
         "赎回费"
     )
@@ -557,7 +713,7 @@ def extract_subscription_fees_rules(
     product_elements: dict[str, Any],
 ) -> list[SubscriptionFeeRow]:
     del product_elements  # reserved for future fund-code lookup
-    table_rates = _parse_share_fee_table(document)
+    table_rates, table_block = parse_share_fee_table(document)
     letters = _letters_from_share_classes(share_classes) or sorted(table_rates.keys())
 
     rows: list[SubscriptionFeeRow] = []
@@ -567,8 +723,14 @@ def extract_subscription_fees_rules(
         if letter:
             code_by_letter[letter] = sc.分级份额代码 or sc.基金代码
 
+    raising_text = gather_raising_fee_text(document, windows)
+    sub_chapter = gather_subscription_chapter_text(document, windows)
     fee_section = gather_subscription_rules_text(document, windows)
-    billing_map = infer_subscription_billing_rules(fee_section)
+    billing_map = {
+        **infer_subscription_billing_rules(raising_text),
+        **infer_subscription_billing_rules(sub_chapter),
+        **infer_subscription_billing_rules(fee_section),
+    }
 
     if table_rates:
         for letter in letters:
@@ -588,8 +750,13 @@ def extract_subscription_fees_rules(
                         费率类型="百分比",
                         计费基准=_BASIS_FLAT,
                         计费方式=billing_map.get(fee_type),
-                        snippet=subscription_fee_snippet(
-                            fee_type, document, windows
+                        snippet=compose_subscription_row_snippet(
+                            fee_type,
+                            document,
+                            windows,
+                            table_block=table_block,
+                            letter=letter,
+                            rate_from_table=True,
                         ),
                     )
                 )
@@ -603,8 +770,14 @@ def extract_subscription_fees_rules(
                         费率=table_redeem,
                         费率类型="百分比",
                         计费基准=_BASIS_FLAT,
-                        snippet=subscription_fee_snippet(
-                            "赎回费", document, windows
+                        计费方式=billing_map.get("赎回费"),
+                        snippet=compose_subscription_row_snippet(
+                            "赎回费",
+                            document,
+                            windows,
+                            table_block=table_block,
+                            letter=letter,
+                            rate_from_table=True,
                         ),
                     )
                 )
@@ -635,7 +808,9 @@ def extract_subscription_fees_rules(
             if sc.基金代码:
                 parent_code = sc.基金代码
                 break
-        tier_snip = subscription_fee_snippet("赎回费", document, windows)
+        tier_snip = compose_subscription_row_snippet(
+            "赎回费", document, windows, rate_from_table=bool(table_block)
+        )
         for tier in tiers:
             rows.append(
                 SubscriptionFeeRow(

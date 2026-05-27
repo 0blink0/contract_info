@@ -41,12 +41,16 @@ _SECTION_PATTERNS: dict[str, re.Pattern[str]] = {
 }
 
 
-def _section_title_map(document: dict[str, Any]) -> dict[str, str]:
+def section_title_map(document: dict[str, Any]) -> dict[str, str]:
     return {
         item.get("anchor_id", ""): str(item.get("title", ""))
         for item in document.get("outline", [])
         if item.get("anchor_id")
     }
+
+
+def _section_title_map(document: dict[str, Any]) -> dict[str, str]:
+    return section_title_map(document)
 
 
 def _classify_section(title: str) -> str:
