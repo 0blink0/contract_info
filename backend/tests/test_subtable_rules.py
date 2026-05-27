@@ -69,6 +69,35 @@ def test_normalize_llm_misplaced_duration():
     assert fixed.份额类型 == "全部"
 
 
+def test_merge_lock_dual_investor_prefers_rule_when_llm_matches_row_count():
+    """LLM 两行都写 90 天时，仍应以申购章规则保留员工 180 天。"""
+    text = (
+        "本基金设置的份额锁定期限为90个自然日。"
+        "本基金的管理人及其员工跟投本基金的，单笔认/申购份额的锁定期为6个月（180个自然日）。"
+    )
+    rules = extract_lock_periods_rules("测试基金", FieldValue(value="90天"), text)
+    llm = [
+        LockPeriodRow(
+            产品名称="测试基金",
+            份额类型="全部",
+            锁定期="有",
+            投资者类型="一般投资者",
+            锁定时间="90天",
+        ),
+        LockPeriodRow(
+            产品名称="测试基金",
+            份额类型="全部",
+            锁定期="有",
+            投资者类型="管理人及其员工",
+            锁定时间="90天",
+        ),
+    ]
+    merged = merge_lock_rows(llm, rules, combined_text=text)
+    by_type = {r.投资者类型: r for r in merged}
+    assert "90" in str(by_type["一般投资者"].锁定时间 or "")
+    assert "180" in str(by_type["管理人及其员工"].锁定时间 or "")
+
+
 def test_merge_lock_keeps_dual_investor_when_llm_collapses():
     from backend.app.extract.rules.lock_normalize import merge_lock_rows
 

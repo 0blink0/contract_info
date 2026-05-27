@@ -63,6 +63,7 @@ export interface PathBResponse {
 
 export interface ValidationItem {
   field: string
+  field_label?: string | null
   status: string
   value?: string | null
   reason: string

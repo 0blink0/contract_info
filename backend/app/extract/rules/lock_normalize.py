@@ -72,13 +72,18 @@ def _patch_lock_row(
     return LockPeriodRow(**patched)
 
 
+def _dual_investor_rule_rows(rule_rows: list[LockPeriodRow]) -> bool:
+    types = {r.投资者类型 for r in rule_rows if r.投资者类型}
+    return len(rule_rows) >= 2 and len(types) >= 2
+
+
 def merge_lock_rows(
     llm_rows: list[LockPeriodRow],
     rule_rows: list[LockPeriodRow],
     *,
     combined_text: str = "",
 ) -> list[LockPeriodRow]:
-    """Prefer multi-row rule output when LLM collapses investor types to one row."""
+    """Prefer per-investor rule rows when subscription chapter defines split lock periods."""
     if not llm_rows:
         return rule_rows
     if not rule_rows:
@@ -86,8 +91,7 @@ def merge_lock_rows(
             normalize_lock_row(raw, combined_text=combined_text) for raw in llm_rows
         ]
 
-    rule_types = {r.投资者类型 for r in rule_rows if r.投资者类型}
-    if len(rule_rows) >= 2 and len(rule_types) >= 2 and len(llm_rows) < len(rule_rows):
+    if _dual_investor_rule_rows(rule_rows):
         out: list[LockPeriodRow] = []
         for rule in rule_rows:
             match = next(
@@ -105,5 +109,13 @@ def merge_lock_rows(
     rule = rule_rows[0]
     out: list[LockPeriodRow] = []
     for raw in llm_rows:
-        out.append(_patch_lock_row(raw, rule, combined_text=combined_text))
+        match_rule = next(
+            (
+                rr
+                for rr in rule_rows
+                if raw.投资者类型 and rr.投资者类型 == raw.投资者类型
+            ),
+            rule,
+        )
+        out.append(_patch_lock_row(raw, match_rule, combined_text=combined_text))
     return out

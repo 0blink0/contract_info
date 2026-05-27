@@ -261,12 +261,19 @@ def get_validation(job_id: uuid.UUID) -> ValidationResponse:
     raw = getattr(record, "validation_result", None)
     if raw is None or not isinstance(raw, dict):
         raise HTTPException(status_code=404, detail="Validation result not available")
+    from backend.app.validate.field_labels import label_for_validation_field
+
     items_raw = raw.get("items") or []
-    items = [
-        ValidationItemResponse.model_validate(entry)
-        for entry in items_raw
-        if isinstance(entry, dict)
-    ]
+    items: list[ValidationItemResponse] = []
+    for entry in items_raw:
+        if not isinstance(entry, dict):
+            continue
+        payload = dict(entry)
+        if not payload.get("field_label"):
+            payload["field_label"] = label_for_validation_field(
+                str(payload.get("field") or "")
+            )
+        items.append(ValidationItemResponse.model_validate(payload))
     return ValidationResponse(
         job_id=record.id,
         validated_at=raw.get("validated_at"),

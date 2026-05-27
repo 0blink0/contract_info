@@ -69,6 +69,7 @@ class PathBResponse(BaseModel):
 
 class ValidationItemResponse(BaseModel):
     field: str
+    field_label: str | None = None
     status: str
     value: str | None = None
     reason: str

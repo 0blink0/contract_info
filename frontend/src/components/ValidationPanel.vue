@@ -105,7 +105,11 @@ async function refresh() {
             :row-class-name="rowClassName"
             empty-text="无 fail/warn 项"
           >
-            <el-table-column prop="field" label="字段" width="160" show-overflow-tooltip />
+            <el-table-column label="字段" width="200" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span :title="row.field">{{ row.field_label || row.field }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="status" label="状态" width="80">
               <template #default="{ row }">
                 <el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag>
