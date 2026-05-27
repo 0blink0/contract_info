@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from backend.app.extract.field_catalog import SKIP_PRODUCT_FIELDS
 from backend.app.extract.rules.party_helpers import is_valid_party_name
 from backend.app.extract.schemas import (
     ExtractionMeta,
@@ -88,6 +89,8 @@ def merge_extraction(
         merged[key] = (
             merge_field(merged.get(key), llm_fv, field_name=key) or llm_fv
         )
+    for key in SKIP_PRODUCT_FIELDS:
+        merged.pop(key, None)
     return ExtractionResult(
         product_elements=merged,
         fee_rates=fee_rates,

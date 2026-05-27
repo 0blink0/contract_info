@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from backend.app.extract.rules.fee_rules import extract_fee_rates
@@ -6,6 +8,12 @@ from backend.app.extract.section_windows import build_section_windows
 from backend.app.parse import parse_docx
 from backend.app.parse.schemas import document_to_dict
 
+FULU_DOCX = (
+    Path(__file__).resolve().parents[2]
+    / "example"
+    / "石云福禄1000指数增强一号私募证券投资基金(1).docx"
+)
+
 
 @pytest.fixture
 def sample_document(example_docx_path):
@@ -13,10 +21,41 @@ def sample_document(example_docx_path):
     return document_to_dict(doc)
 
 
+@pytest.fixture
+def fulu_document():
+    if not FULU_DOCX.is_file():
+        pytest.skip("福禄 example docx missing")
+    return document_to_dict(parse_docx(str(FULU_DOCX)))
+
+
 def test_build_section_windows(sample_document):
     windows, truncated = build_section_windows(sample_document)
     assert windows["fees"]
     assert "基金管理人" in windows["cover_parties"] or "管理人" in windows["cover_parties"]
+
+
+def test_product_rules_no_stop_lines_and_subscription(fulu_document):
+    windows, _ = build_section_windows(fulu_document)
+    product = extract_product_rules(fulu_document, windows)
+    assert product["预警线"].value == "无"
+    assert product["止损线"].value == "无"
+    assert "不设置预警线" in (product["止损线"].snippet or "")
+    assert product.get("首次申购起点")
+    assert "100" in str(product["首次申购起点"].value)
+    assert product.get("最小变动单位")
+    assert product.get("追加起点")
+    assert product["追加起点"].value == "无追加起点限制"
+    assert "基金简称" not in product
+    assert "银行账户信息" not in product
+
+
+def test_product_rules_face_value_from_basic(fulu_document):
+    windows, _ = build_section_windows(fulu_document)
+    product = extract_product_rules(fulu_document, windows)
+    assert product.get("基金面值")
+    assert product["基金面值"].value == "1"
+    assert product.get("币种")
+    assert product["币种"].value == "人民币现钞"
 
 
 def test_product_rules_key_fields(sample_document):

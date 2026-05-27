@@ -19,7 +19,7 @@ def sample_extraction():
 def test_fill_product_workbook(tmp_path, sample_extraction):
     dest = tmp_path / "out.xlsx"
     fill_product_workbook(
-        templates_dir() / "产品要素-2.xlsx",
+        templates_dir() / "产品要素 - 副本(1).xlsx",
         dest,
         sample_extraction["product_elements"],
     )
@@ -40,4 +40,4 @@ def test_fill_product_workbook(tmp_path, sample_extraction):
 
 
 def test_templates_committed():
-    assert (templates_dir() / "产品要素-2.xlsx").is_file()
+    assert (templates_dir() / "产品要素 - 副本(1).xlsx").is_file()

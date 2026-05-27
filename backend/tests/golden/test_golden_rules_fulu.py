@@ -64,7 +64,17 @@ def test_lock_periods_fulu_from_subscription_chapter(fulu_document):
     types = {r.投资者类型 for r in locks}
     assert types == {"一般投资者", "管理人及其员工"}
     assert all(r.锁定期 == "有" for r in locks)
-    assert any("90" in str(r.锁定时间 or "") for r in locks)
+    assert any(
+        "90" in str(r.锁定时间 or "")
+        for r in locks
+        if r.投资者类型 == "一般投资者"
+    )
+    assert any(
+        "180" in str(r.锁定时间 or "")
+        for r in locks
+        if r.投资者类型 == "管理人及其员工"
+    )
+    assert all(r.份额类型 == "全部" for r in locks)
 
 
 def test_lock_periods_explicit_no_lock_row():

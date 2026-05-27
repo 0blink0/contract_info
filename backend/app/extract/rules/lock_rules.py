@@ -8,16 +8,6 @@ _RE_LOCK_TIME = re.compile(
     r"(\d+(?:\.\d+)?)\s*(天|月|年|开放日)", re.IGNORECASE
 )
 _RE_LOCK_NATURAL_DAYS = re.compile(r"(\d+(?:\.\d+)?)\s*个自然日", re.IGNORECASE)
-
-
-def _parse_lock_duration(text: str) -> str | None:
-    m = _RE_LOCK_NATURAL_DAYS.search(text)
-    if m:
-        return f"{m.group(1)}天"
-    m = _RE_LOCK_TIME.search(text)
-    if m:
-        return f"{m.group(1)}{m.group(2)}"
-    return None
 _RE_START_RULE = re.compile(
     r"交易(申请|确认)日[（(]?(含|不含)[）)]?"
 )
@@ -37,6 +27,26 @@ _RE_EMPLOYEE_LOCK = re.compile(
 _RE_GENERAL_LOCK_CLAUSE = re.compile(
     r"份额锁定期限|本基金设置.{0,24}份额锁定期|基金份额锁定期"
 )
+_RE_GENERAL_LOCK_SENTENCE = re.compile(
+    r"本基金设置的份额锁定期限为[^。]+。"
+)
+_RE_EMPLOYEE_LOCK_SENTENCE = re.compile(
+    r"本基金的管理人[及其和与]?员工[^。]+锁定期[^。]+。"
+)
+_RE_EMPLOYEE_LOCK_DURATION = re.compile(
+    r"员工[^。]{0,120}?(\d+)\s*个月[（(](\d+)\s*个自然日[）)]",
+    re.IGNORECASE,
+)
+
+
+def _parse_lock_duration(text: str) -> str | None:
+    m = _RE_LOCK_NATURAL_DAYS.search(text)
+    if m:
+        return f"{m.group(1)}天"
+    m = _RE_LOCK_TIME.search(text)
+    if m:
+        return f"{m.group(1)}{m.group(2)}"
+    return None
 
 
 def _lock_duration_in_subscription(subscription_text: str) -> str | None:
@@ -66,19 +76,61 @@ def _field_text(fv: FieldValue | dict | None) -> str | None:
     return str(val).strip()
 
 
+def _lock_excerpt(combined: str) -> str:
+    """Narrow window so unrelated 'B类份额' elsewhere does not set 份额类型."""
+    m = _RE_GENERAL_LOCK_SENTENCE.search(combined)
+    if m:
+        return m.group(0)
+    m = _RE_GENERAL_LOCK_CLAUSE.search(combined)
+    if m:
+        start = max(0, m.start() - 10)
+        end = min(len(combined), m.end() + 320)
+        return combined[start:end]
+    emp = _RE_EMPLOYEE_LOCK_SENTENCE.search(combined)
+    if emp:
+        start = max(0, emp.start() - 80)
+        end = min(len(combined), emp.end() + 40)
+        return combined[start:end]
+    return combined[:400]
+
+
 def _share_type_from_text(combined: str) -> str | None:
+    excerpt = _lock_excerpt(combined)
     if re.search(
         r"[ABCD]\s*类\s*[/、]\s*[ABCD]\s*类",
-        combined,
+        excerpt,
         re.IGNORECASE,
     ):
         return "全部"
-    letters = set(re.findall(r"([ABCD])\s*类", combined, re.IGNORECASE))
+    letters = sorted(set(re.findall(r"([ABCD])\s*类", excerpt, re.IGNORECASE)))
     if len(letters) >= 2:
         return "全部"
     if len(letters) == 1:
-        return f"{letters.pop()}类"
+        letter = letters[0]
+        if re.search(
+            rf"{letter}\s*类[^。\n]{{0,40}}锁定期|锁定期[^。\n]{{0,40}}{letter}\s*类",
+            excerpt,
+            re.IGNORECASE,
+        ):
+            return f"{letter}类"
     return None
+
+
+def _employee_lock_duration(text: str) -> str | None:
+    m = _RE_EMPLOYEE_LOCK_DURATION.search(text)
+    if m:
+        return f"{m.group(2)}天"
+    m = re.search(r"员工[^。]{0,120}?(\d+)\s*个自然日", text)
+    if m:
+        return f"{m.group(1)}天"
+    return None
+
+
+def _general_lock_duration(text: str) -> str | None:
+    m = re.search(r"份额锁定期限为\s*(\d+)\s*个自然日", text)
+    if m:
+        return f"{m.group(1)}天"
+    return _lock_duration_in_subscription(text)
 
 
 def _build_lock_row(
@@ -89,17 +141,29 @@ def _build_lock_row(
     lock_text: str,
     investor_type: str | None = None,
 ) -> LockPeriodRow:
+    duration_source = lock_text or combined
     row = LockPeriodRow(
         产品名称=fund_name,
         锁定期="有" if has_lock else ("无" if lock_text else None),
         投资者类型=investor_type,
     )
 
-    dur = _parse_lock_duration(lock_text)
+    if investor_type == "管理人及其员工":
+        dur = _employee_lock_duration(duration_source) or _parse_lock_duration(
+            duration_source
+        )
+    elif investor_type == "一般投资者":
+        dur = _general_lock_duration(duration_source) or _parse_lock_duration(
+            duration_source
+        )
+    else:
+        dur = _parse_lock_duration(duration_source)
+
     if dur:
         row.锁定时间 = dur
     elif not row.锁定时间:
-        row.锁定时间 = _lock_duration_in_subscription(combined)
+        fallback_text = duration_source if investor_type == "管理人及其员工" else combined
+        row.锁定时间 = _lock_duration_in_subscription(fallback_text)
 
     start_m = _RE_START_RULE.search(combined)
     if start_m:
@@ -130,6 +194,8 @@ def _build_lock_row(
     share = _share_type_from_text(combined)
     if share:
         row.份额类型 = share
+    elif has_lock:
+        row.份额类型 = "全部"
 
     return row
 
@@ -150,6 +216,35 @@ def _subscription_implies_lock(subscription_text: str) -> bool:
     if _RE_GENERAL_LOCK_CLAUSE.search(subscription_text):
         return True
     return _lock_duration_in_subscription(subscription_text) is not None
+
+
+def _dual_investor_lock_rows(
+    fund_name: str | None,
+    combined: str,
+    *,
+    has_lock: bool,
+    lock_text: str,
+) -> list[LockPeriodRow]:
+    gen_snip = _RE_GENERAL_LOCK_SENTENCE.search(combined)
+    emp_snip = _RE_EMPLOYEE_LOCK_SENTENCE.search(combined)
+    general_text = gen_snip.group(0) if gen_snip else lock_text
+    employee_text = emp_snip.group(0) if emp_snip else combined
+    return [
+        _build_lock_row(
+            fund_name,
+            combined,
+            has_lock=has_lock,
+            lock_text=general_text,
+            investor_type="一般投资者",
+        ),
+        _build_lock_row(
+            fund_name,
+            combined,
+            has_lock=has_lock,
+            lock_text=employee_text,
+            investor_type="管理人及其员工",
+        ),
+    ]
 
 
 def extract_lock_periods_rules(
@@ -175,6 +270,15 @@ def extract_lock_periods_rules(
 
     has_lock = bool(lock_text) and not re.search(r"无锁定期|不设锁", lock_text)
 
+    if (
+        has_lock
+        and _RE_EMPLOYEE_LOCK.search(combined)
+        and _RE_GENERAL_LOCK_CLAUSE.search(combined)
+    ):
+        return _dual_investor_lock_rows(
+            fund_name, combined, has_lock=has_lock, lock_text=lock_text
+        )
+
     investor_hits = [
         label for label, pat in _INVESTOR_PATTERNS if pat.search(combined)
     ]
@@ -188,29 +292,6 @@ def extract_lock_periods_rules(
                 investor_type=label,
             )
             for label in investor_hits
-        ]
-
-    # 合同常写「员工跟投」条款 + 面向其他投资者的通用锁定期，但未写「一般投资者」四字
-    if (
-        has_lock
-        and _RE_EMPLOYEE_LOCK.search(combined)
-        and _RE_GENERAL_LOCK_CLAUSE.search(combined)
-    ):
-        return [
-            _build_lock_row(
-                fund_name,
-                combined,
-                has_lock=has_lock,
-                lock_text=lock_text,
-                investor_type="一般投资者",
-            ),
-            _build_lock_row(
-                fund_name,
-                combined,
-                has_lock=has_lock,
-                lock_text=lock_text,
-                investor_type="管理人及其员工",
-            ),
         ]
 
     row = _build_lock_row(

@@ -4,6 +4,7 @@ import asyncio
 from typing import Any
 
 from backend.app.llm.client import LlmClient
+from backend.app.validate.deterministic import deterministic_validation_items
 from backend.app.validate.evidence import collect_validation_candidates
 from backend.app.validate.prompts import build_validation_messages
 from backend.app.validate.schemas import (
@@ -59,6 +60,12 @@ async def run_llm_validation(
                     suggestion=row.suggestion,
                 )
             )
+
+    overrides = deterministic_validation_items(extraction_result)
+    by_field = {item.field: item for item in all_items}
+    for field, item in overrides.items():
+        by_field[field] = item
+    all_items = list(by_field.values())
 
     result = ValidationResult(model=client.model_name, skipped=False, items=all_items)
     result.compute_summary()

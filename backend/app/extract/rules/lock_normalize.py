@@ -32,7 +32,12 @@ def normalize_lock_row(row: LockPeriodRow, *, combined_text: str = "") -> LockPe
     if share:
         if _MULTI_SHARE.search(share) or len(set(re.findall(r"([ABCD])\s*类", share, re.I))) >= 2:
             data["份额类型"] = "全部"
-    elif combined_text and len(set(re.findall(r"([ABCD])\s*类", combined_text, re.I))) >= 2:
+        elif re.fullmatch(r"[ABCD]类", share, re.I) and combined_text:
+            if re.search(r"本基金设置的份额锁定期限|份额锁定期限为", combined_text):
+                data["份额类型"] = "全部"
+    elif combined_text and re.search(
+        r"本基金设置的份额锁定期限|份额锁定期限为", combined_text
+    ):
         data["份额类型"] = "全部"
 
     return LockPeriodRow(**data)

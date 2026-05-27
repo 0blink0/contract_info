@@ -29,7 +29,7 @@ def sample_extraction():
 def test_product_workbook_single_sheet(tmp_path, sample_extraction):
     dest = tmp_path / "product.xlsx"
     fill_product_workbook(
-        templates_dir() / "产品要素-2.xlsx",
+        templates_dir() / "产品要素 - 副本(1).xlsx",
         dest,
         sample_extraction["product_elements"],
     )

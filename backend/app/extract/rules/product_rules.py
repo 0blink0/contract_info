@@ -55,8 +55,17 @@ _RE_MIN_HOLD = re.compile(
 )
 _RE_MIN_HOLD_TYPE = re.compile(r"最低持有(?:类型)?[：:\s]*(金额|份额)")
 _RE_CLOSED_PERIOD = re.compile(r"封闭期[：:\s]*([^\n\r。]{4,60})")
-_RE_SUBSCRIPTION_WAN = re.compile(
-    r"(首次申购|追加申购|追加).*?(\d+(?:\.\d+)?)\s*万", re.IGNORECASE
+_RE_FIRST_SUB_WAN = re.compile(
+    r"首次(?:净)?申购[^。\n]{0,48}?应不低于\s*(\d+(?:\.\d+)?)\s*万元",
+    re.IGNORECASE,
+)
+_RE_ADD_MIN_WAN = re.compile(
+    r"追加(?:金额|申购)[^。\n]{0,32}?应不低于\s*(\d+(?:\.\d+)?)\s*万元",
+    re.IGNORECASE,
+)
+_RE_NO_ADD_LIMIT = re.compile(r"无追加起点|不设追加起点|无追加起点限制")
+_RE_FACE_VALUE = re.compile(
+    r"初始募集面值[：:\s]*人民币\s*([\d.]+)\s*元", re.IGNORECASE
 )
 _RE_CONFIRM = re.compile(r"(T\+\d+[^。\n]{0,20}确认|交易确认[^。\n]{0,30})")
 _RE_STOP_LINES = re.compile(
@@ -206,8 +215,6 @@ def extract_product_rules(
             fund_name = m.group(1).strip()
     if fund_name:
         out["基金全称"] = _fv(fund_name, snippet=fund_name)
-        short = fund_name.split("私募")[0].strip() or fund_name[:20]
-        out["基金简称"] = _fv(short, snippet=fund_name)
 
     val, snip, bid, sid = _find_party(
         document,
@@ -303,9 +310,23 @@ def extract_product_rules(
     )[:200000]
     search_sub = sub_text + "\n" + full_text
 
-    for m in _RE_SUBSCRIPTION_WAN.finditer(search_sub):
-        label = "首次申购起点" if "首次" in m.group(1) else "追加起点"
-        out[label] = _fv(m.group(2), snippet=m.group(0))
+    m = _RE_FIRST_SUB_WAN.search(search_sub)
+    if m:
+        out["首次申购起点"] = _fv(f"{m.group(1)}万", snippet=m.group(0))
+
+    m_add = _RE_ADD_MIN_WAN.search(search_sub)
+    if m_add:
+        amount = m_add.group(1)
+        out["最小变动单位"] = _fv(
+            f"{amount}万" if not str(amount).endswith("万") else str(amount),
+            snippet=m_add.group(0),
+        )
+
+    m_no_add = _RE_NO_ADD_LIMIT.search(search_sub)
+    if m_no_add:
+        out["追加起点"] = _fv("无追加起点限制", snippet=m_no_add.group(0))
+    elif m_add and float(m_add.group(1)) <= 1.01:
+        out["追加起点"] = _fv("无追加起点限制", snippet=m_add.group(0))
 
     m = _RE_CONFIRM.search(search_sub)
     if m:
@@ -323,9 +344,11 @@ def extract_product_rules(
     if m and "锁定期" not in m.group(1)[:20]:
         out["封闭期"] = _fv(m.group(1).strip(), snippet=m.group(0))
 
+    stop_search = inv_text + risk_text + full_text[:80000]
     no_stop = re.search(
-        r"未设预警|不设预警|不设置预警线|本基金未设预警止损线",
-        inv_text + risk_text + full_text[:80000],
+        r"未设预警|不设预警|不设置预警线|不设置预警线[、,，\s]*止损线|"
+        r"本基金未设预警止损线|预警线[、,，\s]*止损线.*不设置",
+        stop_search,
     )
     if no_stop:
         out["预警线"] = _fv("无", snippet=no_stop.group(0))
@@ -371,8 +394,13 @@ def extract_product_rules(
     if "投资策略" not in out or "投资范围" not in out:
         out.update(_extract_investment_chapter(full_text))
 
-    bank_text = windows.get("basic", "") + "\n" + cover
-    for m in _RE_BANK.finditer(bank_text):
-        out["银行账户信息"] = _fv(m.group(0).strip(), snippet=m.group(0))
+    basic_text = windows.get("basic", "") + "\n" + cover
+    m = _RE_FACE_VALUE.search(basic_text)
+    if m:
+        face = m.group(1).rstrip("0").rstrip(".") if "." in m.group(1) else m.group(1)
+        if face in ("1", "1.0", "1.00", "1.0000"):
+            face = "1"
+        out["基金面值"] = _fv(face, snippet=m.group(0))
+        out["币种"] = _fv("人民币现钞", snippet=m.group(0))
 
     return out

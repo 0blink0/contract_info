@@ -14,6 +14,14 @@ MANUAL_ONLY_PRODUCT: frozenset[str] = frozenset(
     }
 )
 
+# 本期不进入抽取结果（规则/LLM 均丢弃）
+SKIP_PRODUCT_FIELDS: frozenset[str] = frozenset(
+    {
+        "基金简称",
+        "银行账户信息",
+    }
+)
+
 # 产品要素 77 列（与 templates/产品要素-2.xlsx 表头一致）
 ALL_PRODUCT_FIELDS: tuple[str, ...] = (
     "基金代码",

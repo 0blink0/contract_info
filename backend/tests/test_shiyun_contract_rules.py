@@ -54,8 +54,13 @@ def test_shiyun_fee_rates(shiyun_document):
     fund = product.get("基金全称")
     name = str(fund.value) if fund and fund.value else None
     fees = extract_fee_rates(windows["fees"], name, shiyun_document)
-    by_type = {r.运营费类型: r for r in fees}
-    assert by_type["管理费"].rate_annual_pct == "1"
-    assert by_type["托管费"].rate_annual_pct == "0.03"
-    assert by_type["基金服务费"].rate_annual_pct == "0.01"
-    assert by_type.get("销售服务费") and by_type["销售服务费"].rate_annual_pct == "0.5"
+
+    def _has_rate(fee_type: str, rate: str) -> bool:
+        return any(
+            r.运营费类型 == fee_type and r.rate_annual_pct == rate for r in fees
+        )
+
+    assert _has_rate("管理费", "1")
+    assert _has_rate("托管费", "0.03")
+    assert _has_rate("基金服务费", "0.01")
+    assert _has_rate("销售服务费", "0.5")

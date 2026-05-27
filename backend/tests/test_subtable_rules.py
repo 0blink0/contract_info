@@ -42,13 +42,17 @@ def test_lock_rules_dual_investor():
 
 def test_lock_rules_employee_clause_implies_general_investor():
     text = (
-        "本基金设置的份额锁定期限为180天 "
-        "本基金的管理人及其员工跟投本基金的，单笔认/申购份额的锁定期为6个月（180天）"
+        "本基金设置的份额锁定期限为90个自然日。"
+        "本基金的管理人及其员工跟投本基金的，单笔认/申购份额的锁定期为6个月（180个自然日）。"
     )
-    rows = extract_lock_periods_rules("测试基金", FieldValue(value="180天"), text)
+    rows = extract_lock_periods_rules("测试基金", FieldValue(value="90天"), text)
     assert len(rows) == 2
     types = {r.投资者类型 for r in rows}
     assert types == {"一般投资者", "管理人及其员工"}
+    by_type = {r.投资者类型: r for r in rows}
+    assert "90" in str(by_type["一般投资者"].锁定时间 or "")
+    assert "180" in str(by_type["管理人及其员工"].锁定时间 or "")
+    assert all(r.份额类型 == "全部" for r in rows)
 
 
 def test_normalize_llm_misplaced_duration():

@@ -14,14 +14,28 @@ from backend.app.export.column_map import (
 from backend.app.export.date_format import normalize_date_slash
 from backend.app.export.xlsx_utils import (
     build_header_index,
+    clear_data_rows,
     keep_only_sheet,
     write_cell_values,
 )
 
+_CLOSED_PERIOD_FIELDS = frozenset(
+    {"封闭期", "封闭方式", "封闭期起始日", "运作方式"}
+)
+
+
+def _field_raw_value(raw: Any) -> Any:
+    if isinstance(raw, dict):
+        return raw.get("value")
+    return getattr(raw, "value", raw)
+
 
 def _product_field_values(product_elements: dict[str, Any]) -> dict[str, Any]:
+    skip_closed = _field_raw_value(product_elements.get("是否封闭")) == "不封闭"
     out: dict[str, Any] = {}
     for key, raw in product_elements.items():
+        if skip_closed and key in _CLOSED_PERIOD_FIELDS:
+            continue
         if isinstance(raw, dict):
             val = raw.get("value")
         else:
@@ -45,6 +59,7 @@ def fill_product_workbook(
     wb = load_workbook(template_path)
     ws = wb[PRODUCT_SHEET]
     header_index = build_header_index(ws, PRODUCT_HEADER_ROW)
+    clear_data_rows(ws, PRODUCT_DATA_ROW)
     values = _product_field_values(product_elements)
     write_cell_values(ws, PRODUCT_DATA_ROW, header_index, values)
     keep_only_sheet(wb, PRODUCT_SHEET)

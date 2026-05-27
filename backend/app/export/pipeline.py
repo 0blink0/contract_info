@@ -32,7 +32,7 @@ from backend.app.extract.schemas import ExtractionWarning, warnings_to_list
 
 
 
-PRODUCT_TEMPLATE = "产品要素-2.xlsx"
+PRODUCT_TEMPLATE = "产品要素 - 副本(1).xlsx"
 
 FEE_TEMPLATE = "产品运营费率导入模板-1.xlsx"
 
