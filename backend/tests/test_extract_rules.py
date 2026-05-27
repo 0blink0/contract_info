@@ -86,6 +86,37 @@ def test_product_rules_key_fields(sample_document):
     assert product.get("托管人") and product["托管人"].value
 
 
+def test_zhengren_fee_rules_only_three_operating_types():
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "example"
+        / "正仁1号私募证券投资基金私募基金合同.docx"
+    )
+    if not path.is_file():
+        pytest.skip("missing zhengren docx")
+    doc = document_to_dict(parse_docx(str(path)))
+    windows, _ = build_section_windows(doc)
+    product = extract_product_rules(doc, windows)
+    name = str(product["基金全称"].value)
+    from backend.app.extract.rules.fee_rules import (
+        enrich_fee_rates_from_fees_chapter,
+        gather_fee_source_text,
+    )
+
+    source = gather_fee_source_text(windows.get("fees", ""), doc)
+    fees = enrich_fee_rates_from_fees_chapter(
+        extract_fee_rates(source, name, doc), source
+    )
+    types = {r.运营费类型 for r in fees}
+    assert types == {"管理费", "托管费", "基金服务费"}
+    by_type = {r.运营费类型: r.rate_annual_pct for r in fees}
+    assert by_type["管理费"] == "0"
+    assert by_type["托管费"] == "0.025"
+    assert by_type["基金服务费"] == "0.025"
+
+
 def test_fee_rules_at_least_two_rows(sample_document):
     windows, _ = build_section_windows(sample_document)
     product = extract_product_rules(sample_document, windows)

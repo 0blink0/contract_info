@@ -32,6 +32,16 @@ _RE_REDEEM_HOLD_GTE = re.compile(
     r"持有期在\s*(\d+)\s*天及以上(?!但低于)[^。]{0,100}?赎回费率为\s*(\d+(?:\.\d+)?)\s*%"
 )
 
+# CRM 申赎表：计费基准=分段/不分段；区间列填天数；价内/价外在计费方式列
+_BASIS_FLAT = "不分段"
+_BASIS_SEGMENT = "分段"
+
+
+def _segment_tier(**fields: str) -> dict[str, str]:
+    out: dict[str, str] = {"计费基准": _BASIS_SEGMENT, "时间区间单位": "天"}
+    out.update(fields)
+    return out
+
 
 def format_subscription_fund_name(full_name: str | None, share_letter: str) -> str:
     """石云：全称+份额字母；福禄：截至「一号」+ X类。"""
@@ -134,33 +144,21 @@ def _tier_from_redeem_line(line: str) -> dict[str, str] | None:
 
     m = _REDEEM_GTE.search(text)
     if m:
-        return {
-            "计费基准": "区间（P≥B）",
-            "区间开始": m.group(1),
-            "时间区间单位": "天",
-            "费率": "0",
-        }
+        return _segment_tier(区间开始=m.group(1), 费率="0")
 
     m = _REDEEM_RANGE.search(text)
     if m:
-        return {
-            "计费基准": "区间（A≤P＜B）",
-            "区间开始": m.group(1),
-            "区间结束": m.group(2),
-            "时间区间单位": "天",
-            "费率": m.group(3),
-        }
+        return _segment_tier(
+            区间开始=m.group(1),
+            区间结束=m.group(2),
+            费率=m.group(3),
+        )
 
     if _RE_RANGE_BEFORE_LT.search(text):
         return None
     m = _REDEEM_LT.search(text)
     if m:
-        return {
-            "计费基准": "区间（P＜A）",
-            "区间结束": m.group(1),
-            "时间区间单位": "天",
-            "费率": m.group(2),
-        }
+        return _segment_tier(区间结束=m.group(1), 费率=m.group(2))
     return None
 
 
@@ -228,14 +226,18 @@ def _collect_fee_section_text(document: dict[str, Any], windows: dict[str, str])
 
 
 def _infer_subscription_billing(text: str) -> str | None:
+    """价外：申购金额/(1+费率)；价内：合同写明或净额计入份额的表述。无依据则留空。"""
     if re.search(
         r"1\s*\+\s*申购费率|/\s*（\s*1\s*\+\s*申购费率|申购金额\s*/\s*（\s*1\s*\+",
         text,
     ):
         return "价外法"
-    if "价内法" in text:
+    if re.search(
+        r"价内法|价内收费|价内计提|净额申购|申购金额\s*[×x]\s*（\s*1\s*-\s*申购费率",
+        text,
+    ):
         return "价内法"
-    if "价外法" in text:
+    if "价外法" in text or "价外收费" in text:
         return "价外法"
     return None
 
@@ -257,33 +259,17 @@ def _holding_period_redeem_tiers(text: str) -> list[dict[str, str]]:
         tiers.append(tier)
 
     for m in _RE_REDEEM_HOLD_LT.finditer(text):
-        _add(
-            {
-                "计费基准": "区间（P＜A）",
-                "区间结束": m.group(1),
-                "时间区间单位": "天",
-                "费率": m.group(2),
-            }
-        )
+        _add(_segment_tier(区间结束=m.group(1), 费率=m.group(2)))
     for m in _RE_REDEEM_HOLD_RANGE.finditer(text):
         _add(
-            {
-                "计费基准": "区间（A≤P＜B）",
-                "区间开始": m.group(1),
-                "区间结束": m.group(2),
-                "时间区间单位": "天",
-                "费率": m.group(3),
-            }
+            _segment_tier(
+                区间开始=m.group(1),
+                区间结束=m.group(2),
+                费率=m.group(3),
+            )
         )
     for m in _RE_REDEEM_HOLD_GTE.finditer(text):
-        _add(
-            {
-                "计费基准": "区间（P≥B）",
-                "区间开始": m.group(1),
-                "时间区间单位": "天",
-                "费率": m.group(2),
-            }
-        )
+        _add(_segment_tier(区间开始=m.group(1), 费率=m.group(2)))
     return tiers
 
 
@@ -306,6 +292,7 @@ def _extract_narrative_subscription_fees(
                 申赎费类型="认购费",
                 费率=m.group(1),
                 费率类型="百分比",
+                计费基准=_BASIS_FLAT,
                 计费方式=billing,
                 snippet=snippet,
             )
@@ -318,6 +305,7 @@ def _extract_narrative_subscription_fees(
                 申赎费类型="申购费",
                 费率=m.group(1),
                 费率类型="百分比",
+                计费基准=_BASIS_FLAT,
                 计费方式=billing,
                 snippet=snippet,
             )
@@ -393,6 +381,7 @@ def extract_subscription_fees_rules(
                         申赎费类型=fee_type,
                         费率=rate,
                         费率类型="百分比",
+                        计费基准=_BASIS_FLAT,
                         snippet=snip,
                     )
                 )
@@ -405,6 +394,7 @@ def extract_subscription_fees_rules(
                         申赎费类型="赎回费",
                         费率=table_redeem,
                         费率类型="百分比",
+                        计费基准=_BASIS_FLAT,
                         snippet=snip,
                     )
                 )
@@ -423,7 +413,7 @@ def extract_subscription_fees_rules(
     sub_text = windows.get("subscription", "") or ""
     tiers = _extract_redeem_tiers(sub_text, document)
     has_tier_redeem = any(
-        r.申赎费类型 == "赎回费" and r.计费基准 for r in rows
+        r.申赎费类型 == "赎回费" and r.计费基准 == _BASIS_SEGMENT for r in rows
     )
     if tiers and fund_name and (table_rates or not has_tier_redeem):
         parent_code: str | None = None

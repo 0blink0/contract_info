@@ -28,6 +28,7 @@ from backend.app.extract.rules import extract_fee_rates, extract_product_rules
 from backend.app.extract.rules.fee_rules import (
     enrich_fee_rates_from_fees_chapter,
     enrich_fee_rates_from_product,
+    gather_fee_source_text,
 )
 
 from backend.app.extract.rules.lock_normalize import merge_lock_rows
@@ -111,7 +112,8 @@ async def extract_document(
 
     fund_name = str(fund_fv.value) if fund_fv and fund_fv.value else None
 
-    fee_rates = extract_fee_rates(windows.get("fees", ""), fund_name, document)
+    fee_source = gather_fee_source_text(windows.get("fees", ""), document)
+    fee_rates = extract_fee_rates(fee_source, fund_name, document)
 
 
 
@@ -167,7 +169,7 @@ async def extract_document(
 
     fee_rates = sort_fee_rates(
         enrich_fee_rates_from_product(
-            enrich_fee_rates_from_fees_chapter(fee_rates, windows.get("fees", "")),
+            enrich_fee_rates_from_fees_chapter(fee_rates, fee_source),
             merged_product,
         )
     )

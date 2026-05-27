@@ -41,6 +41,90 @@ _FEE_DATE = re.compile(
     r"(计费起始|计费截止|费率生效)[日期：:\s]*(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})"
 )
 _CAP_FLOOR = re.compile(r"(保底|封顶)[：:\s]*(\d+(?:\.\d+)?)")
+_FEE_SOURCE_MARKERS = (
+    "基金管理费",
+    "基金的托管费",
+    "托管费",
+    "运营服务费",
+    "基金服务费",
+    "不收取管理费",
+    "年费率",
+    "外包服务费",
+)
+_FEE_TYPE_ORDER = ("管理费", "托管费", "基金服务费", "销售服务费", "投资顾问费")
+
+
+def gather_fee_source_text(
+    fees_text: str,
+    document: dict[str, Any] | None = None,
+) -> str:
+    """费用章节全文：窗口 + 正文中含费率说明的段落（避免窗口分类遗漏）。"""
+    parts: list[str] = []
+    if fees_text.strip():
+        parts.append(fees_text.strip())
+    if document:
+        for block in document.get("blocks") or []:
+            if block.get("type") not in ("paragraph", "table"):
+                continue
+            if block.get("type") == "table":
+                rows = block.get("rows") or []
+                text = "\n".join("\t".join(str(c) for c in row) for row in rows)
+            else:
+                text = str(block.get("text") or "")
+            if text.strip() and any(m in text for m in _FEE_SOURCE_MARKERS):
+                parts.append(text.strip())
+    return "\n\n".join(parts)
+
+
+def _rates_from_narrative_fees(text: str) -> dict[str, str]:
+    """按合同费用小节叙述抽取（正仁：管理费/托管费/运营服务费）。"""
+    rates: dict[str, str] = {}
+    if not text.strip():
+        return rates
+    if re.search(r"不收取管理费|管理费.*不收取|本基金不收取管理费", text):
+        rates["管理费"] = "0"
+    m = re.search(
+        r"(?:基金)?托管费[^。\n]{0,160}?年费率\s*为?\s*(\d+(?:\.\d+)?)\s*[%％]",
+        text,
+    )
+    if m:
+        rates["托管费"] = m.group(1)
+    for pattern, key in (
+        (
+            r"运营服务费[^。\n]{0,160}?年费率\s*为?\s*(\d+(?:\.\d+)?)\s*[%％]",
+            "基金服务费",
+        ),
+        (
+            r"基金服务费[^。\n]{0,160}?年费率\s*为?\s*(\d+(?:\.\d+)?)\s*[%％]",
+            "基金服务费",
+        ),
+        (
+            r"外包服务费[^。\n]{0,5000}?年费率\s*为?\s*(\d+(?:\.\d+)?)\s*[%％]",
+            "基金服务费",
+        ),
+    ):
+        m = re.search(pattern, text)
+        if m:
+            rates[key] = m.group(1)
+    return rates
+
+
+def _rows_from_explicit_rates(
+    fund_name: str | None,
+    rates: dict[str, str],
+) -> list[FeeRateRow]:
+    rows: list[FeeRateRow] = []
+    for fee_type in _FEE_TYPE_ORDER:
+        if fee_type not in rates:
+            continue
+        row = FeeRateRow(
+            基金名称=fund_name or None,
+            运营费类型=fee_type,
+            计费频率="按年",
+        )
+        _apply_rate(row, rates[fee_type])
+        rows.append(row)
+    return rows
 
 
 def _parse_line_fields(line: str) -> dict[str, str]:
@@ -286,15 +370,25 @@ def extract_fee_rates(
     )
     per_class_types = {r.运营费类型 for r in per_class_rows if r.运营费类型}
 
-    chapter_rates = _rates_from_fee_chapter(fees_text)
+    source = gather_fee_source_text(fees_text, document)
+    narrative_rates = _rates_from_narrative_fees(source)
+    chapter_rates = _rates_from_fee_chapter(source)
     if document:
         chapter_rates = {
             **_rates_from_document_text(document),
             **_rates_from_share_table(document),
             **chapter_rates,
+            **narrative_rates,
         }
+    else:
+        chapter_rates = {**chapter_rates, **narrative_rates}
 
-    lines = fees_text.splitlines()
+    if narrative_rates and not per_class_rows:
+        explicit_rows = _rows_from_explicit_rates(name, chapter_rates)
+        if explicit_rows:
+            return explicit_rows
+
+    lines = source.splitlines()
     if "外包服务费" in fees_text and "基金服务费" not in seen_types:
         m = re.search(
             r"外包服务费[\s\S]{0,5000}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", fees_text
