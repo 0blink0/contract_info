@@ -83,12 +83,24 @@ def test_fulu_subscription_rates_match_contract():
             assert got.get(fee_type) == rate, f"{letter} {fee_type}"
 
 
+def test_format_interval_basis_labels():
+    from backend.app.extract.rules.subscription_rules import format_interval_basis
+
+    assert format_interval_basis(区间结束="180") == "区间 (P<180)"
+    assert format_interval_basis(区间开始="180", 区间结束="360") == "区间 (180<=P<360)"
+    assert format_interval_basis(区间开始="360") == "区间 (P>=360)"
+
+
 def test_fulu_redeem_tier_rows():
     rows = _run_rules(FULU_KEY)
     redeem = [r for r in rows if r.申赎费类型 == "赎回费" and r.计费基准]
     assert len(redeem) == 3
     bases = {r.计费基准 for r in redeem}
-    assert bases == {"区间"}
+    assert bases == {
+        "区间 (P<180)",
+        "区间 (180<=P<360)",
+        "区间 (P>=360)",
+    }
     ends = {r.区间结束 for r in redeem if not r.区间开始}
     assert ends == {"180"}
 
@@ -99,7 +111,7 @@ def test_redeem_line_skips_range_inner_lt():
     assert _tier_from_redeem_line(
         "2）若投资者赎回的基金份额持有天数：180日≤（t）＜360日，则短期赎回费率为0.2%。"
     ) == {
-        "计费基准": "区间",
+        "计费基准": "区间 (180<=P<360)",
         "区间开始": "180",
         "区间结束": "360",
         "时间区间单位": "天",
@@ -107,7 +119,7 @@ def test_redeem_line_skips_range_inner_lt():
     }
     assert _tier_from_redeem_line(
         "1）若投资者赎回的基金份额持有天数：（t）＜180日，则短期赎回费率为1%。"
-    )["计费基准"] == "区间"
+    )["计费基准"] == "区间 (P<180)"
 
 
 ZHENGREN_DOCX = "正仁1号私募证券投资基金私募基金合同.docx"
@@ -201,7 +213,7 @@ def test_zhengren_narrative_subscription_fees():
     assert "五、私募基金的募集" not in (purchase[0].snippet or "")[:80]
     redeem = [r for r in rows if r.申赎费类型 == "赎回费" and r.计费基准]
     assert len(redeem) == 3
-    assert all(r.计费基准 == "区间" for r in redeem)
+    assert all((r.计费基准 or "").startswith("区间 (") for r in redeem)
     gte = [r for r in redeem if r.区间开始 == "365"]
     assert len(gte) == 1 and gte[0].费率 == "0"
     assert all(r.snippet for r in rows)

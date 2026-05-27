@@ -37,13 +37,34 @@ _RE_REDEEM_HOLD_GTE = re.compile(
     r"持有期在\s*(\d+)\s*天及以上(?!但低于)[^。]{0,100}?赎回费率为\s*(\d+(?:\.\d+)?)\s*%"
 )
 
-# CRM 申赎表：计费基准=不分段 / 区间（分段赎回）；区间开始/结束填天数；价内/价外在计费方式列
+# CRM 申赎表：计费基准=不分段 / 区间 (P<A) 等；区间开始/结束填天数；价内/价外在计费方式列
 _BASIS_FLAT = "不分段"
 _BASIS_SEGMENT = "区间"
 
 
+def format_interval_basis(
+    区间开始: str | None = None,
+    区间结束: str | None = None,
+) -> str:
+    """运营模板：持有天数 P 与边界 A/B 组合为 区间 (P<A)、区间 (A<=P<B)、区间 (P>=A)。"""
+    start = str(区间开始).strip() if 区间开始 is not None else ""
+    end = str(区间结束).strip() if 区间结束 is not None else ""
+    if start and end:
+        return f"区间 ({start}<=P<{end})"
+    if end:
+        return f"区间 (P<{end})"
+    if start:
+        return f"区间 (P>={start})"
+    return _BASIS_SEGMENT
+
+
 def _segment_tier(**fields: str) -> dict[str, str]:
-    out: dict[str, str] = {"计费基准": _BASIS_SEGMENT, "时间区间单位": "天"}
+    start = fields.get("区间开始")
+    end = fields.get("区间结束")
+    out: dict[str, str] = {
+        "计费基准": format_interval_basis(start, end),
+        "时间区间单位": "天",
+    }
     out.update(fields)
     return out
 
@@ -832,7 +853,9 @@ def extract_subscription_fees_rules(
     sub_text = windows.get("subscription", "") or ""
     tiers = _extract_redeem_tiers(sub_text, document)
     has_tier_redeem = any(
-        r.申赎费类型 == "赎回费" and r.计费基准 == _BASIS_SEGMENT for r in rows
+        r.申赎费类型 == "赎回费"
+        and (r.计费基准 or "").startswith("区间")
+        for r in rows
     )
     if tiers and fund_name and (table_rates or not has_tier_redeem):
         parent_code: str | None = None

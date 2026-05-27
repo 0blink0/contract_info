@@ -60,8 +60,11 @@ def sort_subscription_fees(rows: list[SubscriptionFeeRow]) -> list[SubscriptionF
     """Group by 申赎费类型, then share class; tiered 赎回费 rows after flat per-class rows."""
 
     def key(row: SubscriptionFeeRow) -> tuple:
-        is_tier = row.计费基准 in ("区间", "分段") or bool(
-            row.区间开始 or row.区间结束
+        basis = row.计费基准 or ""
+        is_tier = (
+            basis in ("区间", "分段")
+            or basis.startswith("区间 (")
+            or bool(row.区间开始 or row.区间结束)
         )
         return (
             _type_rank(row.申赎费类型, _SUB_FEE_TYPE_ORDER),
