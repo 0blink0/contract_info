@@ -271,7 +271,8 @@ def get_validation(job_id: uuid.UUID) -> ValidationResponse:
         payload = dict(entry)
         if not payload.get("field_label"):
             payload["field_label"] = label_for_validation_field(
-                str(payload.get("field") or "")
+                str(payload.get("field") or ""),
+                record.extraction_result,
             )
         items.append(ValidationItemResponse.model_validate(payload))
     return ValidationResponse(

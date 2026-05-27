@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from backend.app.extract.schemas import ShareClassRow, SubscriptionFeeRow
+from backend.app.extract.section_windows import gather_outline_chapter_text
 from backend.app.extract.text_limits import excerpt_for_display
 
 _SHARE_COL = re.compile(r"([A-D])\s*类(?:份额)?", re.IGNORECASE)
@@ -32,9 +33,9 @@ _RE_REDEEM_HOLD_GTE = re.compile(
     r"持有期在\s*(\d+)\s*天及以上(?!但低于)[^。]{0,100}?赎回费率为\s*(\d+(?:\.\d+)?)\s*%"
 )
 
-# CRM 申赎表：计费基准=分段/不分段；区间列填天数；价内/价外在计费方式列
+# CRM 申赎表：计费基准=不分段 / 区间（分段赎回）；区间开始/结束填天数；价内/价外在计费方式列
 _BASIS_FLAT = "不分段"
-_BASIS_SEGMENT = "分段"
+_BASIS_SEGMENT = "区间"
 
 
 def _segment_tier(**fields: str) -> dict[str, str]:
@@ -202,40 +203,155 @@ def _extract_redeem_tiers(
     return tiers
 
 
-def gather_subscription_rules_text(
-    document: dict[str, Any],
-    windows: dict[str, str],
-) -> str:
-    """申赎 + 募集章节及含认购/申购计算公式的段落。"""
-    chunks: list[str] = []
-    for key in ("raising", "subscription"):
-        part = (windows.get(key) or "").strip()
-        if part:
-            chunks.append(part)
-    markers = (
-        "申购和赎回",
-        "申购费用",
-        "申购费率",
-        "赎回费率",
-        "申购费率为",
-        "赎回费率为",
-        "认购份额",
-        "认购费用",
-        "认购费率",
-        "认购费率为",
-        "短期赎回",
-        "价内法",
-        "价外法",
-        "净认购金额",
-        "净申购金额",
-    )
+_RAISING_BLOCK_MARKERS = (
+    "认购费率为",
+    "认购费率",
+    "认购的费率",
+    "认购费用",
+    "认购份额",
+    "净认购金额",
+)
+_SUBSCRIPTION_BLOCK_MARKERS = (
+    "申购和赎回",
+    "申购费用",
+    "申购费率",
+    "申购费率为",
+    "赎回费率",
+    "赎回费率为",
+    "短期赎回",
+    "持有期低于",
+    "持有期在",
+    "价内法",
+    "价外法",
+    "净申购金额",
+)
+_COMBINED_RULE_MARKERS = _RAISING_BLOCK_MARKERS + _SUBSCRIPTION_BLOCK_MARKERS
+
+_SNIPPET_MARKERS_SUBSCRIBE = (
+    "认购费率为",
+    "认购费率",
+    "认购的费率",
+    "认购费用",
+    "认购份额=",
+    "认购份额＝",
+    "净认购金额",
+)
+_SNIPPET_MARKERS_PURCHASE = (
+    "申购费率为",
+    "申购费率",
+    "申购和赎回的费率",
+    "申购费用",
+    "申购份额",
+    "净申购金额",
+)
+_SNIPPET_MARKERS_REDEEM = (
+    "赎回费率为",
+    "赎回费率",
+    "短期赎回费率为",
+    "持有期低于",
+    "持有期在",
+    "不收取短期赎回",
+)
+
+
+def _append_paragraph_blocks(document: dict[str, Any], markers: tuple[str, ...], chunks: list[str]) -> None:
+    seen: set[str] = set(chunks)
     for block in document.get("blocks") or []:
         if block.get("type") != "paragraph":
             continue
         text = str(block.get("text") or "").strip()
-        if text and any(m in text for m in markers):
+        if not text or text in seen:
+            continue
+        if any(m in text for m in markers):
             chunks.append(text)
+            seen.add(text)
+
+
+def gather_raising_fee_text(
+    document: dict[str, Any],
+    windows: dict[str, str],
+) -> str:
+    """募集章（按 outline 目录定位，兼容「基金的募集/私募基金的募集」）+ 遗漏段落补全。"""
+    chunks: list[str] = []
+    outline_text = gather_outline_chapter_text(document, "raising").strip()
+    if outline_text:
+        chunks.append(outline_text)
+    else:
+        part = (windows.get("raising") or "").strip()
+        if part:
+            chunks.append(part)
+    _append_paragraph_blocks(document, _RAISING_BLOCK_MARKERS, chunks)
     return "\n".join(chunks)
+
+
+def gather_subscription_chapter_text(
+    document: dict[str, Any],
+    windows: dict[str, str],
+) -> str:
+    """申赎章（按 outline 目录）+ 申购/赎回费率与分段段落补全。"""
+    chunks: list[str] = []
+    outline_text = gather_outline_chapter_text(document, "subscription").strip()
+    if outline_text:
+        chunks.append(outline_text)
+    else:
+        part = (windows.get("subscription") or "").strip()
+        if part:
+            chunks.append(part)
+    _append_paragraph_blocks(document, _SUBSCRIPTION_BLOCK_MARKERS, chunks)
+    return "\n".join(chunks)
+
+
+def gather_subscription_rules_text(
+    document: dict[str, Any],
+    windows: dict[str, str],
+) -> str:
+    """申赎 + 募集章节及含认购/申购计算公式的段落（计费方式推断用）。"""
+    chunks: list[str] = []
+    raising = gather_raising_fee_text(document, windows)
+    subscription = gather_subscription_chapter_text(document, windows)
+    if raising:
+        chunks.append(raising)
+    if subscription:
+        chunks.append(subscription)
+    _append_paragraph_blocks(document, _COMBINED_RULE_MARKERS, chunks)
+    return "\n".join(chunks)
+
+
+def _best_snippet_around_markers(text: str, markers: tuple[str, ...]) -> str:
+    """Pick first matching marker in priority order (specific phrases before generic)."""
+    if not text.strip():
+        return ""
+    for marker in markers:
+        pos = text.find(marker)
+        if pos < 0:
+            continue
+        start = max(0, pos - 160)
+        end = min(len(text), pos + max(420, len(marker) + 300))
+        return excerpt_for_display(text[start:end])
+    return excerpt_for_display(text)
+
+
+def subscription_fee_snippet(
+    fee_type: str | None,
+    document: dict[str, Any],
+    windows: dict[str, str],
+) -> str | None:
+    """按费种取对应章节摘录，避免合并全文前 4000 字误用募集章开头。"""
+    if not fee_type:
+        return None
+    if fee_type == "认购费":
+        source = gather_raising_fee_text(document, windows)
+        markers = _SNIPPET_MARKERS_SUBSCRIBE
+    elif fee_type == "申购费":
+        source = gather_subscription_chapter_text(document, windows)
+        markers = _SNIPPET_MARKERS_PURCHASE
+    else:
+        source = gather_subscription_chapter_text(document, windows)
+        markers = _SNIPPET_MARKERS_REDEEM
+    if not source.strip():
+        return None
+    snip = _best_snippet_around_markers(source, markers)
+    return snip or None
 
 
 def _collect_fee_section_text(
@@ -343,13 +459,16 @@ def _extract_narrative_subscription_fees(
     fee_text: str,
     *,
     fund_code: str | None,
+    document: dict[str, Any],
+    windows: dict[str, str],
 ) -> list[SubscriptionFeeRow]:
     """无份额分类表时，从申购赎回章节叙述抽取（如正仁）。"""
     rows: list[SubscriptionFeeRow] = []
-    snippet = excerpt_for_display(fee_text)
     billing_map = infer_subscription_billing_rules(fee_text)
+    raising_text = gather_raising_fee_text(document, windows)
+    sub_text = gather_subscription_chapter_text(document, windows)
 
-    if m := _RE_SUBSCRIBE_RATE.search(fee_text):
+    if m := _RE_SUBSCRIBE_RATE.search(raising_text) or _RE_SUBSCRIBE_RATE.search(fee_text):
         rows.append(
             SubscriptionFeeRow(
                 基金名称=fund_name,
@@ -359,10 +478,11 @@ def _extract_narrative_subscription_fees(
                 费率类型="百分比",
                 计费基准=_BASIS_FLAT,
                 计费方式=billing_map.get("认购费"),
-                snippet=snippet,
+                snippet=subscription_fee_snippet("认购费", document, windows),
             )
         )
-    if m := _RE_PURCHASE_RATE.search(fee_text):
+    purchase_src = sub_text or fee_text
+    if m := _RE_PURCHASE_RATE.search(purchase_src) or _RE_PURCHASE_RATE.search(fee_text):
         rows.append(
             SubscriptionFeeRow(
                 基金名称=fund_name,
@@ -372,7 +492,7 @@ def _extract_narrative_subscription_fees(
                 费率类型="百分比",
                 计费基准=_BASIS_FLAT,
                 计费方式=billing_map.get("申购费"),
-                snippet=snippet,
+                snippet=subscription_fee_snippet("申购费", document, windows),
             )
         )
 
@@ -383,25 +503,26 @@ def _extract_narrative_subscription_fees(
             if line.strip()
         ]
     }
-    for tier in _holding_period_redeem_tiers(fee_text):
+    redeem_snip = subscription_fee_snippet("赎回费", document, windows)
+    for tier in _holding_period_redeem_tiers(sub_text or fee_text):
         rows.append(
             SubscriptionFeeRow(
                 基金名称=fund_name,
                 基金代码=fund_code,
                 申赎费类型="赎回费",
                 费率类型="百分比",
-                snippet=snippet,
+                snippet=redeem_snip,
                 **tier,
             )
         )
-    for tier in _extract_redeem_tiers(fee_text, fake_doc):
+    for tier in _extract_redeem_tiers(sub_text or fee_text, fake_doc):
         rows.append(
             SubscriptionFeeRow(
                 基金名称=fund_name,
                 基金代码=fund_code,
                 申赎费类型="赎回费",
                 费率类型="百分比",
-                snippet=snippet,
+                snippet=redeem_snip,
                 **tier,
             )
         )
@@ -435,7 +556,6 @@ def extract_subscription_fees_rules(
             rates = table_rates.get(letter, {})
             display_name = format_subscription_fund_name(fund_name, letter)
             fund_code = code_by_letter.get(letter)
-            snip = excerpt_for_display(fee_section) if fee_section else None
             for fee_type in ("认购费", "申购费"):
                 rate = rates.get(fee_type)
                 if rate is None:
@@ -449,7 +569,9 @@ def extract_subscription_fees_rules(
                         费率类型="百分比",
                         计费基准=_BASIS_FLAT,
                         计费方式=billing_map.get(fee_type),
-                        snippet=snip,
+                        snippet=subscription_fee_snippet(
+                            fee_type, document, windows
+                        ),
                     )
                 )
             table_redeem = rates.get("赎回费")
@@ -462,7 +584,9 @@ def extract_subscription_fees_rules(
                         费率=table_redeem,
                         费率类型="百分比",
                         计费基准=_BASIS_FLAT,
-                        snippet=snip,
+                        snippet=subscription_fee_snippet(
+                            "赎回费", document, windows
+                        ),
                     )
                 )
     elif fund_name and fee_section.strip():
@@ -473,7 +597,11 @@ def extract_subscription_fees_rules(
                 break
         rows.extend(
             _extract_narrative_subscription_fees(
-                fund_name, fee_section, fund_code=parent_code
+                fund_name,
+                fee_section,
+                fund_code=parent_code,
+                document=document,
+                windows=windows,
             )
         )
 
@@ -488,7 +616,7 @@ def extract_subscription_fees_rules(
             if sc.基金代码:
                 parent_code = sc.基金代码
                 break
-        tier_snip = excerpt_for_display(fee_section or sub_text)
+        tier_snip = subscription_fee_snippet("赎回费", document, windows)
         for tier in tiers:
             rows.append(
                 SubscriptionFeeRow(

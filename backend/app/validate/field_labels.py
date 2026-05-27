@@ -26,7 +26,10 @@ _RE_PATH_B_TIER = re.compile(
 )
 
 
-def label_for_validation_field(field: str) -> str:
+def label_for_validation_field(
+    field: str,
+    extraction_result: dict | None = None,
+) -> str:
     """Human-readable label for validation UI (product fields already Chinese)."""
     text = (field or "").strip()
     if not text:
@@ -52,5 +55,12 @@ def label_for_validation_field(field: str) -> str:
     if text.startswith("subscription_fees["):
         m = re.match(r"^subscription_fees\[(\d+)\]\.(.+)$", text)
         if m:
-            return f"申购费·第{int(m.group(1)) + 1}行·{m.group(2)}"
+            idx = int(m.group(1))
+            col = m.group(2)
+            fee_label = "申赎费"
+            if extraction_result:
+                rows = extraction_result.get("subscription_fees") or []
+                if idx < len(rows) and isinstance(rows[idx], dict):
+                    fee_label = str(rows[idx].get("申赎费类型") or fee_label)
+            return f"{fee_label}·第{idx + 1}行·{col}"
     return text

@@ -138,6 +138,154 @@ def _block_text(block: dict[str, Any]) -> str:
     return str(block.get("text") or "")
 
 
+def _normalize_outline_title(title: str) -> str:
+    """Strip Word TOC page tabs; keep actual heading text."""
+    return re.sub(r"\t\d+\s*$", "", (title or "").strip())
+
+
+# Main chapter headings from parsed outline (wording varies by contract).
+_MAIN_CHAPTER_PATTERNS: dict[str, re.Pattern[str]] = {
+    "raising": re.compile(
+        r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
+        r"(?:私募)?基金的募集\s*$"
+    ),
+    "subscription": re.compile(
+        r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
+        r"(?:私募)?基金的申购[、,]\s*赎回"
+    ),
+    "fees": re.compile(
+        r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
+        r"(?:私募)?基金的费用|费用与税收"
+    ),
+    "investment": re.compile(
+        r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
+        r"(?:私募)?基金的投资\s*$"
+    ),
+}
+
+# Next major part after 申赎章（目录表述不一，用常见后继章名截断）
+_CHAPTER_BOUNDARY = re.compile(
+    r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
+    r"(?:当事人及权利义务|基金的财产|基金的投资|费用与税收|基金的收益|"
+    r"风险揭示|基金的成立|基金合同的效力)"
+)
+
+
+def _main_chapter_window(title: str) -> str | None:
+    norm = _normalize_outline_title(title)
+    for key, pattern in _MAIN_CHAPTER_PATTERNS.items():
+        if pattern.search(norm):
+            return key
+    return None
+
+
+def _is_plausible_chapter_heading(norm: str, window_key: str) -> bool:
+    """Ignore mis-detected outline rows (long sentences tagged as level-1)."""
+    if not norm or len(norm) > 72:
+        return False
+    if pat := _MAIN_CHAPTER_PATTERNS.get(window_key):
+        if pat.search(norm):
+            return True
+    if len(norm) > 48:
+        return False
+    if window_key == "raising":
+        return bool(re.search(r"(?:私募)?基金的募集\s*$", norm))
+    if window_key == "subscription":
+        return bool(re.search(r"(?:私募)?基金的申购.*赎回", norm))
+    return False
+
+
+def _chapter_start_rank(norm: str, window_key: str) -> tuple[int, int, int]:
+    """Prefer exact main-chapter titles; among TOC/body duplicates prefer later body copy."""
+    exact = 0
+    if window_key == "raising" and re.search(r"^(?:私募)?基金的募集\s*$", norm):
+        exact = 3
+    elif window_key == "subscription" and re.search(
+        r"^(?:私募)?基金的申购[、,]\s*赎回", norm
+    ):
+        exact = 3
+    elif _MAIN_CHAPTER_PATTERNS[window_key].search(norm):
+        exact = 2
+    return (exact, -len(norm), 0)
+
+
+def find_outline_chapter_span(
+    outline: list[dict[str, Any]],
+    window_key: str,
+) -> tuple[str, str | None] | None:
+    """
+    Locate (start_anchor, end_anchor_exclusive) for a main chapter from doc outline.
+    Picks the best main heading; when TOC and body repeat, later body copy wins via index.
+    """
+    if window_key not in _MAIN_CHAPTER_PATTERNS:
+        return None
+    candidates: list[int] = []
+    for i, item in enumerate(outline):
+        norm = _normalize_outline_title(str(item.get("title") or ""))
+        if _is_plausible_chapter_heading(norm, window_key):
+            candidates.append(i)
+    if not candidates:
+        return None
+    start_idx = max(
+        candidates,
+        key=lambda i: (
+            _chapter_start_rank(
+                _normalize_outline_title(str(outline[i].get("title") or "")),
+                window_key,
+            ),
+            i,
+        ),
+    )
+    end_idx = len(outline)
+    for j in range(start_idx + 1, len(outline)):
+        norm = _normalize_outline_title(str(outline[j].get("title") or ""))
+        other = _main_chapter_window(norm)
+        if other and other != window_key:
+            end_idx = j
+            break
+        if _CHAPTER_BOUNDARY.search(norm):
+            end_idx = j
+            break
+    start_aid = str(outline[start_idx].get("anchor_id") or "")
+    if not start_aid:
+        return None
+    end_aid: str | None = None
+    if end_idx < len(outline):
+        end_aid = str(outline[end_idx].get("anchor_id") or "") or None
+    return start_aid, end_aid
+
+
+def gather_outline_chapter_text(
+    document: dict[str, Any],
+    window_key: str,
+) -> str:
+    """All block text under a main outline chapter (by actual 目录), not hardcoded 五、… titles."""
+    outline = document.get("outline") or []
+    if not outline:
+        return ""
+    span = find_outline_chapter_span(outline, window_key)
+    if not span:
+        return ""
+    start_aid, end_aid = span
+    anchor_order = [str(o.get("anchor_id") or "") for o in outline if o.get("anchor_id")]
+    if start_aid not in anchor_order:
+        return ""
+    start_pos = anchor_order.index(start_aid)
+    end_pos = anchor_order.index(end_aid) if end_aid and end_aid in anchor_order else len(
+        anchor_order
+    )
+    allowed = set(anchor_order[start_pos:end_pos])
+    lines: list[str] = []
+    for block in document.get("blocks") or []:
+        sid = block.get("section_id")
+        if sid not in allowed:
+            continue
+        text = _block_text(block).strip()
+        if text:
+            lines.append(text)
+    return "\n".join(lines)
+
+
 def build_section_windows(document: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
     """Build full chapter windows for rules; no head truncation."""
     title_map = _section_title_map(document)

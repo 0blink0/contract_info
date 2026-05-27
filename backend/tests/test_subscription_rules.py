@@ -88,7 +88,7 @@ def test_fulu_redeem_tier_rows():
     redeem = [r for r in rows if r.申赎费类型 == "赎回费" and r.计费基准]
     assert len(redeem) == 3
     bases = {r.计费基准 for r in redeem}
-    assert bases == {"分段"}
+    assert bases == {"区间"}
     ends = {r.区间结束 for r in redeem if not r.区间开始}
     assert ends == {"180"}
 
@@ -99,7 +99,7 @@ def test_redeem_line_skips_range_inner_lt():
     assert _tier_from_redeem_line(
         "2）若投资者赎回的基金份额持有天数：180日≤（t）＜360日，则短期赎回费率为0.2%。"
     ) == {
-        "计费基准": "分段",
+        "计费基准": "区间",
         "区间开始": "180",
         "区间结束": "360",
         "时间区间单位": "天",
@@ -107,7 +107,7 @@ def test_redeem_line_skips_range_inner_lt():
     }
     assert _tier_from_redeem_line(
         "1）若投资者赎回的基金份额持有天数：（t）＜180日，则短期赎回费率为1%。"
-    )["计费基准"] == "分段"
+    )["计费基准"] == "区间"
 
 
 ZHENGREN_DOCX = "正仁1号私募证券投资基金私募基金合同.docx"
@@ -134,18 +134,27 @@ def test_fulu_subscription_billing_inclusive_purchase():
 def test_zhengren_narrative_subscription_fees():
     rows = _run_rules(ZHENGREN_DOCX)
     assert rows, "expected subscription fee rows"
+    subscribe = [r for r in rows if r.申赎费类型 == "认购费"]
+    assert subscribe and subscribe[0].费率 == "0"
+    assert subscribe[0].snippet
+    assert "认购费率为" in subscribe[0].snippet
+    assert "七、私募基金的申购" not in (subscribe[0].snippet or "")
     purchase = [r for r in rows if r.申赎费类型 == "申购费"]
     assert purchase, "missing 申购费 row"
     assert purchase[0].费率 == "1"
     assert purchase[0].计费方式 == "价外法"
     assert purchase[0].计费基准 == "不分段"
     assert purchase[0].基金名称 and not purchase[0].基金名称.endswith("A")
+    assert purchase[0].snippet
+    assert "申购费率为" in purchase[0].snippet
+    assert "五、私募基金的募集" not in (purchase[0].snippet or "")[:80]
     redeem = [r for r in rows if r.申赎费类型 == "赎回费" and r.计费基准]
     assert len(redeem) == 3
-    assert all(r.计费基准 == "分段" for r in redeem)
+    assert all(r.计费基准 == "区间" for r in redeem)
     gte = [r for r in redeem if r.区间开始 == "365"]
     assert len(gte) == 1 and gte[0].费率 == "0"
     assert all(r.snippet for r in rows)
+    assert redeem[0].snippet and "赎回费率" in redeem[0].snippet
 
 
 def test_extract_document_sync_has_subscription_fees():
