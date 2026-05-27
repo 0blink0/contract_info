@@ -10,7 +10,7 @@ import { useJobPoll } from '@/composables/useJobPoll'
 import {
   canRetry,
   canStartRun,
-  isInProgress,
+  isPipelineActive,
   statusLabelZh,
 } from '@/constants/status'
 
@@ -36,7 +36,9 @@ const showRetry = computed(() => detail.value && canRetry(detail.value.status))
 const showViewResult = computed(
   () => detail.value && PREVIEW_READY.has(detail.value.status),
 )
-const busy = computed(() => Boolean(detail.value && isInProgress(detail.value.status)))
+const busy = computed(() =>
+  Boolean(detail.value && isPipelineActive(detail.value.status)),
+)
 
 async function onFileChange(file: { raw?: File }) {
   const raw = file.raw
@@ -63,9 +65,10 @@ async function onStartOrRetry() {
   if (!activeJobId.value || !detail.value) return
   running.value = true
   try {
-    const res = await runJob(activeJobId.value)
-    status.value = res.status
+    await runJob(activeJobId.value)
     detail.value = await getJob(activeJobId.value)
+    status.value = detail.value.status
+    poll.activate()
     ElMessage.success('已开始处理')
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '启动失败')
@@ -79,11 +82,15 @@ function goToDetail() {
   void router.push({ name: 'job-detail', params: { id: activeJobId.value } })
 }
 
-useJobPoll(
+const poll = useJobPoll(
   computed(() => activeJobId.value),
   status,
   (d) => {
+    const prev = detail.value?.status
     detail.value = d
+    if (prev && isPipelineActive(prev) && d.status === 'exported') {
+      ElMessage.success('处理完成，可查看结果')
+    }
   },
 )
 </script>

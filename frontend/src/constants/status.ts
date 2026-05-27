@@ -9,6 +9,15 @@ const STEPS = ['解析', '抽取', '导出'] as const
 
 const IN_PROGRESS = new Set(['parsing', 'extracting', 'exporting'])
 
+/** 流水线任一阶段（含阶段间隙 parsed/extracted） */
+const PIPELINE_ACTIVE = new Set([
+  'parsing',
+  'parsed',
+  'extracting',
+  'extracted',
+  'exporting',
+])
+
 const STATUS_ZH: Record<string, string> = {
   pending: '待处理',
   parsing: '解析中',
@@ -28,6 +37,10 @@ export function statusLabelZh(status: string): string {
 
 export function isInProgress(status: string): boolean {
   return IN_PROGRESS.has(status)
+}
+
+export function isPipelineActive(status: string): boolean {
+  return PIPELINE_ACTIVE.has(status)
 }
 
 export function canStartRun(status: string): boolean {

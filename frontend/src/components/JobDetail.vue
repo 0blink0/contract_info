@@ -142,7 +142,7 @@ watch(
 
 
 
-useJobPoll(
+const poll = useJobPoll(
 
   computed(() => props.jobId),
 
@@ -176,13 +176,13 @@ async function onStartOrRetry() {
 
   try {
 
-    const res = await runJob(props.jobId)
-
-    status.value = res.status
+    await runJob(props.jobId)
 
     ElMessage.success('已开始处理')
 
     await loadDetail(props.jobId)
+
+    poll.activate()
 
     emit('refreshList')
 

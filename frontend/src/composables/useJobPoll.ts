@@ -1,8 +1,24 @@
-import { onUnmounted, watch, type Ref } from 'vue'
+import { onUnmounted, ref, watch, type Ref } from 'vue'
 import { getJob } from '@/api/client'
 import type { JobDetail } from '@/api/types'
 
-const POLL_MS = 2500
+const POLL_MS = 2000
+
+const TERMINAL = new Set([
+  'exported',
+  'failed',
+  'extraction_failed',
+  'export_failed',
+])
+
+/** Backend may advance the pipeline through these between in_progress flags. */
+const PIPELINE_POLL = new Set([
+  'parsing',
+  'parsed',
+  'extracting',
+  'extracted',
+  'exporting',
+])
 
 export function useJobPoll(
   jobId: Ref<string | null>,
@@ -10,6 +26,17 @@ export function useJobPoll(
   onUpdate: (detail: JobDetail) => void,
 ) {
   let timer: ReturnType<typeof setInterval> | null = null
+  const forcePoll = ref(false)
+
+  function shouldPoll(): boolean {
+    if (!jobId.value) return false
+    if (TERMINAL.has(status.value)) {
+      forcePoll.value = false
+      return false
+    }
+    if (forcePoll.value) return true
+    return PIPELINE_POLL.has(status.value)
+  }
 
   function stop() {
     if (timer) {
@@ -24,7 +51,8 @@ export function useJobPoll(
       const detail = await getJob(jobId.value)
       onUpdate(detail)
       status.value = detail.status
-      if (!['parsing', 'extracting', 'exporting'].includes(detail.status)) {
+      if (TERMINAL.has(detail.status)) {
+        forcePoll.value = false
         stop()
       }
     } catch {
@@ -34,24 +62,27 @@ export function useJobPoll(
 
   function start() {
     stop()
-    if (!jobId.value) return
-    if (!['parsing', 'extracting', 'exporting'].includes(status.value)) return
+    if (!shouldPoll()) return
+    void tick()
     timer = setInterval(() => void tick(), POLL_MS)
   }
 
+  /** Call after POST /run — API may still return pending before background work starts. */
+  function activate() {
+    forcePoll.value = true
+    start()
+  }
+
   watch(
-    [jobId, status],
+    [jobId, status, forcePoll],
     () => {
-      if (jobId.value && ['parsing', 'extracting', 'exporting'].includes(status.value)) {
-        start()
-      } else {
-        stop()
-      }
+      if (shouldPoll()) start()
+      else stop()
     },
     { immediate: true },
   )
 
   onUnmounted(stop)
 
-  return { stop, refresh: tick }
+  return { stop, refresh: tick, activate }
 }
