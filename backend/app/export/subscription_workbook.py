@@ -23,6 +23,8 @@ from backend.app.export.xlsx_utils import (
 def _subscription_row_values(row: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for key, val in row.items():
+        if key == "snippet":
+            continue
         if val is None or str(val).strip() == "":
             continue
         template_key = template_header_for_subscription_key(key)

@@ -116,8 +116,14 @@ async function refresh() {
               </template>
             </el-table-column>
             <el-table-column prop="value" label="值" width="120" show-overflow-tooltip />
-            <el-table-column prop="reason" label="原因" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="suggestion" label="建议" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="reason" label="原因" min-width="160" show-overflow-tooltip />
+            <el-table-column prop="suggestion" label="建议" min-width="100" show-overflow-tooltip />
+            <el-table-column
+              prop="evidence_text"
+              label="摘录原文"
+              min-width="220"
+              show-overflow-tooltip
+            />
           </el-table>
         </template>
       </el-collapse-item>

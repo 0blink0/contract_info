@@ -19,6 +19,7 @@ class ValidationItem(BaseModel):
     field: str
     status: ValidationStatus
     value: str | None = None
+    evidence_text: str | None = None
     reason: str
     suggestion: str | None = None
 

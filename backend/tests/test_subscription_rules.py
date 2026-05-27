@@ -108,6 +108,22 @@ def test_redeem_line_skips_range_inner_lt():
     )["计费基准"] == "区间（P＜A）"
 
 
+ZHENGREN_DOCX = "正仁1号私募证券投资基金私募基金合同.docx"
+
+
+def test_zhengren_narrative_subscription_fees():
+    rows = _run_rules(ZHENGREN_DOCX)
+    assert rows, "expected subscription fee rows"
+    purchase = [r for r in rows if r.申赎费类型 == "申购费"]
+    assert purchase, "missing 申购费 row"
+    assert purchase[0].费率 == "1"
+    assert purchase[0].计费方式 == "价外法"
+    assert purchase[0].基金名称 and not purchase[0].基金名称.endswith("A")
+    redeem = [r for r in rows if r.申赎费类型 == "赎回费" and r.计费基准]
+    assert len(redeem) >= 3
+    assert all(r.snippet for r in rows)
+
+
 def test_extract_document_sync_has_subscription_fees():
     path = EXAMPLE / SHIYUN_KEY
     if not path.is_file():

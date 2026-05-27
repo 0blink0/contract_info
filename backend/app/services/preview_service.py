@@ -16,6 +16,28 @@ from openpyxl import load_workbook
 
 from backend.app.config import PROJECT_ROOT
 
+SNIPPET_DISPLAY = "摘录原文"
+_SKIP_PREVIEW_KEYS = frozenset({"snippet"})
+
+
+def _append_snippet_column(
+    columns_order: list[str],
+    rows: list[dict[str, str | None]],
+    raw_rows: list[dict[str, Any]],
+) -> tuple[list[str], list[dict[str, str | None]]]:
+    has_snippet = False
+    for i, raw in enumerate(raw_rows):
+        if i >= len(rows) or not isinstance(raw, dict):
+            continue
+        snip = raw.get("snippet")
+        if snip:
+            rows[i][SNIPPET_DISPLAY] = _cell_str(snip)
+            has_snippet = True
+    if has_snippet and SNIPPET_DISPLAY not in columns_order:
+        columns_order.append(SNIPPET_DISPLAY)
+    return columns_order, rows
+
+
 from backend.app.export.column_map import (
 
     FEE_DATA_START_ROW,
@@ -191,6 +213,8 @@ def _table_from_extraction_list(
             continue
 
         for key in row:
+            if key in _SKIP_PREVIEW_KEYS:
+                continue
 
             if key not in seen:
 
@@ -199,6 +223,7 @@ def _table_from_extraction_list(
                 columns_order.append(key)
 
     rows: list[dict[str, str | None]] = []
+    raw_items: list[dict[str, Any]] = []
 
     for row in items:
 
@@ -206,13 +231,18 @@ def _table_from_extraction_list(
 
             continue
 
-        mapped = {k: _cell_str(v) for k, v in row.items()}
+        mapped = {
+            k: _cell_str(v)
+            for k, v in row.items()
+            if k not in _SKIP_PREVIEW_KEYS
+        }
 
         if any(mapped.values()):
 
             rows.append(mapped)
+            raw_items.append(row)
 
-    return columns_order, rows
+    return _append_snippet_column(columns_order, rows, raw_items)
 
 
 
@@ -239,6 +269,8 @@ def _fee_from_extraction(extraction: dict[str, Any]) -> tuple[list[str], list[di
             continue
 
         for key in row:
+            if key in _SKIP_PREVIEW_KEYS:
+                continue
 
             label = template_header_for_fee_key(key)
 
@@ -251,6 +283,7 @@ def _fee_from_extraction(extraction: dict[str, Any]) -> tuple[list[str], list[di
 
 
     rows: list[dict[str, str | None]] = []
+    raw_fee: list[dict[str, Any]] = []
 
     for row in fee_list:
 
@@ -261,14 +294,17 @@ def _fee_from_extraction(extraction: dict[str, Any]) -> tuple[list[str], list[di
         mapped: dict[str, str | None] = {}
 
         for key, val in row.items():
+            if key in _SKIP_PREVIEW_KEYS:
+                continue
 
             mapped[template_header_for_fee_key(key)] = _cell_str(val)
 
         if any(mapped.values()):
 
             rows.append(mapped)
+            raw_fee.append(row)
 
-    return columns_order, rows
+    return _append_snippet_column(columns_order, rows, raw_fee)
 
 
 def _subscription_from_extraction(
@@ -284,21 +320,27 @@ def _subscription_from_extraction(
         if not isinstance(row, dict):
             continue
         for key in row:
+            if key in _SKIP_PREVIEW_KEYS:
+                continue
             label = template_header_for_subscription_key(key)
             if label not in seen:
                 seen.add(label)
                 columns_order.append(label)
 
     rows: list[dict[str, str | None]] = []
+    raw_sub: list[dict[str, Any]] = []
     for row in sub_list:
         if not isinstance(row, dict):
             continue
         mapped: dict[str, str | None] = {}
         for key, val in row.items():
+            if key in _SKIP_PREVIEW_KEYS:
+                continue
             mapped[template_header_for_subscription_key(key)] = _cell_str(val)
         if any(mapped.values()):
             rows.append(mapped)
-    return columns_order, rows
+            raw_sub.append(row)
+    return _append_snippet_column(columns_order, rows, raw_sub)
 
 
 def build_job_preview(record) -> dict[str, Any]:

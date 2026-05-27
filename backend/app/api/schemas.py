@@ -72,6 +72,7 @@ class ValidationItemResponse(BaseModel):
     field_label: str | None = None
     status: str
     value: str | None = None
+    evidence_text: str | None = None
     reason: str
     suggestion: str | None = None
 

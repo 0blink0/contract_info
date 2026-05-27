@@ -96,6 +96,7 @@ class SubscriptionFeeRow(BaseModel):
     基金名称: str | None = None
     基金代码: str | None = None
     申赎费类型: str | None = None
+    snippet: str | None = None
     计费方式: str | None = None
     费率生效日期: str | None = None
     计费基准: str | None = None

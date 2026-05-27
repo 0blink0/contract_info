@@ -66,6 +66,7 @@ export interface ValidationItem {
   field_label?: string | null
   status: string
   value?: string | null
+  evidence_text?: string | null
   reason: string
   suggestion?: string | null
 }

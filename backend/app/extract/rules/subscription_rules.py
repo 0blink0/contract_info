@@ -19,6 +19,17 @@ _REDEEM_GTE = re.compile(
     r"[（(]t[）)]?\s*[≥>＞=]\s*(\d+)\s*日[^。\n]{0,80}?不收取短期赎回"
 )
 _RE_RANGE_BEFORE_LT = re.compile(r"\d+\s*日\s*[≤<=]")
+_RE_PURCHASE_RATE = re.compile(r"申购费率为\s*(\d+(?:\.\d+)?)\s*%")
+_RE_SUBSCRIBE_RATE = re.compile(r"认购费率为\s*(\d+(?:\.\d+)?)\s*%")
+_RE_REDEEM_HOLD_LT = re.compile(
+    r"持有期低于\s*(\d+)\s*天[^。]{0,200}?赎回费率为\s*(\d+(?:\.\d+)?)\s*%"
+)
+_RE_REDEEM_HOLD_RANGE = re.compile(
+    r"持有期在\s*(\d+)\s*天及以上但低于\s*(\d+)\s*天[^。]{0,120}?赎回费率为\s*(\d+(?:\.\d+)?)\s*%"
+)
+_RE_REDEEM_HOLD_GTE = re.compile(
+    r"持有期在\s*(\d+)\s*天及以上[^。]{0,100}?赎回费率为\s*(\d+(?:\.\d+)?)\s*%"
+)
 
 
 def format_subscription_fund_name(full_name: str | None, share_letter: str) -> str:
@@ -192,6 +203,157 @@ def _extract_redeem_tiers(
     return tiers
 
 
+def _collect_fee_section_text(document: dict[str, Any], windows: dict[str, str]) -> str:
+    """申购赎回费率章节：兼容叙述体（正仁）与份额表（福禄）。"""
+    chunks: list[str] = []
+    markers = (
+        "申购和赎回的费率",
+        "申购费率",
+        "赎回费率",
+        "申购费率为",
+        "赎回费率为",
+        "短期赎回",
+    )
+    for block in document.get("blocks") or []:
+        if block.get("type") != "paragraph":
+            continue
+        text = str(block.get("text") or "").strip()
+        if text and any(m in text for m in markers):
+            chunks.append(text)
+    sub = (windows.get("subscription") or "").strip()
+    if sub:
+        chunks.append(sub)
+    return "\n".join(chunks)
+
+
+def _infer_subscription_billing(text: str) -> str | None:
+    if re.search(
+        r"1\s*\+\s*申购费率|/\s*（\s*1\s*\+\s*申购费率|申购金额\s*/\s*（\s*1\s*\+",
+        text,
+    ):
+        return "价外法"
+    if "价内法" in text:
+        return "价内法"
+    if "价外法" in text:
+        return "价外法"
+    return None
+
+
+def _holding_period_redeem_tiers(text: str) -> list[dict[str, str]]:
+    tiers: list[dict[str, str]] = []
+    seen: set[tuple[str, ...]] = set()
+
+    def _add(tier: dict[str, str]) -> None:
+        key = (
+            tier.get("计费基准", ""),
+            tier.get("区间开始", ""),
+            tier.get("区间结束", ""),
+            tier.get("费率", ""),
+        )
+        if key in seen:
+            return
+        seen.add(key)
+        tiers.append(tier)
+
+    for m in _RE_REDEEM_HOLD_LT.finditer(text):
+        _add(
+            {
+                "计费基准": "区间（P＜A）",
+                "区间结束": m.group(1),
+                "时间区间单位": "天",
+                "费率": m.group(2),
+            }
+        )
+    for m in _RE_REDEEM_HOLD_RANGE.finditer(text):
+        _add(
+            {
+                "计费基准": "区间（A≤P＜B）",
+                "区间开始": m.group(1),
+                "区间结束": m.group(2),
+                "时间区间单位": "天",
+                "费率": m.group(3),
+            }
+        )
+    for m in _RE_REDEEM_HOLD_GTE.finditer(text):
+        _add(
+            {
+                "计费基准": "区间（P≥B）",
+                "区间开始": m.group(1),
+                "时间区间单位": "天",
+                "费率": m.group(2),
+            }
+        )
+    return tiers
+
+
+def _extract_narrative_subscription_fees(
+    fund_name: str,
+    fee_text: str,
+    *,
+    fund_code: str | None,
+) -> list[SubscriptionFeeRow]:
+    """无份额分类表时，从申购赎回章节叙述抽取（如正仁）。"""
+    rows: list[SubscriptionFeeRow] = []
+    snippet = fee_text[:800]
+    billing = _infer_subscription_billing(fee_text)
+
+    if m := _RE_SUBSCRIBE_RATE.search(fee_text):
+        rows.append(
+            SubscriptionFeeRow(
+                基金名称=fund_name,
+                基金代码=fund_code,
+                申赎费类型="认购费",
+                费率=m.group(1),
+                费率类型="百分比",
+                计费方式=billing,
+                snippet=snippet,
+            )
+        )
+    if m := _RE_PURCHASE_RATE.search(fee_text):
+        rows.append(
+            SubscriptionFeeRow(
+                基金名称=fund_name,
+                基金代码=fund_code,
+                申赎费类型="申购费",
+                费率=m.group(1),
+                费率类型="百分比",
+                计费方式=billing,
+                snippet=snippet,
+            )
+        )
+
+    fake_doc = {
+        "blocks": [
+            {"type": "paragraph", "text": line}
+            for line in fee_text.splitlines()
+            if line.strip()
+        ]
+    }
+    for tier in _holding_period_redeem_tiers(fee_text):
+        rows.append(
+            SubscriptionFeeRow(
+                基金名称=fund_name,
+                基金代码=fund_code,
+                申赎费类型="赎回费",
+                费率类型="百分比",
+                snippet=snippet,
+                **tier,
+            )
+        )
+    for tier in _extract_redeem_tiers(fee_text, fake_doc):
+        rows.append(
+            SubscriptionFeeRow(
+                基金名称=fund_name,
+                基金代码=fund_code,
+                申赎费类型="赎回费",
+                费率类型="百分比",
+                snippet=snippet,
+                **tier,
+            )
+        )
+    return rows
+
+
 def extract_subscription_fees_rules(
     document: dict[str, Any],
     windows: dict[str, str],
@@ -203,8 +365,6 @@ def extract_subscription_fees_rules(
     del product_elements  # reserved for future fund-code lookup
     table_rates = _parse_share_fee_table(document)
     letters = _letters_from_share_classes(share_classes) or sorted(table_rates.keys())
-    if not letters and fund_name:
-        letters = ["A"]
 
     rows: list[SubscriptionFeeRow] = []
     code_by_letter: dict[str, str | None] = {}
@@ -213,43 +373,64 @@ def extract_subscription_fees_rules(
         if letter:
             code_by_letter[letter] = sc.分级份额代码 or sc.基金代码
 
-    for letter in letters:
-        rates = table_rates.get(letter, {})
-        display_name = format_subscription_fund_name(fund_name, letter)
-        fund_code = code_by_letter.get(letter)
-        for fee_type in ("认购费", "申购费"):
-            rate = rates.get(fee_type)
-            if rate is None:
-                rate = "0"
-            rows.append(
-                SubscriptionFeeRow(
-                    基金名称=display_name,
-                    基金代码=fund_code,
-                    申赎费类型=fee_type,
-                    费率=rate,
-                    费率类型="百分比",
-                )
-            )
-        table_redeem = rates.get("赎回费")
-        if table_redeem is not None:
-            rows.append(
-                SubscriptionFeeRow(
-                    基金名称=display_name,
-                    基金代码=fund_code,
-                    申赎费类型="赎回费",
-                    费率=table_redeem,
-                    费率类型="百分比",
-                )
-            )
+    fee_section = _collect_fee_section_text(document, windows)
 
-    sub_text = windows.get("subscription", "") or ""
-    tiers = _extract_redeem_tiers(sub_text, document)
-    if tiers and fund_name:
+    if table_rates:
+        for letter in letters:
+            rates = table_rates.get(letter, {})
+            display_name = format_subscription_fund_name(fund_name, letter)
+            fund_code = code_by_letter.get(letter)
+            snip = fee_section[:500] if fee_section else None
+            for fee_type in ("认购费", "申购费"):
+                rate = rates.get(fee_type)
+                if rate is None:
+                    continue
+                rows.append(
+                    SubscriptionFeeRow(
+                        基金名称=display_name,
+                        基金代码=fund_code,
+                        申赎费类型=fee_type,
+                        费率=rate,
+                        费率类型="百分比",
+                        snippet=snip,
+                    )
+                )
+            table_redeem = rates.get("赎回费")
+            if table_redeem is not None:
+                rows.append(
+                    SubscriptionFeeRow(
+                        基金名称=display_name,
+                        基金代码=fund_code,
+                        申赎费类型="赎回费",
+                        费率=table_redeem,
+                        费率类型="百分比",
+                        snippet=snip,
+                    )
+                )
+    elif fund_name and fee_section.strip():
         parent_code: str | None = None
         for sc in share_classes:
             if sc.基金代码:
                 parent_code = sc.基金代码
                 break
+        rows.extend(
+            _extract_narrative_subscription_fees(
+                fund_name, fee_section, fund_code=parent_code
+            )
+        )
+
+    sub_text = windows.get("subscription", "") or ""
+    tiers = _extract_redeem_tiers(sub_text, document)
+    has_tier_redeem = any(
+        r.申赎费类型 == "赎回费" and r.计费基准 for r in rows
+    )
+    if tiers and fund_name and (table_rates or not has_tier_redeem):
+        parent_code: str | None = None
+        for sc in share_classes:
+            if sc.基金代码:
+                parent_code = sc.基金代码
+                break
+        tier_snip = fee_section[:800] if fee_section else sub_text[:800]
         for tier in tiers:
             rows.append(
                 SubscriptionFeeRow(
@@ -257,6 +438,7 @@ def extract_subscription_fees_rules(
                     基金代码=parent_code,
                     申赎费类型="赎回费",
                     费率类型="百分比",
+                    snippet=tier_snip,
                     **tier,
                 )
             )

@@ -69,6 +69,7 @@ async def run_llm_validation(
                     field=row.field,
                     status=row.status,
                     value=cand.value if cand else None,
+                    evidence_text=cand.evidence_text if cand else None,
                     reason=row.reason or "（模型未返回原因）",
                     suggestion=row.suggestion,
                 )
