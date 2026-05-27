@@ -44,7 +44,13 @@ from backend.app.extract.rules.share_rules import (
     is_graded_contract,
 )
 from backend.app.extract.rules.path_b_rules import extract_path_b_rules
-from backend.app.extract.rules.subscription_rules import extract_subscription_fees_rules
+from backend.app.extract.llm.subscription_billing import extract_subscription_billing_llm
+from backend.app.extract.rules.subscription_rules import (
+    apply_subscription_billing,
+    extract_subscription_fees_rules,
+    gather_subscription_rules_text,
+    infer_subscription_billing_rules,
+)
 
 from backend.app.extract.schemas import (
 
@@ -261,6 +267,17 @@ async def extract_document(
             product_elements=merged_product,
         )
     )
+    bill_text = gather_subscription_rules_text(document, windows)
+    billing_map = infer_subscription_billing_rules(bill_text)
+    if getattr(client, "available", False):
+        llm_billing, w_bill = await extract_subscription_billing_llm(client, bill_text)
+        warnings.extend(w_bill)
+        for key, val in llm_billing.items():
+            if val:
+                billing_map[key] = val
+        if llm_billing:
+            chapters_called.append("subscription_billing")
+    apply_subscription_billing(subscription_fees, billing_map)
 
     result = merge_extraction(
 

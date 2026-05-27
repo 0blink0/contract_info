@@ -202,16 +202,32 @@ def _extract_redeem_tiers(
     return tiers
 
 
-def _collect_fee_section_text(document: dict[str, Any], windows: dict[str, str]) -> str:
-    """申购赎回费率章节：兼容叙述体（正仁）与份额表（福禄）。"""
+def gather_subscription_rules_text(
+    document: dict[str, Any],
+    windows: dict[str, str],
+) -> str:
+    """申赎 + 募集章节及含认购/申购计算公式的段落。"""
     chunks: list[str] = []
+    for key in ("raising", "subscription"):
+        part = (windows.get(key) or "").strip()
+        if part:
+            chunks.append(part)
     markers = (
-        "申购和赎回的费率",
+        "申购和赎回",
+        "申购费用",
         "申购费率",
         "赎回费率",
         "申购费率为",
         "赎回费率为",
+        "认购份额",
+        "认购费用",
+        "认购费率",
+        "认购费率为",
         "短期赎回",
+        "价内法",
+        "价外法",
+        "净认购金额",
+        "净申购金额",
     )
     for block in document.get("blocks") or []:
         if block.get("type") != "paragraph":
@@ -219,27 +235,76 @@ def _collect_fee_section_text(document: dict[str, Any], windows: dict[str, str])
         text = str(block.get("text") or "").strip()
         if text and any(m in text for m in markers):
             chunks.append(text)
-    sub = (windows.get("subscription") or "").strip()
-    if sub:
-        chunks.append(sub)
     return "\n".join(chunks)
 
 
-def _infer_subscription_billing(text: str) -> str | None:
-    """价外：申购金额/(1+费率)；价内：合同写明或净额计入份额的表述。无依据则留空。"""
+def _collect_fee_section_text(
+    document: dict[str, Any],
+    windows: dict[str, str],
+) -> str:
+    return gather_subscription_rules_text(document, windows)
+
+
+def infer_subscription_billing_rules(text: str) -> dict[str, str]:
+    """规则 fallback：按认购/申购公式分别推断价内/价外。"""
+    if not text.strip():
+        return {}
+    out: dict[str, str] = {}
+
     if re.search(
-        r"1\s*\+\s*申购费率|/\s*（\s*1\s*\+\s*申购费率|申购金额\s*/\s*（\s*1\s*\+",
+        r"申购份额\s*=\s*申购金额\s*/\s*（?\s*1\s*\+\s*申购费率",
+        text,
+    ) or re.search(
+        r"申购金额\s*/\s*（?\s*1\s*\+\s*申购费率\s*）?\s*/\s*申购价格",
         text,
     ):
-        return "价外法"
-    if re.search(
-        r"价内法|价内收费|价内计提|净额申购|申购金额\s*[×x]\s*（\s*1\s*-\s*申购费率",
+        out["申购费"] = "价外法"
+    elif re.search(
+        r"申购费用\s*=\s*申购金额\s*[×x＊]?\s*申购费率\s*/\s*（?\s*1\s*\+\s*申购费率",
         text,
     ):
-        return "价内法"
+        out["申购费"] = "价内法"
+
+    if re.search(
+        r"认购费用\s*=\s*认购金额\s*[×x＊]\s*认购费率\s*/\s*（?\s*1\s*\+\s*认购费率",
+        text,
+    ):
+        out["认购费"] = "价内法"
+    elif re.search(
+        r"认购份额\s*=\s*（?\s*认购金额\s*-\s*认购费用",
+        text,
+    ) or re.search(
+        r"认购金额\s*/\s*（?\s*1\s*\+\s*认购费率",
+        text,
+    ):
+        out["认购费"] = "价外法"
+
+    if "价内法" in text or "价内收费" in text:
+        if "认购" in text and "认购费" not in out:
+            out.setdefault("认购费", "价内法")
+        if "申购" in text and "申购费" not in out:
+            out.setdefault("申购费", "价内法")
     if "价外法" in text or "价外收费" in text:
-        return "价外法"
-    return None
+        if "认购" in text and "认购费" not in out:
+            out.setdefault("认购费", "价外法")
+        if "申购" in text and "申购费" not in out:
+            out.setdefault("申购费", "价外法")
+    return out
+
+
+def apply_subscription_billing(
+    rows: list[SubscriptionFeeRow],
+    billing_by_type: dict[str, str],
+) -> None:
+    for row in rows:
+        fee_type = row.申赎费类型
+        if fee_type in ("认购费", "申购费") and billing_by_type.get(fee_type):
+            row.计费方式 = billing_by_type[fee_type]
+
+
+def _infer_subscription_billing(text: str) -> str | None:
+    by_type = infer_subscription_billing_rules(text)
+    return by_type.get("申购费") or by_type.get("认购费")
 
 
 def _holding_period_redeem_tiers(text: str) -> list[dict[str, str]]:
@@ -282,7 +347,7 @@ def _extract_narrative_subscription_fees(
     """无份额分类表时，从申购赎回章节叙述抽取（如正仁）。"""
     rows: list[SubscriptionFeeRow] = []
     snippet = excerpt_for_display(fee_text)
-    billing = _infer_subscription_billing(fee_text)
+    billing_map = infer_subscription_billing_rules(fee_text)
 
     if m := _RE_SUBSCRIBE_RATE.search(fee_text):
         rows.append(
@@ -293,7 +358,7 @@ def _extract_narrative_subscription_fees(
                 费率=m.group(1),
                 费率类型="百分比",
                 计费基准=_BASIS_FLAT,
-                计费方式=billing,
+                计费方式=billing_map.get("认购费"),
                 snippet=snippet,
             )
         )
@@ -306,7 +371,7 @@ def _extract_narrative_subscription_fees(
                 费率=m.group(1),
                 费率类型="百分比",
                 计费基准=_BASIS_FLAT,
-                计费方式=billing,
+                计费方式=billing_map.get("申购费"),
                 snippet=snippet,
             )
         )
@@ -362,7 +427,8 @@ def extract_subscription_fees_rules(
         if letter:
             code_by_letter[letter] = sc.分级份额代码 or sc.基金代码
 
-    fee_section = _collect_fee_section_text(document, windows)
+    fee_section = gather_subscription_rules_text(document, windows)
+    billing_map = infer_subscription_billing_rules(fee_section)
 
     if table_rates:
         for letter in letters:
@@ -382,6 +448,7 @@ def extract_subscription_fees_rules(
                         费率=rate,
                         费率类型="百分比",
                         计费基准=_BASIS_FLAT,
+                        计费方式=billing_map.get(fee_type),
                         snippet=snip,
                     )
                 )
@@ -434,4 +501,5 @@ def extract_subscription_fees_rules(
                 )
             )
 
+    apply_subscription_billing(rows, billing_map)
     return rows

@@ -10,6 +10,8 @@ from backend.app.parse import parse_docx
 from backend.app.parse.schemas import document_to_dict
 from backend.app.extract.section_windows import build_section_windows
 from backend.app.extract.rules.product_rules import extract_product_rules
+from backend.app.parse import parse_docx
+from backend.app.parse.schemas import document_to_dict
 from backend.app.extract.rules.share_rules import extract_share_classes_rules
 from backend.tests.golden.conftest import FULU_KEY, SHIYUN_KEY, load_contract_expected
 
@@ -109,6 +111,24 @@ def test_redeem_line_skips_range_inner_lt():
 
 
 ZHENGREN_DOCX = "正仁1号私募证券投资基金私募基金合同.docx"
+
+
+def test_fulu_subscription_billing_inclusive_purchase():
+    from backend.app.extract.rules.subscription_rules import (
+        gather_subscription_rules_text,
+        infer_subscription_billing_rules,
+    )
+    from backend.tests.golden.conftest import FULU_KEY
+
+    rows = _run_rules(FULU_KEY)
+    path = EXAMPLE / FULU_KEY
+    doc = document_to_dict(parse_docx(str(path)))
+    windows, _ = build_section_windows(doc)
+    text = gather_subscription_rules_text(doc, windows)
+    billing = infer_subscription_billing_rules(text)
+    assert billing.get("申购费") == "价内法"
+    purchase = [r for r in rows if r.申赎费类型 == "申购费"]
+    assert purchase and purchase[0].计费方式 == "价内法"
 
 
 def test_zhengren_narrative_subscription_fees():
