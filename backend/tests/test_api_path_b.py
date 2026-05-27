@@ -46,6 +46,9 @@ def test_path_b_success(api_client, api_headers):
     assert body["performance_fee"]["tiers"]
     assert body["open_day"]["fixed_schedule"] == "每月开放"
     assert body["source_snippets"]["open_day.fixed_schedule"]
+    rows = body["source_snippet_rows"]
+    assert rows
+    assert rows[0]["label"] == "开放日·固定安排"
 
 
 def test_path_b_missing_json(api_client, api_headers):

@@ -67,11 +67,18 @@ class CrmHandoffItem(BaseModel):
     coverage: str = "missing"
 
 
+class PathBSnippetRow(BaseModel):
+    path: str
+    label: str
+    text: str
+
+
 class PathBResponse(BaseModel):
     job_id: uuid.UUID
     performance_fee: dict[str, Any] = Field(default_factory=dict)
     open_day: dict[str, Any] = Field(default_factory=dict)
     source_snippets: dict[str, str] = Field(default_factory=dict)
+    source_snippet_rows: list[PathBSnippetRow] = Field(default_factory=list)
     crm_handoff: list[CrmHandoffItem] = Field(default_factory=list)
 
 

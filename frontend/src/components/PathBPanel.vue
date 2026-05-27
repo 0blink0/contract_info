@@ -29,6 +29,14 @@ watch(
 
 const crmRows = computed(() => data.value?.crm_handoff ?? [])
 
+const snippetRows = computed(() => {
+  const rows = data.value?.source_snippet_rows
+  if (rows?.length) return rows
+  const snippets = data.value?.source_snippets
+  if (!snippets) return []
+  return Object.entries(snippets).map(([path, text]) => ({ path, label: path, text }))
+})
+
 const coverageLabel = (c: string) => {
   if (c === 'full') return '可直接填'
   if (c === 'partial') return '建议核对'
@@ -146,6 +154,13 @@ function downloadJson() {
               </el-table-column>
               <el-table-column prop="snippet" label="合同摘录" min-width="280" show-overflow-tooltip />
             </el-table>
+            <div v-if="snippetRows.length" class="snippets">
+              <div class="sub-title">合同摘录（按字段）</div>
+              <el-table :data="snippetRows" size="small" stripe border max-height="240">
+                <el-table-column prop="label" label="字段" width="220" show-overflow-tooltip />
+                <el-table-column prop="text" label="摘录" min-width="280" show-overflow-tooltip />
+              </el-table>
+            </div>
             <pre v-if="showJson" class="json-block">{{ jsonText }}</pre>
           </template>
         </template>
@@ -178,6 +193,14 @@ function downloadJson() {
   margin: 0 0 10px;
   font-size: 13px;
   color: #606266;
+}
+.snippets {
+  margin-bottom: 12px;
+}
+.sub-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
 }
 .json-block {
   margin-top: 12px;

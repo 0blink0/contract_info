@@ -16,6 +16,7 @@ from backend.app.api.schemas import (
     JobPreviewResponse,
     CrmHandoffItem,
     PathBResponse,
+    PathBSnippetRow,
     ProductPreviewItem,
     ValidationItemResponse,
     ValidationResponse,
@@ -27,6 +28,7 @@ from backend.app.services.delete_service import JobDeleteBusyError, delete_job_r
 from backend.app.services.preview_service import get_job_preview
 from backend.app.config import PROJECT_ROOT, exports_dir
 from backend.app.extract.path_b_crm import build_crm_handoff
+from backend.app.validate.field_labels import label_for_path_b_snippet
 from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
 from backend.app.services.pipeline_service import (
@@ -304,10 +306,21 @@ def get_path_b(job_id: uuid.UUID) -> PathBResponse:
         if isinstance(t, dict) and t.get("description"):
             fees_ctx += " " + str(t["description"])
     handoff = build_crm_handoff(raw, fees_context=fees_ctx)
+    snippets = raw.get("source_snippets") or {}
+    snippet_rows = [
+        PathBSnippetRow(
+            path=path,
+            label=label_for_path_b_snippet(path, raw),
+            text=str(text),
+        )
+        for path, text in sorted(snippets.items())
+        if text and str(text).strip()
+    ]
     return PathBResponse(
         job_id=record.id,
         performance_fee=perf,
         open_day=raw.get("open_day") or {},
-        source_snippets=raw.get("source_snippets") or {},
+        source_snippets=snippets,
+        source_snippet_rows=snippet_rows,
         crm_handoff=[CrmHandoffItem(**item) for item in handoff],
     )

@@ -26,6 +26,34 @@ _RE_PATH_B_TIER = re.compile(
 )
 
 
+def label_for_path_b_snippet(path: str, path_b: dict | None = None) -> str:
+    """Chinese label for path_b source_snippets keys (no path_b. prefix)."""
+    text = (path or "").strip()
+    if not text:
+        return text
+    if text in _PATH_B:
+        return _PATH_B[text]
+    m = _RE_PATH_B_TIER.match(text)
+    if m:
+        tier_idx = int(m.group(1))
+        sub = _TIER_FIELD.get(m.group(2), m.group(2))
+        share: str | None = None
+        if path_b:
+            tiers = (path_b.get("performance_fee") or {}).get("tiers") or []
+            if tier_idx < len(tiers) and isinstance(tiers[tier_idx], dict):
+                raw = tiers[tier_idx].get("share_class")
+                if raw:
+                    share = str(raw).upper()
+        if share:
+            return f"业绩报酬·{share}类·{sub}"
+        return f"业绩报酬·第{tier_idx + 1}档·{sub}"
+    parts = text.split(".")
+    if len(parts) >= 2:
+        module = "业绩报酬" if parts[0] == "performance_fee" else "开放日"
+        return f"{module}·{parts[-1]}"
+    return text
+
+
 def label_for_validation_field(
     field: str,
     extraction_result: dict | None = None,
@@ -35,19 +63,10 @@ def label_for_validation_field(
     if not text:
         return text
     if text.startswith("path_b."):
-        path = text[len("path_b.") :]
-        if path in _PATH_B:
-            return _PATH_B[path]
-        m = _RE_PATH_B_TIER.match(path)
-        if m:
-            tier_no = int(m.group(1)) + 1
-            sub = _TIER_FIELD.get(m.group(2), m.group(2))
-            return f"业绩报酬·第{tier_no}档·{sub}"
-        parts = path.split(".")
-        if len(parts) >= 2:
-            module = "业绩报酬" if parts[0] == "performance_fee" else "开放日"
-            return f"{module}·{parts[-1]}"
-        return path
+        path_b = None
+        if extraction_result:
+            path_b = extraction_result.get("path_b_json") or extraction_result.get("path_b")
+        return label_for_path_b_snippet(text[len("path_b.") :], path_b)
     if text.startswith("fee_rates["):
         m = re.match(r"^fee_rates\[(\d+)\]\.(.+)$", text)
         if m:

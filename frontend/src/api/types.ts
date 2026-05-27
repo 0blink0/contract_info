@@ -61,11 +61,18 @@ export interface CrmHandoffItem {
   coverage: string
 }
 
+export interface PathBSnippetRow {
+  path: string
+  label: string
+  text: string
+}
+
 export interface PathBResponse {
   job_id: string
   performance_fee: Record<string, unknown>
   open_day: Record<string, unknown>
   source_snippets: Record<string, string>
+  source_snippet_rows: PathBSnippetRow[]
   crm_handoff: CrmHandoffItem[]
 }
 

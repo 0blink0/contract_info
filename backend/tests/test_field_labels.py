@@ -1,4 +1,7 @@
-from backend.app.validate.field_labels import label_for_validation_field
+from backend.app.validate.field_labels import (
+    label_for_path_b_snippet,
+    label_for_validation_field,
+)
 
 
 def test_path_b_open_day_label():
@@ -12,6 +15,18 @@ def test_path_b_tier_label():
     assert (
         label_for_validation_field("path_b.performance_fee.tiers[0].ratio_pct")
         == "业绩报酬·第1档·计提比例"
+    )
+
+
+def test_path_b_tier_label_with_share_class():
+    path_b = {
+        "performance_fee": {
+            "tiers": [{"share_class": "A", "ratio_pct": "20"}],
+        },
+    }
+    assert (
+        label_for_path_b_snippet("performance_fee.tiers[0].ratio_pct", path_b)
+        == "业绩报酬·A类·计提比例"
     )
 
 
