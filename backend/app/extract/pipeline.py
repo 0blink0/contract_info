@@ -37,6 +37,7 @@ from backend.app.extract.rules.classification_rules import (
     extract_classification_rules,
     infer_share_structure,
 )
+from backend.app.extract.rules.share_merge import merge_share_classes
 from backend.app.extract.rules.share_rules import (
     extract_share_classes_rules,
     is_graded_contract,
