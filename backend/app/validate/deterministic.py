@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
 from backend.app.validate.schemas import ValidationItem
 
 _RE_NO_STOP_LINES = re.compile(
@@ -163,5 +164,37 @@ def deterministic_validation_items(
             reason="摘录写明追加金额不低于1万元，对应最小变动单位。",
             suggestion=None,
         )
+
+    sub_rows = extraction_result.get("subscription_fees") or []
+    if isinstance(sub_rows, list):
+        for idx, row in enumerate(sub_rows):
+            if not isinstance(row, dict):
+                continue
+            fee_type = str(row.get("申赎费类型") or "").strip()
+            billing = str(row.get("计费方式") or "").strip()
+            if fee_type not in ("认购费", "申购费", "赎回费") or billing not in (
+                "价内法",
+                "价外法",
+            ):
+                continue
+            snippet = str(
+                row.get("snippet") or row.get("_snippet") or row.get("摘录") or ""
+            ).strip()
+            if not snippet:
+                continue
+            inferred = infer_subscription_billing_rules(snippet).get(fee_type)
+            if inferred != billing:
+                continue
+            field = f"subscription_fees[{idx}].计费方式"
+            out[field] = ValidationItem(
+                field=field,
+                status="pass",
+                value=billing,
+                reason=(
+                    f"摘录中的{fee_type}计算公式与「{billing}」一致"
+                    "（如份额=金额减费用为价内法，份额=金额/(1+费率)为价外法）。"
+                ),
+                suggestion=None,
+            )
 
     return out

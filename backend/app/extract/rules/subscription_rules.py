@@ -528,19 +528,25 @@ def infer_subscription_billing_rules(text: str) -> dict[str, str]:
     elif re.search(
         r"申购费用\s*=\s*申购金额\s*[×x＊]?\s*申购费率\s*/\s*（?\s*1\s*\+\s*申购费率",
         text,
+    ) or re.search(
+        r"申购份额\s*=\s*[（(]?\s*申购金额\s*[-－]\s*申购费用",
+        text,
     ):
         out["申购费"] = "价内法"
 
     if re.search(
         r"认购费用\s*=\s*认购金额\s*[×x＊]\s*认购费率\s*/\s*（?\s*1\s*\+\s*认购费率",
         text,
+    ) or re.search(
+        r"认购份额\s*=\s*[（(]?\s*认购金额\s*[-－]\s*认购费用",
+        text,
     ):
         out["认购费"] = "价内法"
     elif re.search(
-        r"认购份额\s*=\s*（?\s*认购金额\s*-\s*认购费用",
+        r"认购金额\s*/\s*（?\s*1\s*\+\s*认购费率",
         text,
     ) or re.search(
-        r"认购金额\s*/\s*（?\s*1\s*\+\s*认购费率",
+        r"净认购金额\s*=\s*认购金额\s*/\s*（?\s*1\s*\+\s*认购费率",
         text,
     ):
         out["认购费"] = "价外法"

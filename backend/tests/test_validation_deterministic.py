@@ -53,3 +53,22 @@ def test_face_value_pass_from_basic_snippet():
     items = deterministic_validation_items(extraction)
     assert items["基金面值"].status == "pass"
     assert items["币种"].status == "pass"
+
+
+def test_subscription_billing_method_pass_from_formula_snippet():
+    formula = (
+        "【合同条款·计费公式】\n"
+        "申购份额 = (申购金额 - 申购费用) / 申购申请日基金份额净值。"
+    )
+    extraction = {
+        "product_elements": {},
+        "subscription_fees": [
+            {
+                "申赎费类型": "申购费",
+                "计费方式": "价内法",
+                "snippet": f"【基本情况·份额分类表】A类 0%\n\n{formula}",
+            },
+        ],
+    }
+    items = deterministic_validation_items(extraction)
+    assert items["subscription_fees[0].计费方式"].status == "pass"
