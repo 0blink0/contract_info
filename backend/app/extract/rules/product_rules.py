@@ -124,12 +124,9 @@ _RE_BANK = re.compile(
 _RE_RISK_GRADE = re.compile(
     r"风险等级为\s*\[?\s*(R[1-5])\s*\]?", re.IGNORECASE
 )
-_RE_INV_MANAGER = re.compile(
-    r"本基金的投资经理[：:]\s*([^\n\r。；;，,]{2,80})"
-)
-_RE_INV_MANAGER_ALT = re.compile(
-    r"1、本基金的投资经理[：:]\s*([^\n\r。；;，,]{2,80})"
-)
+_RE_INV_MANAGER_HEADER = re.compile(r"1、本基金的投资经理[：:\s]*")
+_RE_MANAGER_NAME_LINE = re.compile(r"^([\u4e00-\u9fff]{2,4})[，,、]")
+_RE_MANAGER_BRACKET = re.compile(r"【([\u4e00-\u9fff]{2,4})】")
 _RE_LOCK_DAYS = re.compile(r"份额锁定期限为\s*(\d+)\s*天")
 _RE_OPEN_SCHEDULE = re.compile(r"本基金的开放日为[^。\n]{10,300}")
 _RE_INV_OBJECTIVE = re.compile(
@@ -231,6 +228,65 @@ def _find_party(
     if best:
         return best[1], best[2], best[3], best[4]
     return None, "", None, None
+
+
+def _extract_investment_manager_names(text: str) -> tuple[str | None, str | None]:
+    """Extract all manager personal names; join with 、 (几个写几个)."""
+    names: list[str] = []
+    seen: set[str] = set()
+    snippet_start: int | None = None
+
+    hdr = _RE_INV_MANAGER_HEADER.search(text)
+    if hdr:
+        snippet_start = hdr.start()
+        block = text[hdr.end() : hdr.end() + 2500]
+        for line in block.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if "本基金设置" in line and "投资经理" in line:
+                break
+            m = _RE_MANAGER_NAME_LINE.match(line)
+            if m:
+                name = m.group(1)
+                if name not in seen:
+                    names.append(name)
+                    seen.add(name)
+            elif names and not re.match(r"^[\u4e00-\u9fff]{2,4}[，,、]", line):
+                if "投资经理" in line and len(line) > 20:
+                    continue
+                break
+
+    if not names:
+        setup = re.search(r"本基金设置.{0,16}名投资经理", text)
+        if setup:
+            snippet_start = snippet_start if snippet_start is not None else setup.start()
+            window = text[setup.start() : setup.start() + 1200]
+            for m in _RE_MANAGER_BRACKET.finditer(window):
+                name = m.group(1)
+                if name not in seen:
+                    names.append(name)
+                    seen.add(name)
+
+    if not names:
+        m = re.search(
+            r"本基金的投资经理[：:\s]*((?:[\u4e00-\u9fff]{2,4}[、，,]\s*)+[\u4e00-\u9fff]{2,4})",
+            text,
+        )
+        if m:
+            raw = re.split(r"[、，,]\s*", m.group(1).strip())
+            for part in raw:
+                part = part.strip()
+                if re.fullmatch(r"[\u4e00-\u9fff]{2,4}", part) and part not in seen:
+                    names.append(part)
+                    seen.add(part)
+            snippet_start = m.start()
+
+    if not names:
+        return None, None
+
+    snip = text[snippet_start : snippet_start + 800] if snippet_start is not None else ""
+    return "、".join(names), snip or None
 
 
 def _extract_investment_chapter(inv_text: str) -> dict[str, FieldValue]:
@@ -487,17 +543,16 @@ def extract_product_rules(
 
     from backend.app.extract.field_snippets import resolve_field_snippet
 
-    for pattern in (_RE_INV_MANAGER, _RE_INV_MANAGER_ALT):
-        m = pattern.search(inv_combined + "\n" + full_text[:100000])
-        if m:
-            names = m.group(1).strip().strip("：:")
-            if names and "可" not in names[:3] and "变更" not in names:
-                snip = resolve_field_snippet("投资经理", inv_combined, names) or m.group(
-                    0
-                )
-                out["投资经理"] = _fv(names, snippet=snip)
-                out["投资经理信息"] = _fv(names, snippet=snip)
-                break
+    mgr_text = inv_combined + "\n" + full_text[:100000]
+    names, mgr_snip = _extract_investment_manager_names(mgr_text)
+    if names and "可" not in names[:3] and "变更" not in names:
+        snip = (
+            mgr_snip
+            or resolve_field_snippet("投资经理", inv_combined, names)
+            or names
+        )
+        out["投资经理"] = _fv(names, snippet=snip)
+        out["投资经理信息"] = _fv(names, snippet=snip)
 
     basic_text = windows.get("basic", "") + "\n" + cover
     m = _RE_FACE_VALUE.search(basic_text)

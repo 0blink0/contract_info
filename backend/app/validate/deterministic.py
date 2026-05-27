@@ -129,6 +129,19 @@ def deterministic_validation_items(
                 suggestion=None,
             )
 
+    mgr_val = _field_value(elements, "投资经理")
+    mgr_snip = _field_snippet(elements, "投资经理")
+    if mgr_val and mgr_snip:
+        listed = [n.strip() for n in re.split(r"[、,，/]", mgr_val) if n.strip()]
+        if listed and all(n in mgr_snip for n in listed):
+            out["投资经理"] = ValidationItem(
+                field="投资经理",
+                status="pass",
+                value=mgr_val,
+                reason="摘录列明的投资经理姓名与抽取值一致。",
+                suggestion=None,
+            )
+
     add_val = _field_value(elements, "追加起点")
     add_snip = _field_snippet(elements, "追加起点")
     step_val = _field_value(elements, "最小变动单位")

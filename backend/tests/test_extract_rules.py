@@ -57,6 +57,15 @@ def test_product_rules_face_value_yuan_implies_rmb():
     assert _currency_from_face_snippet("初始募集面值：1 美元") == ""
 
 
+def test_product_rules_all_investment_managers(fulu_document):
+    windows, _ = build_section_windows(fulu_document)
+    product = extract_product_rules(fulu_document, windows)
+    val = str(product["投资经理"].value)
+    assert "王敏敏" in val
+    assert "李森林" in val
+    assert "、" in val
+
+
 def test_product_rules_face_value_from_basic(fulu_document):
     windows, _ = build_section_windows(fulu_document)
     product = extract_product_rules(fulu_document, windows)
