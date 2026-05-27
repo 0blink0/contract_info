@@ -13,6 +13,16 @@ def test_list_jobs_empty(api_client, api_headers):
     mock_session.close.assert_called()
 
 
+def test_list_jobs_limit_up_to_200(api_client, api_headers):
+    mock_session = MagicMock()
+    mock_session.scalars.return_value.all.return_value = []
+    with patch("backend.app.api.routes.jobs.SessionLocal", return_value=mock_session):
+        ok = api_client.get("/api/v1/jobs?limit=100", headers=api_headers)
+        bad = api_client.get("/api/v1/jobs?limit=201", headers=api_headers)
+    assert ok.status_code == 200
+    assert bad.status_code == 422
+
+
 def test_list_jobs_returns_items(api_client, api_headers):
     job_id = uuid.uuid4()
     row = SimpleNamespace(

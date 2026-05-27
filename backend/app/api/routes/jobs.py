@@ -101,7 +101,7 @@ def _resolve_export_path(rel_path: str | None) -> Path:
 
 
 @router.get("", response_model=JobListResponse)
-def list_jobs(limit: int = Query(20, ge=1, le=50)) -> JobListResponse:
+def list_jobs(limit: int = Query(50, ge=1, le=200)) -> JobListResponse:
     session = SessionLocal()
     try:
         stmt = (

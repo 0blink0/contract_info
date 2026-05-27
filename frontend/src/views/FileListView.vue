@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onActivated, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { listJobs } from '@/api/client'
 import type { JobListItem } from '@/api/types'
 import { confirmAndDeleteJob } from '@/composables/useConfirmDeleteJob'
@@ -14,7 +15,10 @@ async function refresh() {
   loading.value = true
   try {
     const res = await listJobs(100)
-    items.value = res.items
+    items.value = res.items ?? []
+  } catch (e) {
+    items.value = []
+    ElMessage.error(e instanceof Error ? e.message : '加载文件列表失败')
   } finally {
     loading.value = false
   }
@@ -45,6 +49,10 @@ function statusTagType(status: string) {
 }
 
 onMounted(() => {
+  void refresh()
+})
+
+onActivated(() => {
   void refresh()
 })
 </script>
