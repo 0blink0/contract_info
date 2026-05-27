@@ -54,7 +54,17 @@ _RE_MIN_HOLD = re.compile(
     re.IGNORECASE,
 )
 _RE_MIN_HOLD_TYPE = re.compile(r"最低持有(?:类型)?[：:\s]*(金额|份额)")
-_RE_CLOSED_PERIOD = re.compile(r"封闭期[：:\s]*([^\n\r。]{4,60})")
+_RE_CLOSED_PERIOD = re.compile(r"封闭期[：:]\s*([^\n\r。，,；;、]{4,60})")
+_RE_NO_STOP_LINES = re.compile(
+    r"本基金不设置预警线[、,，\s]*止损线|"
+    r"不设置预警线[、,，\s]*止损线|"
+    r"未设预警线[、,，\s]*止损线|"
+    r"预警线[、,，\s]*止损线[^。\n]{0,16}不设置|"
+    r"本基金未设预警止损线|"
+    r"未设预警|不设预警",
+    re.IGNORECASE,
+)
+_RE_NOT_CLOSED = re.compile(r"不封闭|不存在封闭期|无封闭期", re.IGNORECASE)
 _RE_FIRST_SUB_WAN = re.compile(
     r"首次(?:净)?申购[^。\n]{0,48}?应不低于\s*(\d+(?:\.\d+)?)\s*万元",
     re.IGNORECASE,
@@ -76,6 +86,20 @@ def _normalize_face_value(amount: str) -> str:
     if face in ("1", "1.0", "1.00", "1.0000"):
         return "1"
     return face
+
+
+def _stop_lines_snippet(text: str, match: re.Match[str]) -> str:
+    """Full sentence/clause so 预警线 and 止损线 share evidence including both terms."""
+    start = max(0, text.rfind("\n", 0, match.start()) + 1)
+    end = text.find("。", match.end())
+    if end != -1 and end - start <= 160:
+        return text[start : end + 1].strip()
+    chunk = text[start : min(len(text), match.end() + 32)].strip()
+    if "止损线" not in chunk and match.end() < len(text):
+        extended = text[start : min(len(text), match.end() + 16)].strip()
+        if "止损线" in extended:
+            chunk = extended
+    return chunk
 
 
 def _currency_from_face_snippet(snippet: str) -> str:
@@ -358,19 +382,17 @@ def extract_product_rules(
         unit = m.group(2) or ""
         out["最低持有数量"] = _fv(f"{m.group(1)}{unit}", snippet=m.group(0))
 
-    m = _RE_CLOSED_PERIOD.search(search_sub)
-    if m and "锁定期" not in m.group(1)[:20]:
-        out["封闭期"] = _fv(m.group(1).strip(), snippet=m.group(0))
+    if not _RE_NOT_CLOSED.search(search_sub):
+        m = _RE_CLOSED_PERIOD.search(search_sub)
+        if m and "锁定期" not in m.group(1) and "最短持有" not in m.group(1):
+            out["封闭期"] = _fv(m.group(1).strip(), snippet=m.group(0))
 
     stop_search = inv_text + risk_text + full_text[:80000]
-    no_stop = re.search(
-        r"未设预警|不设预警|不设置预警线|不设置预警线[、,，\s]*止损线|"
-        r"本基金未设预警止损线|预警线[、,，\s]*止损线.*不设置",
-        stop_search,
-    )
+    no_stop = _RE_NO_STOP_LINES.search(stop_search)
     if no_stop:
-        out["预警线"] = _fv("无", snippet=no_stop.group(0))
-        out["止损线"] = _fv("无", snippet=no_stop.group(0))
+        snippet = _stop_lines_snippet(stop_search, no_stop)
+        out["预警线"] = _fv("无", snippet=snippet)
+        out["止损线"] = _fv("无", snippet=snippet)
     else:
         for m in _RE_STOP_LINES.finditer(inv_text + "\n" + cover):
             label = m.group(1)

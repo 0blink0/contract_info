@@ -91,6 +91,20 @@ def merge_extraction(
         )
     for key in SKIP_PRODUCT_FIELDS:
         merged.pop(key, None)
+
+    warn = merged.get("预警线")
+    stop = merged.get("止损线")
+    if (
+        warn
+        and stop
+        and str(warn.value).strip() == "无"
+        and str(stop.value).strip() == "无"
+        and warn.snippet
+        and "止损线" in warn.snippet
+        and (not stop.snippet or "止损线" not in stop.snippet)
+    ):
+        stop.snippet = warn.snippet
+
     return ExtractionResult(
         product_elements=merged,
         fee_rates=fee_rates,

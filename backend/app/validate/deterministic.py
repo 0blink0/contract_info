@@ -45,6 +45,7 @@ def deterministic_validation_items(
     stop_snip = _field_snippet(elements, "止损线")
     combined_stop = f"{warn_snip}\n{stop_snip}"
     if _RE_NO_STOP_LINES.search(combined_stop):
+        reason = "摘录明确写明不设置预警线、止损线，抽取值「无」一致。"
         for field in ("预警线", "止损线"):
             val = _field_value(elements, field)
             if val == "无":
@@ -52,9 +53,21 @@ def deterministic_validation_items(
                     field=field,
                     status="pass",
                     value=val,
-                    reason="摘录明确写明不设置预警线、止损线，抽取值「无」一致。",
+                    reason=reason,
                     suggestion=None,
                 )
+    elif (
+        _field_value(elements, "止损线") == "无"
+        and _RE_NO_STOP_LINES.search(warn_snip)
+        and "止损线" in warn_snip
+    ):
+        out["止损线"] = ValidationItem(
+            field="止损线",
+            status="pass",
+            value="无",
+            reason="预警线摘录已同时写明不设置止损线，抽取值「无」一致。",
+            suggestion=None,
+        )
 
     face_val = _field_value(elements, "基金面值")
     face_snip = _field_snippet(elements, "基金面值")
