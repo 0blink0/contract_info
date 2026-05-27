@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getPathB } from '@/api/client'
 import type { PathBResponse } from '@/api/types'
+import { labelForPathBSnippet } from '@/utils/pathBLabels'
 
 const props = defineProps<{
   jobId: string | null
@@ -30,11 +31,28 @@ watch(
 const crmRows = computed(() => data.value?.crm_handoff ?? [])
 
 const snippetRows = computed(() => {
-  const rows = data.value?.source_snippet_rows
-  if (rows?.length) return rows
-  const snippets = data.value?.source_snippets
+  const pb = data.value
+  if (!pb) return []
+  const labelOf = (path: string) => labelForPathBSnippet(path, pb)
+  if (pb.source_snippet_rows?.length) {
+    return pb.source_snippet_rows.map((r) => ({
+      path: r.path,
+      label: r.label || labelOf(r.path),
+      text: r.text,
+    }))
+  }
+  const snippets = pb.source_snippets
   if (!snippets) return []
-  return Object.entries(snippets).map(([path, text]) => ({ path, label: path, text }))
+  return Object.entries(snippets).map(([path, text]) => ({
+    path,
+    label: labelOf(path),
+    text,
+  }))
+})
+
+const tierRows = computed(() => {
+  const tiers = data.value?.performance_fee?.tiers
+  return Array.isArray(tiers) ? tiers : []
 })
 
 const coverageLabel = (c: string) => {
@@ -125,11 +143,27 @@ function downloadJson() {
           </div>
           <el-skeleton v-if="loading && !data" :rows="4" animated />
           <template v-else-if="data">
+            <p v-if="data.open_day?.fixed_schedule" class="field-line">
+              <strong>固定开放日：</strong>{{ data.open_day.fixed_schedule }}
+            </p>
             <p class="summary-line">
               CRM 业绩报酬设置：已建议
               <strong>{{ filledCount }}</strong>
               / 6 项（对照图二「业绩报酬提取设置」手录）
             </p>
+            <el-table
+              v-if="tierRows.length"
+              :data="tierRows"
+              size="small"
+              stripe
+              border
+              class="section-table"
+              empty-text="无业绩报酬档位"
+            >
+              <el-table-column prop="share_class" label="份额" width="80" />
+              <el-table-column prop="description" label="说明" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="ratio_pct" label="比例%" width="90" />
+            </el-table>
             <el-table
               :data="crmRows"
               size="small"
@@ -188,6 +222,10 @@ function downloadJson() {
 }
 .section-table {
   margin-bottom: 12px;
+}
+.field-line {
+  margin: 0 0 8px;
+  font-size: 13px;
 }
 .summary-line {
   margin: 0 0 10px;
