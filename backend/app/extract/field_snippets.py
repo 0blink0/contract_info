@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from backend.app.extract.text_limits import excerpt_for_display
+
 # Order: more specific section headers first
 _FIELD_ANCHORS: dict[str, tuple[str, ...]] = {
     "投资目标": ("（二）投资目标", "投资目标"),
@@ -34,19 +36,20 @@ _PLAIN_SECTION_STOP = re.compile(
 )
 
 
-def _slice_from_anchor(text: str, anchor: str, *, max_len: int = 1200) -> str | None:
+def _slice_from_anchor(text: str, anchor: str) -> str | None:
+    """From anchor through next numbered subsection (or end of window)."""
     pos = text.find(anchor)
     if pos < 0:
         return None
     start = pos
     if anchor.startswith("（") and pos > 0:
         start = max(0, pos - 8)
-    tail = text[pos + len(anchor) : pos + len(anchor) + max_len]
+    tail = text[pos + len(anchor) :]
     next_sec = _SECTION_HEAD.search(tail)
     if next_sec and next_sec.start() > 20:
         end = pos + len(anchor) + next_sec.start()
     else:
-        end = min(len(text), pos + max_len)
+        end = len(text)
     chunk = text[start:end].strip()
     if len(chunk) > 20:
         return chunk
@@ -56,13 +59,11 @@ def _slice_from_anchor(text: str, anchor: str, *, max_len: int = 1200) -> str | 
 def _plain_section_body(
     field: str,
     window_text: str,
-    *,
-    max_body_len: int = 4000,
 ) -> tuple[str | None, str | None]:
     m = re.search(rf"(?:^|\n){re.escape(field)}\s*\n", window_text)
     if not m:
         return None, None
-    tail = window_text[m.end() : m.end() + max_body_len + 400]
+    tail = window_text[m.end() :]
     stop = _PLAIN_SECTION_STOP.search(tail)
     stop2 = _SECTION_HEAD.search(tail)
     end = len(tail)
@@ -73,21 +74,19 @@ def _plain_section_body(
     body = re.sub(r"\s+", " ", tail[:end].strip())
     if len(body) < 4:
         return None, None
-    snip = f"{field}\n{body[:400]}"
-    return body[:max_body_len], snip[:800]
+    snip = excerpt_for_display(f"{field}\n{body}")
+    return body, snip
 
 
 def extract_section_body(
     field: str,
     window_text: str,
-    *,
-    max_body_len: int = 4000,
 ) -> tuple[str | None, str | None]:
     """Body text between section anchor and the next numbered subsection header."""
     if not window_text.strip():
         return None, None
     if field not in _STRICT_SECTION_FIELDS:
-        plain = _plain_section_body(field, window_text, max_body_len=max_body_len)
+        plain = _plain_section_body(field, window_text)
         if plain[0]:
             return plain
     anchors = _FIELD_ANCHORS.get(field, ())
@@ -98,20 +97,20 @@ def extract_section_body(
         if pos < 0:
             continue
         start = pos + len(anchor)
-        tail = window_text[start : start + max_body_len + 400]
+        tail = window_text[start:]
         tail = re.sub(r"^[：:\s]+", "", tail)
         next_sec = _SECTION_HEAD.search(tail)
         if next_sec and next_sec.start() > 4:
             body = tail[: next_sec.start()].strip()
         else:
-            body = tail[:max_body_len].strip()
+            body = tail.strip()
         body = re.sub(r"\s+", " ", body)
         if len(body) < 4:
             continue
         snippet = resolve_field_snippet(field, window_text, body[:80]) or _slice_from_anchor(
             window_text, anchor
         )
-        return body[:max_body_len], (snippet or body[:500])
+        return body, excerpt_for_display(snippet or body)
 
     return None, None
 
@@ -121,25 +120,25 @@ def resolve_field_snippet(
     window_text: str,
     value: str | None = None,
 ) -> str:
-    """Locate evidence by heading/keyword in the full window — not the first N characters."""
+    """Locate evidence by heading/keyword in the full window."""
     if not window_text.strip():
         return ""
     for anchor in _FIELD_ANCHORS.get(field, ()):
         chunk = _slice_from_anchor(window_text, anchor)
         if chunk:
-            return chunk[:800]
+            return excerpt_for_display(chunk)
     if value:
         val = str(value).strip()
         if val in ("无", "不支持", "不封闭", "支持"):
             for anchor in _FIELD_ANCHORS.get(field, ()):
                 chunk = _slice_from_anchor(window_text, anchor)
                 if chunk and val in chunk:
-                    return chunk[:800]
+                    return excerpt_for_display(chunk)
         if len(val) >= 6:
             needle = val[: min(60, len(val))]
             pos = window_text.find(needle)
             if pos >= 0:
                 start = max(0, pos - 40)
                 end = min(len(window_text), pos + len(needle) + 200)
-                return window_text[start:end].strip()[:800]
+                return excerpt_for_display(window_text[start:end].strip())
     return ""

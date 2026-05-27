@@ -48,7 +48,7 @@ def _field_text(fv: FieldValue | dict | None) -> str | None:
 
 
 def _share_letters_in_text(text: str) -> set[str]:
-    return {m.group(1).upper() for m in _SHARE_CLASS.finditer(text[:150000])}
+    return {m.group(1).upper() for m in _SHARE_CLASS.finditer(text)}
 
 
 def is_graded_contract(
@@ -110,7 +110,7 @@ def extract_share_classes_rules(
 
     rows: list[ShareClassRow] = []
 
-    for m in _SHARE_CLASS.finditer(text[:150000]):
+    for m in _SHARE_CLASS.finditer(text):
 
         code = m.group(1).upper()
 

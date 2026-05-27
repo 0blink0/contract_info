@@ -15,8 +15,6 @@ WINDOW_KEYS = (
     "fees",
 )
 
-MAX_WINDOW_CHARS = 12000
-
 _INVESTOR_COMMITMENT = re.compile(
     r"合格投资者|投资者承诺|适当性管理办法|风险承受能力|"
     r"私募基金投资者承诺|本人/本单位承诺",
@@ -73,6 +71,8 @@ _INVESTMENT_CHAPTER_START = re.compile(
 def _is_outline_toc_line(text: str) -> bool:
     t = text.strip()
     return len(t) < 120 and bool(re.search(r"\t\d{1,4}\s*$", t))
+
+
 _INVESTMENT_CHAPTER_END = re.compile(
     r"^七、\s*基金的申购|^八、\s*基金|"
     r"^十二、\s*(?:私募)?基金的财产|"
@@ -122,7 +122,7 @@ def _append_missing_sections(target: str, source: str, markers: tuple[str, ...])
         if marker not in source:
             continue
         pos = source.find(marker)
-        tail = source[pos : pos + 2500]
+        tail = source[pos:]
         next_m = _INVESTMENT_CHAPTER_END.search(tail[80:])
         chunk = tail[: next_m.start() + 80] if next_m else tail
         if chunk.strip():
@@ -139,9 +139,9 @@ def _block_text(block: dict[str, Any]) -> str:
 
 
 def build_section_windows(document: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
+    """Build full chapter windows for rules; no head truncation."""
     title_map = _section_title_map(document)
     buckets: dict[str, list[str]] = {k: [] for k in WINDOW_KEYS}
-    truncated: list[str] = []
 
     blocks = document.get("blocks") or []
     for idx, block in enumerate(blocks):
@@ -154,19 +154,14 @@ def build_section_windows(document: dict[str, Any]) -> tuple[dict[str, str], lis
         if text:
             buckets[window].append(text)
 
-    # Early blocks always contribute to cover
     for block in blocks[:40]:
         text = _block_text(block).strip()
         if text and "基金管理人" in text or "托管人" in text or "基金" in text:
             buckets["cover_parties"].append(text)
 
-    result: dict[str, str] = {}
-    for key in WINDOW_KEYS:
-        joined = "\n".join(buckets[key])
-        if len(joined) > MAX_WINDOW_CHARS:
-            joined = joined[:MAX_WINDOW_CHARS]
-            truncated.append(key)
-        result[key] = joined
+    result: dict[str, str] = {
+        key: "\n".join(buckets[key]) for key in WINDOW_KEYS
+    }
 
     investment_slice = _rebuild_investment_window(blocks, title_map)
     risk_text = result.get("risk", "")
@@ -183,9 +178,6 @@ def build_section_windows(document: dict[str, Any]) -> tuple[dict[str, str], lis
         ),
     )
     if len(investment_slice) > 200:
-        if len(investment_slice) > MAX_WINDOW_CHARS:
-            investment_slice = investment_slice[:MAX_WINDOW_CHARS]
-            truncated.append("investment")
         result["investment"] = investment_slice
 
-    return result, truncated
+    return result, []

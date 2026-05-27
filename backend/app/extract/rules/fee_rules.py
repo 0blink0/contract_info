@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from backend.app.extract.field_catalog import SKIP_FEE_FIELDS
 from backend.app.extract.rules.subscription_rules import format_subscription_fund_name
 from backend.app.extract.schemas import FeeRateRow
 
@@ -65,11 +66,11 @@ def _parse_line_fields(line: str) -> dict[str, str]:
     for m in _FEE_DATE.finditer(line):
         label = m.group(1)
         date_str = f"{m.group(2)}/{int(m.group(3))}/{int(m.group(4))}"
-        if "起始" in label:
+        if "起始" in label and "计费起始日期" not in SKIP_FEE_FIELDS:
             out["计费起始日期"] = date_str
-        elif "截止" in label:
+        elif "截止" in label and "计费截止日期" not in SKIP_FEE_FIELDS:
             out["计费截止日期"] = date_str
-        else:
+        elif "费率生效日期" not in SKIP_FEE_FIELDS:
             out["费率生效日期"] = date_str
     for m in _CAP_FLOOR.finditer(line):
         out[m.group(1)] = m.group(2)
@@ -140,7 +141,7 @@ def _rates_from_fee_chapter(fees_text: str) -> dict[str, str]:
     if m:
         rates["托管费"] = m.group(1)
     m = re.search(
-        r"基金服务费[\s\S]{0,400}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", fees_text
+        r"基金服务费[\s\S]{0,5000}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", fees_text
     )
     if m:
         rates["基金服务费"] = m.group(1)
@@ -172,12 +173,12 @@ def _rates_from_document_text(document: dict[str, Any]) -> dict[str, str]:
     text = "\n".join(parts)
     rates: dict[str, str] = {}
     m = re.search(
-        r"外包服务费[\s\S]{0,400}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", text
+        r"外包服务费[\s\S]{0,5000}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", text
     )
     if m:
         rates["基金服务费"] = m.group(1)
     m = re.search(
-        r"3、基金服务费[\s\S]{0,400}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", text
+        r"3、基金服务费[\s\S]{0,5000}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", text
     )
     if m:
         rates["基金服务费"] = m.group(1)
@@ -296,7 +297,7 @@ def extract_fee_rates(
     lines = fees_text.splitlines()
     if "外包服务费" in fees_text and "基金服务费" not in seen_types:
         m = re.search(
-            r"外包服务费[\s\S]{0,400}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", fees_text
+            r"外包服务费[\s\S]{0,5000}?年费率为\s*(\d+(?:\.\d+)?)\s*[%％]", fees_text
         )
         if m:
             chapter_rates.setdefault("基金服务费", m.group(1))
@@ -452,6 +453,6 @@ def enrich_fee_rates_from_product(
             row.计费基准 = base
         if not row.计费频率 and freq:
             row.计费频率 = freq
-        if not row.基金代码 and code:
+        if "基金代码" not in SKIP_FEE_FIELDS and not row.基金代码 and code:
             row.基金代码 = code
     return fee_rates

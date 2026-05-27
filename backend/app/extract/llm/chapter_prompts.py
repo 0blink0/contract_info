@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from backend.app.extract.field_catalog import CHAPTER_FIELDS, MANUAL_ONLY_PRODUCT
+from backend.app.extract.field_catalog import (
+    CHAPTER_FIELDS,
+    MANUAL_ONLY_PRODUCT,
+    SKIP_PRODUCT_FIELDS,
+)
+from backend.app.extract.text_limits import text_for_llm_prompt
 
 _ENUM_HINTS: dict[str, str] = {
     "风险等级": "R1/R2/R3/R4/R5",
@@ -32,13 +37,13 @@ def build_messages(window_key: str, text: str) -> list[dict[str, str]]:
         "你是私募基金合同要素抽取助手。仅根据给定合同片段输出一个 JSON 对象，"
         "键名为中文（与需抽取字段一致），值为字符串；无法确定则该键为空字符串。"
         "日期尽量规范为 yyyy/m/d。禁止输出解释、markdown 或多余键。"
-        f"以下字段勿编造（合同无则留空）：{'、'.join(sorted(MANUAL_ONLY_PRODUCT))}。"
+        f"以下字段勿编造（合同无则留空）：{'、'.join(sorted(MANUAL_ONLY_PRODUCT | SKIP_PRODUCT_FIELDS))}。"
     )
     user = (
         f"【章节窗口】{window_key}\n"
         f"【需抽取字段】{field_list}\n"
         f"【枚举参考】\n{hint_block}\n\n"
-        f"【合同片段】\n{text[:12000]}\n\n"
+        f"【合同片段】\n{text_for_llm_prompt(text)}\n\n"
         "请仅输出 JSON 对象。"
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]

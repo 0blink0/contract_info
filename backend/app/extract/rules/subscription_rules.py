@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from backend.app.extract.schemas import ShareClassRow, SubscriptionFeeRow
+from backend.app.extract.text_limits import excerpt_for_display
 
 _SHARE_COL = re.compile(r"([A-D])\s*类(?:份额)?", re.IGNORECASE)
 _RATE_PCT = re.compile(r"(\d+(?:\.\d+)?)\s*%")
@@ -294,7 +295,7 @@ def _extract_narrative_subscription_fees(
 ) -> list[SubscriptionFeeRow]:
     """无份额分类表时，从申购赎回章节叙述抽取（如正仁）。"""
     rows: list[SubscriptionFeeRow] = []
-    snippet = fee_text[:800]
+    snippet = excerpt_for_display(fee_text)
     billing = _infer_subscription_billing(fee_text)
 
     if m := _RE_SUBSCRIBE_RATE.search(fee_text):
@@ -380,7 +381,7 @@ def extract_subscription_fees_rules(
             rates = table_rates.get(letter, {})
             display_name = format_subscription_fund_name(fund_name, letter)
             fund_code = code_by_letter.get(letter)
-            snip = fee_section[:500] if fee_section else None
+            snip = excerpt_for_display(fee_section) if fee_section else None
             for fee_type in ("认购费", "申购费"):
                 rate = rates.get(fee_type)
                 if rate is None:
@@ -430,7 +431,7 @@ def extract_subscription_fees_rules(
             if sc.基金代码:
                 parent_code = sc.基金代码
                 break
-        tier_snip = fee_section[:800] if fee_section else sub_text[:800]
+        tier_snip = excerpt_for_display(fee_section or sub_text)
         for tier in tiers:
             rows.append(
                 SubscriptionFeeRow(

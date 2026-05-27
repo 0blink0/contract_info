@@ -8,7 +8,9 @@ from backend.app.extract.rules.party_helpers import (
     clean_org_name,
     is_valid_party_name,
 )
+from backend.app.extract.field_catalog import SKIP_PRODUCT_FIELDS
 from backend.app.extract.schemas import FieldValue
+from backend.app.extract.text_limits import excerpt_for_display
 
 _RE_MANAGER = re.compile(
     r"(?:私募)?基金管理人[^。\n]{0,50}[：:]\s*"
@@ -35,11 +37,6 @@ _RE_ADVISOR_HIRE = re.compile(
     re.IGNORECASE,
 )
 _RE_FILING = re.compile(r"备案编码[：:\s]*([A-Za-z0-9]+)")
-_RE_FUND_CODE = re.compile(r"基金代码[：:\s]*([A-Za-z0-9]+)")
-_RE_DATE = re.compile(
-    r"(成立日期|备案日期|到期日期|清算完成日|清算起始日|投资起始日|封闭期起始日)"
-    r"[：:\s]*(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})"
-)
 _RE_OUTSOURCE = re.compile(
     r"(国泰海通|国泰君安)[^。\n]{0,80}?(?:份额登记|估值核算)",
     re.IGNORECASE,
@@ -168,7 +165,7 @@ def _fv(
         source="rule",
         block_id=block_id,
         section_id=section_id,
-        snippet=snippet[:500] if snippet else None,
+        snippet=excerpt_for_display(snippet) if snippet else None,
     )
 
 
@@ -213,7 +210,7 @@ def _find_party(
                 continue
             score = _score_party_match(text, role=role)
             if best is None or score > best[0]:
-                best = (score, name, text[:500], bid, sid)
+                best = (score, name, excerpt_for_display(text), bid, sid)
 
     if prefer_cover:
         consider(prefer_cover, None, None)
@@ -284,7 +281,11 @@ def _extract_investment_manager_names(text: str) -> tuple[str | None, str | None
     if not names:
         return None, None
 
-    snip = text[snippet_start : snippet_start + 800] if snippet_start is not None else ""
+    snip = (
+        excerpt_for_display(text[snippet_start:])
+        if snippet_start is not None
+        else ""
+    )
     return "、".join(names), snip or None
 
 
@@ -302,26 +303,35 @@ def _extract_investment_chapter(inv_text: str) -> dict[str, FieldValue]:
         if m:
             body = re.sub(r"\s+", " ", m.group(1).strip())
             if len(body) >= 8:
-                snip = resolve_field_snippet(label, inv_text, body[:80]) or body[:500]
-                out[label] = _fv(body[:4000], snippet=snip)
+                snip = resolve_field_snippet(label, inv_text, body[:80]) or excerpt_for_display(
+                    body
+                )
+                out[label] = _fv(body, snippet=snip)
         elif label not in out:
             plain_body, plain_snip = extract_section_body(label, inv_text)
             if plain_body and len(plain_body) >= 8:
-                out[label] = _fv(plain_body, snippet=plain_snip or plain_body[:500])
+                out[label] = _fv(
+                    plain_body,
+                    snippet=plain_snip or excerpt_for_display(plain_body),
+                )
 
     bench_body, bench_snip = extract_section_body("业绩比较基准", inv_text)
     if bench_body:
         if re.search(r"不设|无业绩|不存在业绩|不设置业绩", bench_body):
-            out["业绩比较基准"] = _fv("无", snippet=bench_snip or bench_body[:500])
+            out["业绩比较基准"] = _fv(
+                "无", snippet=bench_snip or excerpt_for_display(bench_body)
+            )
         else:
-            out["业绩比较基准"] = _fv(bench_body, snippet=bench_snip or bench_body[:500])
+            out["业绩比较基准"] = _fv(
+                bench_body, snippet=bench_snip or excerpt_for_display(bench_body)
+            )
     else:
         m = _RE_BENCHMARK_SECTION.search(inv_text) or _RE_BENCHMARK_LINE.search(
             inv_text
         )
         if m:
             raw = m.group(1).strip()
-            snip = m.group(0)[:500]
+            snip = excerpt_for_display(m.group(0))
             if re.search(r"不设|无业绩|不存在业绩", raw):
                 out["业绩比较基准"] = _fv("无", snippet=snip)
             elif len(raw) >= 2:
@@ -331,14 +341,17 @@ def _extract_investment_chapter(inv_text: str) -> dict[str, FieldValue]:
     if risk_body:
         out["风险收益特征"] = _fv(
             risk_body,
-            snippet=risk_snip or resolve_field_snippet("风险收益特征", inv_text, risk_body[:80]),
+            snippet=risk_snip
+            or resolve_field_snippet("风险收益特征", inv_text, risk_body[:80]),
         )
     else:
         m = _RE_RISK_RETURN_SECTION.search(inv_text)
         if m:
             body = re.sub(r"\s+", " ", m.group(1).strip())
-            snip = resolve_field_snippet("风险收益特征", inv_text, body[:80]) or body[:500]
-            out["风险收益特征"] = _fv(body[:4000], snippet=snip)
+            snip = resolve_field_snippet("风险收益特征", inv_text, body[:80]) or excerpt_for_display(
+                body
+            )
+            out["风险收益特征"] = _fv(body, snippet=snip)
 
     return out
 
@@ -391,33 +404,18 @@ def extract_product_rules(
     if val:
         out["投资顾问"] = _fv(val, snippet=snip, block_id=bid, section_id=sid)
 
-    for label, pattern in (
-        ("备案编码", _RE_FILING),
-        ("基金代码", _RE_FUND_CODE),
-    ):
+    if "备案编码" not in SKIP_PRODUCT_FIELDS:
         for block in document.get("blocks") or []:
             text = _block_text(block)
-            m = pattern.search(text)
+            m = _RE_FILING.search(text)
             if m:
-                out[label] = _fv(
+                out["备案编码"] = _fv(
                     m.group(1),
                     snippet=text,
                     block_id=block.get("id"),
                     section_id=block.get("section_id"),
                 )
                 break
-
-    for block in document.get("blocks") or []:
-        text = _block_text(block)
-        for m in _RE_DATE.finditer(text):
-            label = m.group(1)
-            date_str = f"{m.group(2)}/{int(m.group(3))}/{int(m.group(4))}"
-            out[label] = _fv(
-                date_str,
-                snippet=text,
-                block_id=block.get("id"),
-                section_id=block.get("section_id"),
-            )
 
     m = _RE_OUTSOURCE.search(cover + "\n" + windows.get("basic", ""))
     if not m:
@@ -455,7 +453,7 @@ def extract_product_rules(
         _block_text(b)
         for b in document.get("blocks") or []
         if b.get("type") == "paragraph"
-    )[:200000]
+    )
     search_sub = sub_text + "\n" + full_text
 
     m = _RE_FIRST_SUB_WAN.search(search_sub)
@@ -504,7 +502,7 @@ def extract_product_rules(
         m = _RE_REDEEM_BY_AMOUNT.search(search_sub)
         out["是否支持金额赎回"] = _fv("支持", snippet=m.group(0))
 
-    stop_search = inv_text + risk_text + full_text[:80000]
+    stop_search = inv_text + risk_text + full_text
     no_stop = _RE_NO_STOP_LINES.search(stop_search)
     if no_stop:
         snippet = _stop_lines_snippet(stop_search, no_stop)
@@ -534,7 +532,7 @@ def extract_product_rules(
         if open_m2 and "基金管理人办理" not in open_m2.group(0):
             out["开放日规则"] = _fv(open_m2.group(0).strip(), snippet=open_m2.group(0))
 
-    m = _RE_RISK_GRADE.search(risk_text + "\n" + full_text[:80000])
+    m = _RE_RISK_GRADE.search(risk_text + "\n" + full_text)
     if m:
         out["风险等级"] = _fv(m.group(1).upper(), snippet=m.group(0))
 
@@ -563,14 +561,14 @@ def extract_product_rules(
             (
                 inv_text,
                 risk_text,
-                windows.get("basic", "")[:8000],
+                windows.get("basic", ""),
             ),
         )
     )
 
     from backend.app.extract.field_snippets import resolve_field_snippet
 
-    mgr_text = inv_combined + "\n" + full_text[:100000]
+    mgr_text = inv_combined + "\n" + full_text
     names, mgr_snip = _extract_investment_manager_names(mgr_text)
     if names and "可" not in names[:3] and "变更" not in names:
         snip = (

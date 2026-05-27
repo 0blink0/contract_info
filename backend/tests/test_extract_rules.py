@@ -47,6 +47,9 @@ def test_product_rules_no_stop_lines_and_subscription(fulu_document):
     assert product["追加起点"].value == "无追加起点限制"
     assert "基金简称" not in product
     assert "银行账户信息" not in product
+    assert "基金代码" not in product
+    assert "成立日期" not in product
+    assert "封闭期起始日" not in product
 
 
 def test_product_rules_face_value_yuan_implies_rmb():
