@@ -49,6 +49,14 @@ def test_product_rules_no_stop_lines_and_subscription(fulu_document):
     assert "银行账户信息" not in product
 
 
+def test_product_rules_face_value_yuan_implies_rmb():
+    from backend.app.extract.rules.product_rules import _currency_from_face_snippet
+
+    assert _currency_from_face_snippet("初始募集面值：1.0000 元") == "人民币现钞"
+    assert _currency_from_face_snippet("初始募集面值：人民币 1 元") == "人民币现钞"
+    assert _currency_from_face_snippet("初始募集面值：1 美元") == ""
+
+
 def test_product_rules_face_value_from_basic(fulu_document):
     windows, _ = build_section_windows(fulu_document)
     product = extract_product_rules(fulu_document, windows)

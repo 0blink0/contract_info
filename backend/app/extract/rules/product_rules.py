@@ -65,8 +65,26 @@ _RE_ADD_MIN_WAN = re.compile(
 )
 _RE_NO_ADD_LIMIT = re.compile(r"无追加起点|不设追加起点|无追加起点限制")
 _RE_FACE_VALUE = re.compile(
-    r"初始募集面值[：:\s]*人民币\s*([\d.]+)\s*元", re.IGNORECASE
+    r"(?:基金份额的)?初始募集面值[：:\s]*(?:人民币\s*)?([\d.]+)\s*元",
+    re.IGNORECASE,
 )
+_RE_FOREIGN_CURRENCY = re.compile(r"美元|港币|港元|欧元|日元|英镑", re.IGNORECASE)
+
+
+def _normalize_face_value(amount: str) -> str:
+    face = amount.rstrip("0").rstrip(".") if "." in amount else amount
+    if face in ("1", "1.0", "1.00", "1.0000"):
+        return "1"
+    return face
+
+
+def _currency_from_face_snippet(snippet: str) -> str:
+    """面值以「元」计且未写明外币时，视为人民币现钞（行业惯例）。"""
+    if _RE_FOREIGN_CURRENCY.search(snippet):
+        return "人民币现钞" if "人民币" in snippet else ""
+    if "人民币" in snippet or re.search(r"[\d.]+\s*元", snippet):
+        return "人民币现钞"
+    return ""
 _RE_CONFIRM = re.compile(r"(T\+\d+[^。\n]{0,20}确认|交易确认[^。\n]{0,30})")
 _RE_STOP_LINES = re.compile(
     r"(止损线|预警线)[：:\s]*(\d+(?:\.\d+)?)\s*元?", re.IGNORECASE
@@ -397,10 +415,11 @@ def extract_product_rules(
     basic_text = windows.get("basic", "") + "\n" + cover
     m = _RE_FACE_VALUE.search(basic_text)
     if m:
-        face = m.group(1).rstrip("0").rstrip(".") if "." in m.group(1) else m.group(1)
-        if face in ("1", "1.0", "1.00", "1.0000"):
-            face = "1"
-        out["基金面值"] = _fv(face, snippet=m.group(0))
-        out["币种"] = _fv("人民币现钞", snippet=m.group(0))
+        snippet = m.group(0)
+        face = _normalize_face_value(m.group(1))
+        out["基金面值"] = _fv(face, snippet=snippet)
+        currency = _currency_from_face_snippet(snippet)
+        if currency:
+            out["币种"] = _fv(currency, snippet=snippet)
 
     return out

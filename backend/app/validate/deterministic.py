@@ -8,7 +8,10 @@ _RE_NO_STOP_LINES = re.compile(
     r"不设置预警线[、,，\s]*止损线|预警线[、,，\s]*止损线.*不设置|未设预警.*止损",
     re.IGNORECASE,
 )
-_RE_FACE_VALUE = re.compile(r"初始募集面值[：:\s]*人民币\s*[\d.]+\s*元", re.IGNORECASE)
+_RE_FACE_VALUE = re.compile(
+    r"(?:基金份额的)?初始募集面值[：:\s]*(?:人民币\s*)?[\d.]+\s*元",
+    re.IGNORECASE,
+)
 
 
 def _field_value(elements: dict, name: str) -> str | None:
@@ -62,16 +65,18 @@ def deterministic_validation_items(
             field="基金面值",
             status="pass",
             value=face_val,
-            reason="摘录含初始募集面值（人民币），与抽取值一致。",
+            reason="摘录含初始募集面值（元），与抽取值一致。",
             suggestion=None,
         )
         currency = _field_value(elements, "币种")
-        if currency and "人民币" in evidence:
+        if currency == "人民币现钞" and re.search(
+            r"人民币|[\d.]+\s*元", evidence
+        ):
             out["币种"] = ValidationItem(
                 field="币种",
                 status="pass",
                 value=currency,
-                reason="摘录初始募集面值为人民币，与币种一致。",
+                reason="面值以元计且未写明外币，按惯例为人民币现钞。",
                 suggestion=None,
             )
 
