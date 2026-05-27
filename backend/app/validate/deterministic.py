@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from backend.app.extract.rules.assoc_product_type import infer_assoc_product_type
 from backend.app.extract.rules.share_rules import _share_letters_in_text
 from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
 from backend.app.validate.schemas import ValidationItem
@@ -42,6 +43,19 @@ def deterministic_validation_items(
         return {}
 
     out: dict[str, ValidationItem] = {}
+
+    assoc_val = _field_value(elements, "产品类型（协会）")
+    assoc_snip = _field_snippet(elements, "产品类型（协会）")
+    if assoc_val and assoc_snip:
+        inferred, _ = infer_assoc_product_type({"investment": assoc_snip})
+        if inferred == assoc_val:
+            out["产品类型（协会）"] = ValidationItem(
+                field="产品类型（协会）",
+                status="pass",
+                value=assoc_val,
+                reason="投资范围/限制中的80%资产占比规则与抽取值一致。",
+                suggestion=None,
+            )
 
     structure_val = _field_value(elements, "份额结构")
     structure_snip = _field_snippet(elements, "份额结构")

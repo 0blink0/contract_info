@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from backend.app.extract.rules.assoc_product_type import infer_assoc_product_type
 from backend.app.extract.rules.share_rules import _share_letters_in_text, is_graded_contract
 from backend.app.extract.schemas import FieldValue, ShareClassRow
 from backend.app.extract.text_limits import excerpt_for_display
@@ -123,9 +124,19 @@ def extract_classification_rules(
     defs = _definitions_text(document, windows)
     search = "\n".join(filter(None, (basic, defs, cover)))
 
-    m = _RE_ASSOC_TYPE.search(search)
-    if m:
-        out["产品类型（协会）"] = _fv(m.group(1), snippet=m.group(0))
+    assoc_type, assoc_snip = infer_assoc_product_type(windows)
+    if assoc_type and assoc_snip:
+        out["产品类型（协会）"] = _fv(
+            assoc_type,
+            snippet=f"【投资范围/限制·80%规则】\n{assoc_snip}",
+        )
+    else:
+        m = _RE_ASSOC_TYPE.search(search)
+        if m:
+            out["产品类型（协会）"] = _fv(
+                m.group(1),
+                snippet=f"【基本情况·基金的类型】\n{m.group(0)}",
+            )
 
     m = _RE_MGMT_TYPE.search(search)
     if m:
