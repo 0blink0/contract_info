@@ -209,11 +209,11 @@ def _find_party(
             if not is_valid_party_name(name):
                 continue
             score = _score_party_match(text, role=role)
+            start = max(0, m.start() - 100)
+            end = min(len(text), m.end() + 200)
+            local_snip = excerpt_for_display(text[start:end].strip())
             if best is None or score > best[0]:
-                best = (score, name, excerpt_for_display(text), bid, sid)
-
-    if prefer_cover:
-        consider(prefer_cover, None, None)
+                best = (score, name, local_snip, bid, sid)
 
     for block in document.get("blocks") or []:
         if block_is_risk_disclosure(document, block):

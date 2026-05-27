@@ -35,6 +35,9 @@ def test_shiyun_party_and_investment_fields(shiyun_document):
 
     assert product["管理人"].value == "北京石云科技有限公司"
     assert product["托管人"].value == "华福证券股份有限公司"
+    cust = product["托管人"]
+    assert cust.snippet
+    assert cust.value in cust.snippet
     assert product.get("投资顾问") is None
     assert product["风险等级"].value == "R4"
     assert "王敏敏" in str(product["投资经理"].value)
