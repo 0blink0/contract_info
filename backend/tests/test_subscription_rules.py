@@ -147,17 +147,24 @@ def test_purchase_billing_exclusive_from_fee_formula():
     assert infer_subscription_billing_rules(text).get("申购费") == "价外法"
 
 
-def test_purchase_billing_inclusive_from_share_minus_fee_formula():
+def test_purchase_billing_exclusive_from_share_minus_fee_after_outer_fee():
     from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
 
     text = (
-        "1、申购份额计算 申购份额＝（申购金额-申购费用）/"
-        "申购申请日（对应类别）基金份额净值。"
+        "申购费用=申购金额×申购费率/（1+申购费率）；"
+        "申购份额＝（申购金额-申购费用）/基金份额净值。"
     )
+    assert infer_subscription_billing_rules(text).get("申购费") == "价外法"
+
+
+def test_purchase_billing_inclusive_net_times_one_minus_rate():
+    from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
+
+    text = "净申购金额＝申购金额×（1-申购费率）"
     assert infer_subscription_billing_rules(text).get("申购费") == "价内法"
 
 
-def test_fulu_subscription_billing_inclusive_purchase():
+def test_fulu_subscription_billing_exclusive_purchase():
     from backend.app.extract.rules.subscription_rules import (
         gather_subscription_rules_text,
         infer_subscription_billing_rules,
@@ -170,9 +177,9 @@ def test_fulu_subscription_billing_inclusive_purchase():
     windows, _ = build_section_windows(doc)
     text = gather_subscription_rules_text(doc, windows)
     billing = infer_subscription_billing_rules(text)
-    assert billing.get("申购费") == "价内法"
+    assert billing.get("申购费") == "价外法"
     purchase = [r for r in rows if r.申赎费类型 == "申购费"]
-    assert purchase and purchase[0].计费方式 == "价内法"
+    assert purchase and purchase[0].计费方式 == "价外法"
 
 
 def test_zhengren_narrative_subscription_fees():
