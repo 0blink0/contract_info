@@ -54,7 +54,12 @@
   3. Uvicorn 多线程并发上传 3 个合同，无 SQLite 锁超时（WAL 模式已开启）
   4. `desktop_main.py` 冷启动时自动执行 Alembic 迁移，首次运行建表，再次运行幂等无错误
   5. 单元测试：`extraction_result` 列序列化/反序列化返回 dict 而非 str
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 11-01-PLAN.md — Wave 0 test infrastructure (RED): 4 test files, 10 test cases covering DB-01..DB-04
+- [ ] 11-02-PLAN.md — DB-01 type replacement: ORM model + migrations 001/002/006/007 (Wave 1)
+- [ ] 11-03-PLAN.md — DB-02 path resolution: config.py helpers + 6 consumer files (Wave 1, parallel)
+- [ ] 11-04-PLAN.md — DB-03 WAL mode (session.py) + DB-04 desktop_main.py + alembic/env.py (Wave 2)
 
 ### Phase 12: PyInstaller 打包
 **Goal**: Python/FastAPI 后端打包为可独立运行的 --onedir 二进制，无 Python 环境机器可完整跑通上传-抽取-下载流程
@@ -105,10 +110,10 @@
 | 8. 路径 B JSON | v1.1 | — | Complete | 2026-05-26 |
 | 9. LLM 校验层 | v1.1 | — | Complete | 2026-05-26 |
 | 10. UI 导航与下载 | v1.1 | — | Complete | 2026-05-26 |
-| 11. SQLite 迁移与路径修复 | v1.2 | 0/? | Not started | - |
+| 11. SQLite 迁移与路径修复 | v1.2 | 0/4 | Not started | - |
 | 12. PyInstaller 打包 | v1.2 | 0/? | Not started | - |
 | 13. Electron 壳与 IPC | v1.2 | 0/? | Not started | - |
 | 14. 构建流水线 | v1.2 | 0/? | Not started | - |
 
 ---
-*Roadmap updated: 2026-05-28 — v1.2 phases 11–14 defined*
+*Roadmap updated: 2026-05-28 — Phase 11 planned (4 plans, 3 waves)*
