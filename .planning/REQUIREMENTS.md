@@ -58,26 +58,26 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | — | Pending |
-| DB-02 | — | Pending |
-| DB-03 | — | Pending |
-| DB-04 | — | Pending |
-| PKG-01 | — | Pending |
-| PKG-02 | — | Pending |
-| PKG-03 | — | Pending |
-| ELEC-01 | — | Pending |
-| ELEC-02 | — | Pending |
-| ELEC-03 | — | Pending |
-| ELEC-04 | — | Pending |
-| BUILD-01 | — | Pending |
-| BUILD-02 | — | Pending |
-| BUILD-03 | — | Pending |
+| DB-01 | Phase 11 | Pending |
+| DB-02 | Phase 11 | Pending |
+| DB-03 | Phase 11 | Pending |
+| DB-04 | Phase 11 | Pending |
+| PKG-01 | Phase 12 | Pending |
+| PKG-02 | Phase 12 | Pending |
+| PKG-03 | Phase 12 | Pending |
+| ELEC-01 | Phase 13 | Pending |
+| ELEC-02 | Phase 13 | Pending |
+| ELEC-03 | Phase 13 | Pending |
+| ELEC-04 | Phase 13 | Pending |
+| BUILD-01 | Phase 14 | Pending |
+| BUILD-02 | Phase 14 | Pending |
+| BUILD-03 | Phase 14 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 14 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14 (100%)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-28*
-*Last updated: 2026-05-28 — initial definition*
+*Last updated: 2026-05-28 — traceability mapped (phases 11–14)*
