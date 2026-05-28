@@ -9,7 +9,6 @@ Create Date: 2026-05-25
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -22,23 +21,23 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "contract_files",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", sa.Uuid(as_uuid=True), primary_key=True),
         sa.Column("filename", sa.String(length=512), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="pending"),
         sa.Column("storage_path", sa.Text(), nullable=True),
-        sa.Column("parse_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("outline_preview", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("parse_json", sa.JSON(), nullable=True),
+        sa.Column("outline_preview", sa.JSON(), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
     )
