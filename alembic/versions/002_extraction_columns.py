@@ -9,7 +9,6 @@ Create Date: 2026-05-25
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -22,11 +21,11 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column(
         "contract_files",
-        sa.Column("extraction_result", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("extraction_result", sa.JSON(), nullable=True),
     )
     op.add_column(
         "contract_files",
-        sa.Column("extraction_warnings", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("extraction_warnings", sa.JSON(), nullable=True),
     )
 
 

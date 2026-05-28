@@ -93,9 +93,11 @@ def test_json_roundtrip(tmp_path, monkeypatch):
         )
         conn.commit()
 
+        # Use type_coerce so SQLAlchemy's JSON type processes the TEXT value
+        # from SQLite (raw sa.text() returns str; typed select returns dict).
+        t = sa.table("contract_files", sa.column("id"), sa.column("extraction_result", sa.JSON))
         row = conn.execute(
-            sa.text("SELECT extraction_result FROM contract_files WHERE id = :id"),
-            {"id": str(file_id)},
+            sa.select(t.c.extraction_result).where(t.c.id == str(file_id))
         ).fetchone()
 
     # sa.JSON auto-deserializes on read; result must be dict, not str.

@@ -9,7 +9,6 @@ Create Date: 2026-05-26
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -24,7 +23,7 @@ def upgrade() -> None:
         "contract_files",
         sa.Column(
             "validation_result",
-            postgresql.JSONB(astext_type=sa.Text()),
+            sa.JSON(),
             nullable=True,
         ),
     )
