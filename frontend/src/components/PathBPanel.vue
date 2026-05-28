@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getPathB, downloadBlob } from '@/api/client'
+import { getPathB } from '@/api/client'
 import type { PathBResponse } from '@/api/types'
 import { labelForPathBSnippet } from '@/utils/pathBLabels'
 
@@ -30,24 +30,21 @@ watch(
 
 const crmRows = computed(() => data.value?.crm_handoff ?? [])
 
-const snippetRows = computed(() => {
-  const pb = data.value
-  if (!pb) return []
-  const labelOf = (path: string) => labelForPathBSnippet(path, pb)
-  if (pb.source_snippet_rows?.length) {
-    return pb.source_snippet_rows.map((r) => ({
-      path: r.path,
-      label: r.label || labelOf(r.path),
-      text: r.text,
+const rawSectionLabels: Record<string, string> = {
+  performance_fee: '业绩报酬条款原文',
+  open_day: '申购赎回 / 开放日条款原文',
+}
+
+const rawSections = computed(() => {
+  const sections = data.value?.raw_sections
+  if (!sections) return []
+  return Object.entries(sections)
+    .filter(([, text]) => text && text.trim())
+    .map(([key, text]) => ({
+      key,
+      label: rawSectionLabels[key] ?? key,
+      text: text.trim(),
     }))
-  }
-  const snippets = pb.source_snippets
-  if (!snippets) return []
-  return Object.entries(snippets).map(([path, text]) => ({
-    path,
-    label: labelOf(path),
-    text,
-  }))
 })
 
 const tierRows = computed(() => {
@@ -99,18 +96,6 @@ async function refresh() {
   await load()
 }
 
-const downloading = ref(false)
-async function downloadReport() {
-  if (!props.jobId) return
-  downloading.value = true
-  try {
-    await downloadBlob(props.jobId, 'review-report', '核对报告.xlsx')
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '下载失败')
-  } finally {
-    downloading.value = false
-  }
-}
 
 async function copyJson() {
   if (!jsonText.value) return
@@ -148,15 +133,6 @@ function downloadJson() {
         <template v-else>
           <div class="actions">
             <el-button size="small" :loading="loading" @click="refresh">刷新</el-button>
-            <el-button
-              size="small"
-              type="primary"
-              :loading="downloading"
-              :disabled="!available"
-              @click="downloadReport"
-            >
-              下载核对报告 (.xlsx)
-            </el-button>
             <el-button size="small" :disabled="!data" @click="showJson = !showJson">
               {{ showJson ? '隐藏 JSON' : '查看 JSON' }}
             </el-button>
@@ -211,12 +187,12 @@ function downloadJson() {
               <el-table-column prop="diagnostic" label="诊断说明" min-width="180" show-overflow-tooltip />
               <el-table-column prop="snippet" label="合同摘录" min-width="240" show-overflow-tooltip />
             </el-table>
-            <div v-if="snippetRows.length" class="snippets">
-              <div class="sub-title">合同摘录（按字段）</div>
-              <el-table :data="snippetRows" size="small" stripe border max-height="240">
-                <el-table-column prop="label" label="字段" width="220" show-overflow-tooltip />
-                <el-table-column prop="text" label="摘录" min-width="280" show-overflow-tooltip />
-              </el-table>
+            <div v-if="rawSections.length" class="raw-sections">
+              <div class="sub-title">合同原文（业绩报酬 / 开放日章节）</div>
+              <div v-for="sec in rawSections" :key="sec.key" class="raw-section-block">
+                <div class="raw-section-label">{{ sec.label }}</div>
+                <pre class="raw-section-text">{{ sec.text }}</pre>
+              </div>
             </div>
             <pre v-if="showJson" class="json-block">{{ jsonText }}</pre>
           </template>
@@ -255,8 +231,35 @@ function downloadJson() {
   font-size: 13px;
   color: #606266;
 }
-.snippets {
+.raw-sections {
   margin-bottom: 12px;
+}
+.raw-section-block {
+  margin-bottom: 16px;
+}
+.raw-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2F5496;
+  margin-bottom: 4px;
+  padding: 2px 6px;
+  background: #DEEBF7;
+  border-radius: 3px;
+  display: inline-block;
+}
+.raw-section-text {
+  margin: 0;
+  padding: 10px 12px;
+  background: #fafafa;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 320px;
+  overflow-y: auto;
 }
 .sub-title {
   font-size: 13px;

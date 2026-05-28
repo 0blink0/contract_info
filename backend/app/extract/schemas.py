@@ -89,6 +89,7 @@ class PathBDocument(BaseModel):
     performance_fee: PerformanceFeeModule = Field(default_factory=PerformanceFeeModule)
     open_day: OpenDayModule = Field(default_factory=OpenDayModule)
     source_snippets: dict[str, str] = Field(default_factory=dict)
+    raw_sections: dict[str, str] = Field(default_factory=dict)
 
 
 class SubscriptionFeeRow(BaseModel):

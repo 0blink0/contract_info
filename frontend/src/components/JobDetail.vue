@@ -258,6 +258,30 @@ async function onDownload(kind: DownloadKind, filename: string) {
 
 }
 
+const downloadingReport = ref(false)
+
+async function onDownloadReport() {
+
+  if (!props.jobId) return
+
+  downloadingReport.value = true
+
+  try {
+
+    await downloadBlob(props.jobId, 'review-report', '核对报告.xlsx')
+
+  } catch (e) {
+
+    ElMessage.error(e instanceof Error ? e.message : '下载失败')
+
+  } finally {
+
+    downloadingReport.value = false
+
+  }
+
+}
+
 </script>
 
 
@@ -401,6 +425,22 @@ async function onDownload(kind: DownloadKind, filename: string) {
           </el-button>
 
         </template>
+
+        <el-button
+
+          v-if="showPanels"
+
+          type="primary"
+
+          :loading="downloadingReport"
+
+          @click="onDownloadReport"
+
+        >
+
+          下载核对报告
+
+        </el-button>
 
       </div>
 

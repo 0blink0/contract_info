@@ -289,6 +289,7 @@ def download_review_report(job_id: uuid.UUID) -> Response:
         crm_rows=handoff,
         snippet_rows=snippet_rows,
         product_elements=product_elements,
+        raw_sections=path_b_raw.get("raw_sections") or {},
     )
     safe_name = (fund_name or str(record.id)[:8]).replace("/", "_")[:40]
     return Response(
@@ -367,4 +368,5 @@ def get_path_b(job_id: uuid.UUID) -> PathBResponse:
         source_snippets=snippets,
         source_snippet_rows=snippet_rows,
         crm_handoff=[CrmHandoffItem(**item) for item in handoff],
+        raw_sections=raw.get("raw_sections") or {},
     )

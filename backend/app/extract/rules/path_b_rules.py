@@ -350,9 +350,17 @@ def extract_path_b_rules(
             )
         )
 
+    sub_text = windows.get("subscription", "") or ""
+    raw_sections: dict[str, str] = {}
+    if fees_text.strip():
+        raw_sections["performance_fee"] = fees_text
+    if sub_text.strip():
+        raw_sections["open_day"] = sub_text
+
     path_b = build_path_b_document(
         performance_fields=perf_fields,
         open_day_fields=open_fields,
         tiers=tiers,
+        raw_sections=raw_sections,
     )
     return path_b, warnings

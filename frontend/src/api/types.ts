@@ -75,6 +75,7 @@ export interface PathBResponse {
   source_snippets: Record<string, string>
   source_snippet_rows: PathBSnippetRow[]
   crm_handoff: CrmHandoffItem[]
+  raw_sections?: Record<string, string>
 }
 
 export interface ValidationItem {

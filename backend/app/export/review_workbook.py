@@ -215,27 +215,64 @@ def _build_diag(field: str, value: str, conf: str) -> str:
 
 # ---------- 主入口 ----------
 
+_RAW_SECTION_LABELS = {
+    "performance_fee": "业绩报酬条款原文",
+    "open_day": "申购赎回/开放日条款原文",
+}
+
+
+def _build_raw_sections_sheet(ws: Any, raw_sections: dict[str, str]) -> None:
+    ws.title = "合同原文"
+    ws.cell(row=1, column=1, value="【合同相关章节原文（供人工核对）】").font = Font(
+        name="微软雅黑", bold=True, size=11, color="2F5496"
+    )
+    ws.merge_cells("A1:B1")
+    r = 2
+    for key in ("performance_fee", "open_day"):
+        text = raw_sections.get(key, "").strip()
+        label = _RAW_SECTION_LABELS.get(key, key)
+        ws.cell(row=r, column=1, value=f"── {label} ──").font = Font(
+            name="微软雅黑", bold=True, size=10, color="2F5496"
+        )
+        ws.merge_cells(f"A{r}:B{r}")
+        r += 1
+        if text:
+            cell = ws.cell(row=r, column=1, value=text)
+            cell.font = Font(name="微软雅黑", size=9, color="333333")
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            ws.merge_cells(f"A{r}:B{r}")
+            ws.row_dimensions[r].height = min(max(len(text) // 4, 60), 400)
+        else:
+            ws.cell(row=r, column=1, value="（未提取到此章节）").font = _FONT_EXCERPT
+        r += 2
+    _col_widths(ws, [80, 10])
+
+
 def build_review_workbook(
     *,
     fund_name: str,
     crm_rows: list[dict],
     snippet_rows: list[dict],
     product_elements: dict[str, Any],
+    raw_sections: dict[str, str] | None = None,
 ) -> bytes:
     """
     生成人工核对报告，返回 .xlsx 字节流。
 
     - Sheet 1: 路径B_CRM核对（业绩报酬/开放日）
     - Sheet 2: 路径A_字段核对（产品要素）
+    - Sheet 3: 合同原文（业绩报酬+开放日章节全文）
+    - Sheet 4: 图例说明
     """
     wb = openpyxl.Workbook()
     ws_b = wb.active
     ws_a = wb.create_sheet()
+    ws_raw = wb.create_sheet()
 
     _build_path_b_sheet(ws_b, crm_rows, snippet_rows)
     _build_path_a_sheet(ws_a, product_elements)
+    _build_raw_sections_sheet(ws_raw, raw_sections or {})
 
-    # 图例 sheet
     ws_legend = wb.create_sheet(title="图例说明")
     _build_legend_sheet(ws_legend, fund_name)
 

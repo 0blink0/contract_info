@@ -33,11 +33,15 @@ def _add_snippet(snippets: dict[str, str], path: str, fv: FieldValue | None) -> 
         snippets[path] = snip
 
 
+_RAW_SECTION_CAP = 4000
+
+
 def build_path_b_document(
     *,
     performance_fields: dict[str, FieldValue | None],
     open_day_fields: dict[str, FieldValue | None],
     tiers: list[PerformanceFeeTier],
+    raw_sections: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     perf = PerformanceFeeModule()
     if _fv_text(performance_fields.get("extraction_method")):
@@ -78,9 +82,15 @@ def build_path_b_document(
         if tier.ratio_pct:
             snippets.setdefault(f"{prefix}.ratio_pct", tier.description or tier.ratio_pct)
 
+    capped_sections: dict[str, str] = {}
+    for k, v in (raw_sections or {}).items():
+        if v and v.strip():
+            capped_sections[k] = v[:_RAW_SECTION_CAP]
+
     doc = PathBDocument(
         performance_fee=perf,
         open_day=open_day,
         source_snippets=snippets,
+        raw_sections=capped_sections,
     )
     return doc.model_dump(exclude_none=True)

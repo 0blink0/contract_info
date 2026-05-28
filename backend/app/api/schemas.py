@@ -81,6 +81,7 @@ class PathBResponse(BaseModel):
     source_snippets: dict[str, str] = Field(default_factory=dict)
     source_snippet_rows: list[PathBSnippetRow] = Field(default_factory=list)
     crm_handoff: list[CrmHandoffItem] = Field(default_factory=list)
+    raw_sections: dict[str, str] = Field(default_factory=dict)
 
 
 class ValidationItemResponse(BaseModel):
