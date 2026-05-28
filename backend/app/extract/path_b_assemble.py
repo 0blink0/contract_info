@@ -50,6 +50,8 @@ def build_path_b_document(
         perf.extraction_timing = _fv_text(performance_fields.get("extraction_timing"))
     if _fv_text(performance_fields.get("summary")):
         perf.summary = _fv_text(performance_fields.get("summary"))
+    if _fv_text(performance_fields.get("manager_waiver")):
+        perf.manager_waiver = _fv_text(performance_fields.get("manager_waiver"))
     perf.tiers = [t for t in tiers if t.description or t.ratio_pct or t.benchmark]
 
     open_day = OpenDayModule()

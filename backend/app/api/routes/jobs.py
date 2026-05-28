@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 
 from backend.app.api.deps import verify_api_key
@@ -28,6 +28,7 @@ from backend.app.services.delete_service import JobDeleteBusyError, delete_job_r
 from backend.app.services.preview_service import get_job_preview
 from backend.app.config import PROJECT_ROOT, exports_dir
 from backend.app.extract.path_b_crm import build_crm_handoff
+from backend.app.export.review_workbook import build_review_workbook
 from backend.app.validate.field_labels import label_for_path_b_snippet
 from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
@@ -251,6 +252,49 @@ def download_subscription_fee_rates(job_id: uuid.UUID) -> FileResponse:
         path,
         media_type=XLSX_MEDIA,
         filename="subscription_fee_rates.xlsx",
+    )
+
+
+@router.get("/{job_id}/download/review-report")
+def download_review_report(job_id: uuid.UUID) -> Response:
+    """下载人工核对报告（路径A字段 + 路径B业绩报酬CRM）。"""
+    record = _get_record(job_id)
+    if record.status not in PREVIEW_STATUSES:
+        raise HTTPException(status_code=409, detail="Job not extracted yet")
+
+    extraction = getattr(record, "extraction_result", None) or {}
+    product_elements: dict = extraction.get("product_elements") or {}
+    fund_name = ""
+    fe = product_elements.get("基金全称")
+    if fe:
+        fund_name = str(fe.get("value") if isinstance(fe, dict) else getattr(fe, "value", "")) or ""
+
+    path_b_raw = getattr(record, "path_b_json", None) or {}
+    perf = path_b_raw.get("performance_fee") or {}
+    fees_ctx = str(perf.get("summary") or "")
+    for t in perf.get("tiers") or []:
+        if isinstance(t, dict) and t.get("description"):
+            fees_ctx += " " + str(t["description"])
+
+    handoff = build_crm_handoff(path_b_raw, fees_context=fees_ctx)
+    snippets = path_b_raw.get("source_snippets") or {}
+    snippet_rows = [
+        {"path": p, "label": label_for_path_b_snippet(p, path_b_raw), "text": str(t)}
+        for p, t in sorted(snippets.items())
+        if t and str(t).strip()
+    ]
+
+    content = build_review_workbook(
+        fund_name=fund_name or str(record.id)[:8],
+        crm_rows=handoff,
+        snippet_rows=snippet_rows,
+        product_elements=product_elements,
+    )
+    safe_name = (fund_name or str(record.id)[:8]).replace("/", "_")[:40]
+    return Response(
+        content=content,
+        media_type=XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}_核对报告.xlsx"'},
     )
 
 

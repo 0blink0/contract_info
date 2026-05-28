@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getPathB } from '@/api/client'
+import { getPathB, downloadBlob } from '@/api/client'
 import type { PathBResponse } from '@/api/types'
 import { labelForPathBSnippet } from '@/utils/pathBLabels'
 
@@ -99,6 +99,19 @@ async function refresh() {
   await load()
 }
 
+const downloading = ref(false)
+async function downloadReport() {
+  if (!props.jobId) return
+  downloading.value = true
+  try {
+    await downloadBlob(props.jobId, 'review-report', '核对报告.xlsx')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '下载失败')
+  } finally {
+    downloading.value = false
+  }
+}
+
 async function copyJson() {
   if (!jsonText.value) return
   try {
@@ -135,11 +148,20 @@ function downloadJson() {
         <template v-else>
           <div class="actions">
             <el-button size="small" :loading="loading" @click="refresh">刷新</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              :loading="downloading"
+              :disabled="!available"
+              @click="downloadReport"
+            >
+              下载核对报告 (.xlsx)
+            </el-button>
             <el-button size="small" :disabled="!data" @click="showJson = !showJson">
               {{ showJson ? '隐藏 JSON' : '查看 JSON' }}
             </el-button>
             <el-button size="small" :disabled="!data" @click="copyJson">复制 JSON</el-button>
-            <el-button size="small" :disabled="!data" @click="downloadJson">下载 JSON</el-button>
+            <el-button size="small" :disabled="!data" @click="downloadJson">下载原始 JSON</el-button>
           </div>
           <el-skeleton v-if="loading && !data" :rows="4" animated />
           <template v-else-if="data">
@@ -172,21 +194,22 @@ function downloadJson() {
               class="section-table"
               empty-text="暂无 CRM 字段建议"
             >
-              <el-table-column prop="crm_field" label="CRM 字段" width="160" />
-              <el-table-column label="建议填写" min-width="200">
+              <el-table-column prop="crm_field" label="CRM 字段" width="150" />
+              <el-table-column label="建议填写" min-width="180">
                 <template #default="{ row }">
                   <span v-if="row.suggested_value">{{ row.suggested_value }}</span>
                   <el-text v-else type="info">— 未从合同推断 —</el-text>
                 </template>
               </el-table-column>
-              <el-table-column label="置信" width="100">
+              <el-table-column label="状态" width="90">
                 <template #default="{ row }">
                   <el-tag :type="coverageTagType(row.coverage)" size="small">
                     {{ coverageLabel(row.coverage) }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="snippet" label="合同摘录" min-width="280" show-overflow-tooltip />
+              <el-table-column prop="diagnostic" label="诊断说明" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="snippet" label="合同摘录" min-width="240" show-overflow-tooltip />
             </el-table>
             <div v-if="snippetRows.length" class="snippets">
               <div class="sub-title">合同摘录（按字段）</div>

@@ -70,6 +70,7 @@ class PerformanceFeeModule(BaseModel):
     hurdle_nav: str | None = None
     extraction_timing: str | None = None
     summary: str | None = None
+    manager_waiver: str | None = None
     tiers: list[PerformanceFeeTier] = Field(default_factory=list)
 
 

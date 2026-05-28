@@ -65,6 +65,7 @@ class CrmHandoffItem(BaseModel):
     suggested_value: str | None = None
     snippet: str | None = None
     coverage: str = "missing"
+    diagnostic: str | None = None
 
 
 class PathBSnippetRow(BaseModel):

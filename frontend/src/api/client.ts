@@ -89,19 +89,22 @@ export function downloadUrl(jobId: string, kind: DownloadKind): string {
 
 export async function downloadBlob(
   jobId: string,
-  kind: DownloadKind,
+  kind: DownloadKind | 'review-report',
   filename: string,
 ): Promise<void> {
   const headers = apiHeaders()
-  const res = await fetch(downloadUrl(jobId, kind), { headers })
+  const url = kind === 'review-report'
+    ? `${API_BASE}/jobs/${jobId}/download/review-report`
+    : downloadUrl(jobId, kind as DownloadKind)
+  const res = await fetch(url, { headers })
   if (!res.ok) {
     throw new Error(`下载失败: ${res.status}`)
   }
   const blob = await res.blob()
-  const url = URL.createObjectURL(blob)
+  const objUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url
+  a.href = objUrl
   a.download = filename
   a.click()
-  URL.revokeObjectURL(url)
+  URL.revokeObjectURL(objUrl)
 }

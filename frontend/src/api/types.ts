@@ -59,6 +59,7 @@ export interface CrmHandoffItem {
   suggested_value?: string | null
   snippet?: string | null
   coverage: string
+  diagnostic?: string | null
 }
 
 export interface PathBSnippetRow {

@@ -1,11 +1,12 @@
 /** 路径 B source_snippets 字段路径 → 中文（与 backend field_labels 对齐） */
 
 const PATH_B: Record<string, string> = {
-  'performance_fee.extraction_method': '业绩报酬·计提方式',
+  'performance_fee.extraction_method': '业绩报酬·提取方式',
   'performance_fee.benchmark_type': '业绩报酬·基准类型',
-  'performance_fee.hurdle_nav': '业绩报酬·门槛净值',
+  'performance_fee.hurdle_nav': '业绩报酬·门槛净值类型',
   'performance_fee.extraction_timing': '业绩报酬·提取时点',
-  'performance_fee.summary': '业绩报酬·摘要',
+  'performance_fee.summary': '业绩报酬·合同摘要',
+  'performance_fee.manager_waiver': '业绩报酬·管理人放弃提取',
   'open_day.fixed_schedule': '开放日·固定安排',
   'open_day.open_business': '开放日·开放业务',
   'open_day.temporary_open': '开放日·临时开放',
