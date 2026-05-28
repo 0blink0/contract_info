@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getPathB } from '@/api/client'
 import type { PathBResponse } from '@/api/types'
-import { labelForPathBSnippet } from '@/utils/pathBLabels'
 
 const props = defineProps<{
   jobId: string | null
