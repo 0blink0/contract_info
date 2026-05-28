@@ -17,11 +17,18 @@
 - **Runtime:** FastAPI + Vue + PostgreSQL + Docker；LLM 通过 OpenAI-compatible 接口可切换模型（如 qwen）
 - **Recent closure:** 里程碑审计 gap 已清理（ValidationPanel 可用性 gate、需求追溯补齐、Nyquist frontmatter 补齐）
 
-## Next Milestone Goals (v1.2 draft)
+## Current Milestone: v1.2 桌面化交付
 
-- 桌面化交付（本地安装即用，首次只填 LLM key）
-- 路径 B 业绩报酬枚举映射增强（减少人工判断成本）
-- 批量任务与队列能力（v2 预研项前置）
+**Goal:** 将 CTRX 从 Docker-only 部署转型为 Electron 桌面应用，双击安装包即用，内嵌 Python + SQLite，首次启动完成 LLM 配置。
+
+**Target features:**
+- Electron 桌面壳（Windows + Linux）
+- PyInstaller 打包 Python/FastAPI 后端为可执行文件
+- SQLite 替换 PostgreSQL（SQLAlchemy 迁移适配）
+- Electron 管理 Python 子进程生命周期
+- 首次启动设置向导（LLM API Base + Key + Model）
+- 应用内 Settings 页面（可随时修改）
+- 构建流水线：Windows .exe 安装包 + Linux AppImage/deb
 
 ## Requirements
 
@@ -29,14 +36,21 @@
 
 - ✓ docx 解析、P1+ 扩展抽取、4 xlsx、API/UI、PostgreSQL、Docker — v1.0
 
-### Active
+### Active (v1.2)
 
-- 待 `/gsd:new-milestone` 生成新一轮 REQUIREMENTS 与 ROADMAP
+- Electron 桌面壳与子进程管理
+- PyInstaller Python 运行时打包
+- SQLite 替换 PostgreSQL
+- 首次启动 LLM 设置向导
+- 应用内 Settings 页面
+- Windows/Linux 构建流水线
 
 ### Out of Scope（当前）
 
 - 黄金 xlsx 作为线上自动批改器
 - CRM 自动录入、PDF、批量队列（见 v2）
+- 路径 B 枚举映射增强（→ v1.3）
+- 批量多文件上传/ZIP（→ v2 预研）
 
 ## Context
 
@@ -73,4 +87,4 @@
 
 ---
 
-*Last updated: 2026-05-28 after v1.1 milestone close*
+*Last updated: 2026-05-28 — v1.2 milestone started*
