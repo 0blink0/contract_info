@@ -37,7 +37,7 @@
 
 **Milestone Goal:** 将 CTRX 从 Docker-only 部署转型为 Electron 桌面应用，双击安装包即用，内嵌 Python + SQLite，首次启动完成 LLM 配置。
 
-- [ ] **Phase 11: SQLite 迁移与路径修复** - 替换 PostgreSQL 方言类型，修复 _MEIPASS 路径假设，开启 WAL，程序化 Alembic
+- [x] **Phase 11: SQLite 迁移与路径修复** - 替换 PostgreSQL 方言类型，修复 _MEIPASS 路径假设，开启 WAL，程序化 Alembic (completed 2026-05-28)
   - **Wave 0:** 11-01 (RED 测试基础设施)
   - **Wave 1 *(blocked on Wave 0)*:** 11-02 (DB-01 类型替换), 11-03 (DB-02 路径解析) — 并行
   - **Wave 2 *(blocked on Wave 1)*:** 11-04 (DB-03 WAL + DB-04 desktop_main)
@@ -58,12 +58,12 @@
   3. Uvicorn 多线程并发上传 3 个合同，无 SQLite 锁超时（WAL 模式已开启）
   4. `desktop_main.py` 冷启动时自动执行 Alembic 迁移，首次运行建表，再次运行幂等无错误
   5. 单元测试：`extraction_result` 列序列化/反序列化返回 dict 而非 str
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 11-01-PLAN.md — Wave 0 test infrastructure (RED): 4 test files, 10 test cases covering DB-01..DB-04
 - [x] 11-02-PLAN.md — DB-01 type replacement: ORM model + migrations 001/002/006/007 (Wave 1)
 - [x] 11-03-PLAN.md — DB-02 path resolution: config.py helpers + 6 consumer files (Wave 1, parallel)
-- [ ] 11-04-PLAN.md — DB-03 WAL mode (session.py) + DB-04 desktop_main.py + alembic/env.py (Wave 2)
+- [x] 11-04-PLAN.md — DB-03 WAL mode (session.py) + DB-04 desktop_main.py + alembic/env.py (Wave 2)
 
 ### Phase 12: PyInstaller 打包
 **Goal**: Python/FastAPI 后端打包为可独立运行的 --onedir 二进制，无 Python 环境机器可完整跑通上传-抽取-下载流程
@@ -114,7 +114,7 @@ Plans:
 | 8. 路径 B JSON | v1.1 | — | Complete | 2026-05-26 |
 | 9. LLM 校验层 | v1.1 | — | Complete | 2026-05-26 |
 | 10. UI 导航与下载 | v1.1 | — | Complete | 2026-05-26 |
-| 11. SQLite 迁移与路径修复 | v1.2 | 3/4 | In Progress|  |
+| 11. SQLite 迁移与路径修复 | v1.2 | 4/4 | Complete   | 2026-05-28 |
 | 12. PyInstaller 打包 | v1.2 | 0/? | Not started | - |
 | 13. Electron 壳与 IPC | v1.2 | 0/? | Not started | - |
 | 14. 构建流水线 | v1.2 | 0/? | Not started | - |
