@@ -139,7 +139,7 @@ ALL_PRODUCT_FIELDS: tuple[str, ...] = (
     "银行账户信息",
 )
 
-# 规则层优先抽取（正则 / 表格扫描）
+# 规则层优先抽取（正则 / 表格扫描，含固定值填充）
 RULE_PRODUCT_FIELDS: frozenset[str] = frozenset(
     {
         "基金全称",
@@ -159,6 +159,8 @@ RULE_PRODUCT_FIELDS: frozenset[str] = frozenset(
         "最低持有类型",
         "最低持有数量",
         "封闭期",
+        "产品类型（协会）",  # 由 classification_rules 80%规则推断
+        "基金类型",  # 固定值"私募证券投资基金"（FIXED_PRODUCT_VALUES）
     }
 )
 
