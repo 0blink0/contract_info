@@ -1,3 +1,13 @@
+---
+phase: 07
+slug: subscription-fees
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
+created: 2026-05-26
+updated: 2026-05-28
+---
+
 # Phase 7 验证策略
 
 **阶段：** 申赎费率导出  

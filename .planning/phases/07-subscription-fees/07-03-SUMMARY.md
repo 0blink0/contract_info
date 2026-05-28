@@ -1,3 +1,9 @@
+---
+phase: 07-subscription-fees
+plan: "03"
+requirements-completed: [XLS-01, XLS-02, XLS-03, XLS-04, API-01]
+---
+
 # 07-03 执行摘要
 
 **状态：** 完成  

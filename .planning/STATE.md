@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 抽取质量与导出扩展
 status: milestone_complete
-last_updated: "2026-05-26T23:30:00.000Z"
+last_updated: "2026-05-28T14:12:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 5
@@ -19,18 +19,18 @@ progress:
 See: `contract_info/.planning/PROJECT.md`
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** v1.1 里程碑已完成  
+**Current focus:** v1.2 里程碑定义（需求收敛与路线规划）  
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Milestone: **v1.1 抽取质量与导出扩展** — **COMPLETE**  
+Milestone: **v1.1 抽取质量与导出扩展** — **ARCHIVED READY**  
 Phase 10 — 集成与文档 — **COMPLETE** (3/3 plans)
 
 | Field | Value |
 |-------|-------|
-| Status | 里程碑 v1.1 全部阶段完成 |
-| Next | `/gsd-complete-milestone` 或手工 UAT |
+| Status | v1.1 审计通过，归档文件已生成 |
+| Next | `/gsd:new-milestone` |
 
 ## v1.1 交付摘要
 
@@ -42,9 +42,9 @@ Phase 10 — 集成与文档 — **COMPLETE** (3/3 plans)
 
 ## Next Actions
 
-1. 手工 UAT（Web + 五表下载）
-2. `docker compose up` 生产验证
-3. `/gsd-complete-milestone` 归档 v1.1
+1. `/gsd:new-milestone` 启动 v1.2（问题澄清 → 需求 → 路线）
+2. 按新里程碑拆解桌面化交付与批量处理能力
+3. 继续维护 path B 业绩报酬映射精度
 
 ---
-*Updated: 2026-05-26*
+*Updated: 2026-05-28*

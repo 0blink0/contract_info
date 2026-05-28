@@ -1,3 +1,9 @@
+---
+phase: 08-path-b-json
+plan: "03"
+requirements-completed: [PATHB-01, PATHB-02, PATHB-03, PATHB-04]
+---
+
 # 08-03 执行摘要
 
 **状态：** 完成  

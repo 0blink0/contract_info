@@ -1,10 +1,11 @@
 ---
 phase: 06
 slug: extract-quality
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-05-26
+updated: 2026-05-28
 ---
 
 # Phase 06 — Validation Strategy

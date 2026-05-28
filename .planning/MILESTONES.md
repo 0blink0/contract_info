@@ -55,4 +55,7 @@
 
 **Tag:** `v1.1`（规划内交付，含子表修复与前端导航）
 
+**Audit:** ✅ passed (`.planning/v1.1-MILESTONE-AUDIT.md`, 2026-05-28)  
+**Archive:** [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md), [milestones/v1.1-REQUIREMENTS.md](milestones/v1.1-REQUIREMENTS.md)
+
 ---

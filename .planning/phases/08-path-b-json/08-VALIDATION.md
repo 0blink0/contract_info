@@ -1,3 +1,13 @@
+---
+phase: 08
+slug: path-b-json
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
+created: 2026-05-26
+updated: 2026-05-28
+---
+
 # Phase 8 验证策略
 
 **阶段：** 路径 B JSON  

@@ -56,7 +56,7 @@ function statusTagType(status: string) {
 }
 
 async function load() {
-  if (!props.jobId || loaded.value) return
+  if (!props.jobId || loaded.value || !props.available) return
   loading.value = true
   try {
     data.value = await getValidation(props.jobId)
@@ -70,11 +70,11 @@ async function load() {
 
 async function onExpand(names: string | string[]) {
   const open = Array.isArray(names) ? names.length > 0 : Boolean(names)
-  if (open) await load()
+  if (open && props.available) await load()
 }
 
 async function refresh() {
-  if (!props.jobId) return
+  if (!props.jobId || !props.available) return
   loaded.value = false
   data.value = null
   await load()
