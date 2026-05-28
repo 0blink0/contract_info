@@ -38,6 +38,10 @@
 **Milestone Goal:** 将 CTRX 从 Docker-only 部署转型为 Electron 桌面应用，双击安装包即用，内嵌 Python + SQLite，首次启动完成 LLM 配置。
 
 - [ ] **Phase 11: SQLite 迁移与路径修复** - 替换 PostgreSQL 方言类型，修复 _MEIPASS 路径假设，开启 WAL，程序化 Alembic
+  - **Wave 0:** 11-01 (RED 测试基础设施)
+  - **Wave 1 *(blocked on Wave 0)*:** 11-02 (DB-01 类型替换), 11-03 (DB-02 路径解析) — 并行
+  - **Wave 2 *(blocked on Wave 1)*:** 11-04 (DB-03 WAL + DB-04 desktop_main)
+  - **Cross-cutting:** 11-01 测试文件被 Wave 1–2 所有 verify 命令依赖；`data_dir()` (11-03) 被 desktop_main.py (11-04) 导入
 - [ ] **Phase 12: PyInstaller 打包** - desktop_main.py 入口，完整 spec，干净 VM 烟雾测试通过
 - [ ] **Phase 13: Electron 壳与 IPC** - 子进程生命周期、contextBridge IPC、首次启动向导、Settings 页面
 - [ ] **Phase 14: 构建流水线** - electron-builder NSIS + AppImage + deb，4 步构建脚本
@@ -110,7 +114,7 @@ Plans:
 | 8. 路径 B JSON | v1.1 | — | Complete | 2026-05-26 |
 | 9. LLM 校验层 | v1.1 | — | Complete | 2026-05-26 |
 | 10. UI 导航与下载 | v1.1 | — | Complete | 2026-05-26 |
-| 11. SQLite 迁移与路径修复 | v1.2 | 0/4 | Not started | - |
+| 11. SQLite 迁移与路径修复 | v1.2 | 0/4 | Planned | - |
 | 12. PyInstaller 打包 | v1.2 | 0/? | Not started | - |
 | 13. Electron 壳与 IPC | v1.2 | 0/? | Not started | - |
 | 14. 构建流水线 | v1.2 | 0/? | Not started | - |

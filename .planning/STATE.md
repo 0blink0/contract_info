@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: 桌面化交付
-status: planning
+status: ready_to_execute
 last_updated: "2026-05-28T00:00:00.000Z"
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
+  total_plans: 4
   completed_plans: 0
   percent: 0
 ---
@@ -25,9 +25,9 @@ See: `contract_info/.planning/PROJECT.md`
 ## Current Position
 
 Phase: 11 of 14 (SQLite 迁移与路径修复)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-05-28 — v1.2 roadmap created (phases 11–14 defined)
+Plan: 4 plans (waves 0–2)
+Status: Ready to execute
+Last activity: 2026-05-28 — Phase 11 planned (4 plans, 3 waves)
 
 Progress: [░░░░░░░░░░] 0%
 
