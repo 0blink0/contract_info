@@ -1,7 +1,7 @@
 import uuid
 from pathlib import Path
 
-from backend.app.config import PROJECT_ROOT
+from backend.app.config import data_dir
 from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
 from backend.app.parse import parse_docx
@@ -18,7 +18,7 @@ def parse_file_id(file_id: uuid.UUID) -> uuid.UUID:
         if not record.storage_path:
             raise ValueError(f"storage_path empty for {file_id}")
 
-        dest_file = PROJECT_ROOT / record.storage_path
+        dest_file = data_dir() / record.storage_path
         if not dest_file.is_file():
             raise FileNotFoundError(str(dest_file))
 

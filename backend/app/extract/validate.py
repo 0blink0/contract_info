@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from backend.app.config import PROJECT_ROOT
+from backend.app.config import _bundle_base
 from backend.app.extract.schemas import ExtractionResult, ExtractionWarning
 
-DICTS_DIR = PROJECT_ROOT / "dicts"
+DICTS_DIR = _bundle_base() / "dicts"
 
 _ENUM_CHECKS: dict[str, str] = {
     "销售机构信息": "销售机构及名称对应表",

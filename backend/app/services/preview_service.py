@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 
 
 
-from backend.app.config import PROJECT_ROOT
+from backend.app.config import data_dir
 
 SNIPPET_DISPLAY = "摘录原文"
 _SKIP_PREVIEW_KEYS = frozenset({"snippet"})
@@ -373,7 +373,7 @@ def build_job_preview(record) -> dict[str, Any]:
 
     if record.status == "exported" and getattr(record, "product_xlsx_path", None):
 
-        product_path = (PROJECT_ROOT / record.product_xlsx_path).resolve()
+        product_path = (data_dir() / record.product_xlsx_path).resolve()
 
         if product_path.is_file():
 
@@ -399,7 +399,7 @@ def build_job_preview(record) -> dict[str, Any]:
 
     if record.status == "exported" and getattr(record, "fee_xlsx_path", None):
 
-        fee_path = (PROJECT_ROOT / record.fee_xlsx_path).resolve()
+        fee_path = (data_dir() / record.fee_xlsx_path).resolve()
 
         if fee_path.is_file():
 
@@ -417,7 +417,7 @@ def build_job_preview(record) -> dict[str, Any]:
 
     if record.status == "exported" and lock_rel:
 
-        lock_path = (PROJECT_ROOT / lock_rel).resolve()
+        lock_path = (data_dir() / lock_rel).resolve()
 
         if lock_path.is_file():
 
@@ -435,7 +435,7 @@ def build_job_preview(record) -> dict[str, Any]:
 
     if record.status == "exported" and share_rel:
 
-        share_path = (PROJECT_ROOT / share_rel).resolve()
+        share_path = (data_dir() / share_rel).resolve()
 
         if share_path.is_file():
 
@@ -449,7 +449,7 @@ def build_job_preview(record) -> dict[str, Any]:
 
     sub_rel = getattr(record, "subscription_xlsx_path", None)
     if record.status == "exported" and sub_rel:
-        sub_path = (PROJECT_ROOT / sub_rel).resolve()
+        sub_path = (data_dir() / sub_rel).resolve()
         if sub_path.is_file():
             subscription_columns, subscription_rows = _read_xlsx_table(
                 sub_path,

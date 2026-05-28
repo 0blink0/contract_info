@@ -26,7 +26,7 @@ from backend.app.api.schemas import (
 from backend.app.services.preview_service import PREVIEW_STATUSES
 from backend.app.services.delete_service import JobDeleteBusyError, delete_job_record
 from backend.app.services.preview_service import get_job_preview
-from backend.app.config import PROJECT_ROOT, exports_dir
+from backend.app.config import data_dir, exports_dir
 from backend.app.extract.path_b_crm import build_crm_handoff
 from backend.app.export.review_workbook import build_review_workbook
 from backend.app.validate.field_labels import label_for_path_b_snippet
@@ -94,7 +94,7 @@ def _record_to_detail(record: ContractFile) -> JobDetailResponse:
 def _resolve_export_path(rel_path: str | None) -> Path:
     if not rel_path:
         raise HTTPException(status_code=404, detail="Export file path not set")
-    full = (PROJECT_ROOT / rel_path).resolve()
+    full = (data_dir() / rel_path).resolve()
     root = exports_dir().resolve()
     try:
         full.relative_to(root)

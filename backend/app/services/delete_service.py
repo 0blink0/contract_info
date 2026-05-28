@@ -4,7 +4,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from backend.app.config import PROJECT_ROOT
+from backend.app.config import uploads_dir, exports_dir
 from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
 from backend.app.services.pipeline_service import IN_PROGRESS
@@ -31,8 +31,8 @@ def delete_job_record(file_id: uuid.UUID) -> None:
     finally:
         session.close()
 
-    _remove_tree(PROJECT_ROOT / "uploads" / str(file_id))
-    _remove_tree(PROJECT_ROOT / "exports" / str(file_id))
+    _remove_tree(uploads_dir() / str(file_id))
+    _remove_tree(exports_dir() / str(file_id))
 
 
 def _remove_tree(path: Path) -> None:
