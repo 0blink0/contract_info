@@ -37,4 +37,5 @@ def test_extract_fund_and_product_type_fulu():
     windows, _ = build_section_windows(doc)
     out = extract_classification_rules(doc, windows, {})
     assert "基金类型" not in out
-    assert out["产品类型（协会）"].value == "权益类"
+    # 已投资产限定(不含现金)+期货独立类别 → 协会归类为混合类
+    assert out["产品类型（协会）"].value == "混合类"
