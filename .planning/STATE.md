@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: 桌面化交付
-status: archived
-stopped_at: Milestone v1.2 archived (2026-05-29)
-last_updated: 2026-05-29T00:00:00.000Z
+milestone: v1.3
+milestone_name: 多文件并行与详情页重构
+status: planning
+last_updated: "2026-05-29T07:11:37.606Z"
 last_activity: 2026-05-29
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # State: CTRX
@@ -26,15 +25,17 @@ See: `contract_info/.planning/PROJECT.md`
 
 ## Current Position
 
-Milestone: v1.2 桌面化交付 — **ARCHIVED 2026-05-29**
-
-All 4 phases (11–14), 11 plans complete. Tag `v1.2` created.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-29 — Milestone v1.3 started
 
 ## Archived Context
 
 Decisions are logged in PROJECT.md Key Decisions table.
 
 Key v1.2 decisions:
+
 - --onedir PyInstaller (AV false-positive risk avoidance)
 - electron-store pin v10 (CommonJS require() compatibility)
 - SQLite replaces PostgreSQL; Docker path preserved unchanged

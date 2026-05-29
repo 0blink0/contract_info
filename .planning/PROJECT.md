@@ -17,7 +17,19 @@
 - **Shipped:** v1.2（2026-05-29）— 桌面化交付完成
 - **Runtime:** FastAPI + Vue + SQLite + Electron 桌面壳（Windows NSIS + Linux AppImage/deb）
 - **Deliverable:** `scripts/build.ps1 -Version 1.2.0` → `dist/CTRX-Setup-1.2.0.exe` (133MB NSIS installer)
-- **v1.2 complete:** SQLite 替换 PostgreSQL、PyInstaller 打包、Electron 生命周期壳（首启向导+Settings）、构建流水线（electron-builder 26.x）
+- **Planning:** v1.3 多文件并行与详情页重构（requirements + roadmap in progress）
+
+## Current Milestone: v1.3 多文件并行与详情页重构
+
+**Goal:** 一次最多上传 3 份 docx 并行解析；将文件详情拆为左侧可导航的六页工作流（五张导入表 + 字段 B），每页可编辑、可摘录核对、可下载；总览页仅作入口。
+
+**Target features:**
+
+- 多文件上传（≤3）与并行解析任务（每文件独立 job + 进度）
+- 左侧「文件详情」可折叠子菜单（五表 + 字段 B）
+- 六张独立详情页：可编辑导出数据 + 人工核对表（字段/值/页码/原文摘录）+ 单表下载
+- 字段 B 页：业绩报酬与开放日建议摘录 + 页码，供人工判断
+- 详情 Hub 总览：五表 + 字段 B 摘要与「进入详情」按钮
 
 ## Requirements
 
@@ -43,17 +55,25 @@
 - ✓ 应用内 Settings 页面（保存后重启事务 + 失败回滚）— ELEC-04 — Phase 13
 - ✓ Windows/Linux 构建流水线（NSIS + AppImage + deb，build.ps1/sh，extraResources）— BUILD-01/02/03 — Phase 14
 
-### Active (v1.3 候选)
+### Active (v1.3)
 
-- [ ] **PATHB-EX-01**: 业绩报酬提取方式自动映射到 CRM 枚举值（减少人工判断）
+- [ ] 多文件上传与并行解析（≤3 份 docx）
+- [ ] 文件详情 Hub + 左侧六页导航（五表 + 字段 B）
+- [ ] 每表独立页：可编辑 preview + 摘录核对表 + 单表下载
+- [ ] 字段 B 建议摘录页（业绩报酬/开放日原文 + 页码）
+
+### Deferred (post-v1.3)
+
+- [ ] **PATHB-EX-01**: 业绩报酬提取方式自动映射到 CRM 枚举值
 - [ ] **PATHB-EX-02**: 业绩基准类型与门槛净值枚举精度提升
-- [ ] Linux clean-VM 验证（PKG-03 defer 项：在 Linux 主机或 CI runner 跑 package_backend.sh + build.sh）
+- [ ] Linux clean-VM 验证（PKG-03 defer）
 
 ### Out of Scope（当前）
 
 - 黄金 xlsx 作为线上自动批改器
 - CRM 自动录入、PDF、批量队列（见 v2）
-- 批量多文件上传/ZIP（→ v2 预研）
+- 批量多文件上传/ZIP/队列（v1.3 仅 ≤3 并行；更大批量 → v2）
+- PATHB 枚举自动映射（PATHB-EX-01/02 → post-v1.3）
 - 自动更新（auto-update）— 需代码签名基础设施
 - 系统托盘图标 — 过度工程化，内部工具无需
 - Keychain / OS 凭证存储 — config.json 已足够
@@ -104,4 +124,4 @@
 
 ---
 
-*Last updated: 2026-05-29 — v1.2 桌面化交付 milestone archived*
+*Last updated: 2026-05-29 — v1.3 多文件并行与详情页重构 milestone started*
