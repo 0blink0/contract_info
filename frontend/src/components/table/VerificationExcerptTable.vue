@@ -6,7 +6,9 @@ import { getTableVerification } from '@/api/client'
 import type { TableKey } from '@/constants/jobSections'
 import {
   allExcerptTables,
+  excerptSummaryRowspans,
   formatExcerptParagraphs,
+  listTableRowKey,
   verificationExcerptTeaser,
 } from '@/utils/excerptFormat'
 
@@ -44,6 +46,35 @@ const excerptTableBlocks = computed(() =>
   allExcerptTables(selectedRow.value ?? {}).filter((t) => t.rows?.length),
 )
 
+const excerptSummarySpans = computed(() =>
+  excerptSummaryRowspans(data.value?.rows ?? []),
+)
+
+/** Column index of「摘录摘要」— shifts when validation column visible. */
+const excerptColumnIndex = computed(() =>
+  data.value?.rows?.some((r) => r.validation_status) ? 3 : 2,
+)
+
+function excerptSpanMethod({
+  rowIndex,
+  columnIndex,
+}: {
+  rowIndex: number
+  columnIndex: number
+}): { rowspan: number; colspan: number } {
+  if (columnIndex !== excerptColumnIndex.value) {
+    return { rowspan: 1, colspan: 1 }
+  }
+  const span = excerptSummarySpans.value[rowIndex] ?? 1
+  return span === 0 ? { rowspan: 0, colspan: 0 } : { rowspan: span, colspan: 1 }
+}
+
+function excerptSummaryForRow(row: VerificationRow, rowIndex: number): string {
+  const span = excerptSummarySpans.value[rowIndex] ?? 1
+  if (span === 0) return ''
+  return verificationExcerptTeaser(row)
+}
+
 function tableColCount(rows: string[][]): number {
   return Math.max(0, ...rows.map((r) => r.length))
 }
@@ -78,6 +109,16 @@ const excerptKindLabel = computed(() => {
   const src = selectedRow.value?.capture_source
   if (!src) return '合同原文摘录'
   return CAPTURE_LABELS[src] ?? '合同原文摘录'
+})
+
+const listTableGroupLabel = computed(() => {
+  const field = selectedRow.value?.field
+  if (!field) return ''
+  const key = listTableRowKey(field)
+  if (!key) return ''
+  const rows = data.value?.rows ?? []
+  const sameGroup = rows.filter((r) => listTableRowKey(r.field) === key)
+  return sameGroup.length > 1 ? key : ''
 })
 
 function valueSummary(value: string | null | undefined, maxLen = 72): string {
@@ -138,7 +179,7 @@ watch(
     <div class="verification-header">
       <h4 class="verification-title">摘录核对</h4>
       <el-text type="info" size="small">
-        点击左侧行，在右侧阅读完整原文摘录
+        点击左侧行阅读完整摘录；同一运营费行等多字段共用一条摘要
       </el-text>
     </div>
 
@@ -154,6 +195,7 @@ watch(
           highlight-current-row
           max-height="560"
           :row-class-name="rowClassName"
+          :span-method="excerptSpanMethod"
           @row-click="selectRow"
         >
           <el-table-column
@@ -166,15 +208,16 @@ watch(
             <template #default="{ row }">{{ row.value ?? '—' }}</template>
           </el-table-column>
           <el-table-column label="摘录摘要" min-width="160">
-            <template #default="{ row }">
+            <template #default="{ row, $index }">
               <span
+                v-if="(excerptSummarySpans[$index] ?? 1) > 0"
                 class="excerpt-teaser"
                 :class="{
                   'excerpt-teaser--empty':
                     !row.excerpt?.trim() && allExcerptTables(row).length === 0,
                 }"
               >
-                {{ verificationExcerptTeaser(row) }}
+                {{ excerptSummaryForRow(row, $index) }}
               </span>
             </template>
           </el-table-column>
@@ -200,7 +243,13 @@ watch(
         <div v-if="selectedRow" class="excerpt-reader-inner">
           <div class="excerpt-reader-head">
             <div class="excerpt-reader-head-top">
-              <h5 class="excerpt-reader-title">{{ selectedRow.field_label }}</h5>
+              <h5 class="excerpt-reader-title">
+                {{ selectedRow.field_label }}
+                <span
+                  v-if="listTableGroupLabel"
+                  class="excerpt-group-hint"
+                >（本组字段共用此摘录）</span>
+              </h5>
               <el-tag
                 v-if="selectedRow.capture_source === 'rule'"
                 size="small"
@@ -356,6 +405,12 @@ watch(
   font-weight: 600;
   color: #0f172a;
   line-height: 1.4;
+}
+
+.excerpt-group-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: #64748b;
 }
 
 .excerpt-value {

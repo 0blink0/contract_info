@@ -64,6 +64,55 @@ export function allExcerptTables(row: {
   return []
 }
 
+/** e.g. fee_rates[2].计费频率 → fee_rates[2] */
+export function listTableRowKey(field: string): string | null {
+  const m = field.match(/^([a-z_]+\[\d+\])\./i)
+  return m ? m[1] : null
+}
+
+export function evidenceFingerprint(row: {
+  excerpt?: string | null
+  excerpt_table?: { rows?: string[][]; caption?: string | null } | null
+  excerpt_tables?: { rows?: string[][]; caption?: string | null }[] | null
+}): string {
+  const tables = allExcerptTables(row).map((t) => ({
+    caption: t.caption ?? '',
+    rows: t.rows ?? [],
+  }))
+  const excerpt = (row.excerpt ?? '').trim()
+  return JSON.stringify({ tables, excerpt })
+}
+
+/** Group key: one exported table row, or unique excerpt for product-elements. */
+export function evidenceGroupKey(
+  field: string,
+  row: Parameters<typeof evidenceFingerprint>[0],
+): string {
+  const listKey = listTableRowKey(field)
+  if (listKey) return listKey
+  return `field:${field}::${evidenceFingerprint(row)}`
+}
+
+/** Rowspan for excerpt summary column: first row in group gets count, rest 0. */
+export function excerptSummaryRowspans(
+  rows: { field: string; excerpt?: string | null; excerpt_table?: unknown; excerpt_tables?: unknown }[],
+): number[] {
+  const spans = rows.map(() => 1)
+  let i = 0
+  while (i < rows.length) {
+    const key = evidenceGroupKey(rows[i].field, rows[i])
+    let j = i + 1
+    while (j < rows.length && evidenceGroupKey(rows[j].field, rows[j]) === key) {
+      j += 1
+    }
+    const len = j - i
+    spans[i] = len
+    for (let k = i + 1; k < j; k += 1) spans[k] = 0
+    i = j
+  }
+  return spans
+}
+
 export function verificationExcerptTeaser(row: {
   excerpt?: string | null
   excerpt_table?: { rows?: string[][] } | null
