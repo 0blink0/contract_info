@@ -1,4 +1,5 @@
 import type {
+  JobPreview,
   JobPreviewSectionResponse,
   PreviewSection,
   ProductPreviewItem,
@@ -134,4 +135,76 @@ export function sectionRowCount(
   }
   const { rows } = listSectionData(preview, key)
   return rows.length
+}
+
+/** Slice full preview (legacy GET /preview) into a sectional response. */
+export function slicePreviewSection(
+  full: JobPreview,
+  section: PreviewSection,
+): JobPreviewSectionResponse {
+  const base: JobPreviewSectionResponse = {
+    job_id: full.job_id,
+    section,
+    source: full.source,
+  }
+  switch (section) {
+    case 'product-elements':
+      return { ...base, product_rows: full.product_rows }
+    case 'fee-rates':
+      return {
+        ...base,
+        fee_columns: full.fee_columns,
+        fee_rows: full.fee_rows,
+      }
+    case 'lock-periods':
+      return {
+        ...base,
+        lock_columns: full.lock_columns,
+        lock_rows: full.lock_rows,
+      }
+    case 'share-classes':
+      return {
+        ...base,
+        share_columns: full.share_columns,
+        share_rows: full.share_rows,
+      }
+    case 'subscription-fee-rates':
+      return {
+        ...base,
+        subscription_columns: full.subscription_columns,
+        subscription_rows: full.subscription_rows,
+      }
+    default:
+      return base
+  }
+}
+
+/** Merge sectional PUT body into full preview for legacy save endpoint. */
+type JobPreviewUpdatePayload = Omit<JobPreview, 'job_id' | 'source'>
+
+export function mergeSectionIntoFullPreview(
+  full: JobPreview,
+  section: PreviewSection,
+  body: Record<string, unknown>,
+): JobPreviewUpdatePayload {
+  const payload: JobPreviewUpdatePayload = {
+    product_rows: full.product_rows,
+    fee_columns: full.fee_columns,
+    fee_rows: full.fee_rows,
+    lock_columns: full.lock_columns,
+    lock_rows: full.lock_rows,
+    share_columns: full.share_columns,
+    share_rows: full.share_rows,
+    subscription_columns: full.subscription_columns,
+    subscription_rows: full.subscription_rows,
+  }
+  if (section === 'product-elements') {
+    payload.product_rows = (body.product_rows as ProductPreviewItem[] | undefined) ?? full.product_rows
+    return payload
+  }
+  const fields = LIST_SECTION_FIELDS[section]
+  payload[fields.columns] = (body[fields.columns] as string[] | undefined) ?? full[fields.columns]
+  payload[fields.rows] =
+    (body[fields.rows] as Record<string, string | null>[] | undefined) ?? full[fields.rows]
+  return payload
 }

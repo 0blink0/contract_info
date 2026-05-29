@@ -14,3 +14,9 @@ test('client exposes sectional preview and verification APIs', () => {
   assert.match(clientCode, /\/preview\/\$\{section\}/)
   assert.match(clientCode, /\/verification\/\$\{tableKey\}/)
 })
+
+test('sectional preview falls back to full preview on 404', () => {
+  assert.match(clientCode, /isNotFoundError/)
+  assert.match(clientCode, /slicePreviewSection/)
+  assert.match(clientCode, /getJobPreview\(jobId\)/)
+})

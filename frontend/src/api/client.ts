@@ -12,6 +12,10 @@ import type {
   ValidationResponse,
 } from './types'
 import { getApiBase } from '@/stores/appBootstrap'
+import {
+  mergeSectionIntoFullPreview,
+  slicePreviewSection,
+} from '@/constants/jobSections'
 
 function apiHeaders(): HeadersInit {
   const headers: HeadersInit = {}
@@ -51,6 +55,12 @@ export async function listJobs(limit = 20): Promise<JobListResponse> {
 export async function getJobConcurrency(): Promise<JobConcurrencyResponse> {
   const res = await apiFetch('/jobs/concurrency')
   return res.json()
+}
+
+export function isNotFoundError(e: unknown): boolean {
+  if (!(e instanceof Error)) return false
+  const msg = e.message.trim()
+  return msg === 'Not Found' || /\b404\b/.test(msg)
 }
 
 /** Extract human-readable message from API errors (including 409 detail objects). */
@@ -110,8 +120,14 @@ export async function getJobPreviewSection(
   jobId: string,
   section: PreviewSection,
 ): Promise<JobPreviewSectionResponse> {
-  const res = await apiFetch(`/jobs/${jobId}/preview/${section}`)
-  return res.json()
+  try {
+    const res = await apiFetch(`/jobs/${jobId}/preview/${section}`)
+    return res.json()
+  } catch (e) {
+    if (!isNotFoundError(e)) throw e
+    const full = await getJobPreview(jobId)
+    return slicePreviewSection(full, section)
+  }
 }
 
 export async function saveJobPreviewSection(
@@ -119,20 +135,40 @@ export async function saveJobPreviewSection(
   section: PreviewSection,
   body: Record<string, unknown>,
 ): Promise<JobPreviewSectionResponse> {
-  const res = await apiFetch(`/jobs/${jobId}/preview/${section}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return res.json()
+  try {
+    const res = await apiFetch(`/jobs/${jobId}/preview/${section}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return res.json()
+  } catch (e) {
+    if (!isNotFoundError(e)) throw e
+    const full = await getJobPreview(jobId)
+    const merged = mergeSectionIntoFullPreview(full, section, body)
+    const saved = await saveJobPreview(jobId, merged)
+    return slicePreviewSection(saved, section)
+  }
 }
 
 export async function getTableVerification(
   jobId: string,
   tableKey: PreviewSection,
 ): Promise<TableVerificationResponse> {
-  const res = await apiFetch(`/jobs/${jobId}/verification/${tableKey}`)
-  return res.json()
+  try {
+    const res = await apiFetch(`/jobs/${jobId}/verification/${tableKey}`)
+    return res.json()
+  } catch (e) {
+    if (isNotFoundError(e)) {
+      return {
+        job_id: jobId,
+        table_key: tableKey,
+        rows: [],
+        page_no_available: false,
+      }
+    }
+    throw e
+  }
 }
 
 export async function upload(file: File): Promise<UploadResponse> {
