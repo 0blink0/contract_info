@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.app.api.schemas import PreviewSection
+from backend.app.extract.evidence_enrich import enrich_extraction_dict
 from backend.app.export.column_map import (
     template_header_for_fee_key,
     template_header_for_subscription_key,
@@ -185,8 +186,9 @@ def _verification_rows_from_preview(
 
 
 def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str, Any]]:
-    extraction = record.extraction_result or {}
+    extraction = dict(record.extraction_result or {})
     parse_json = record.parse_json or {}
+    enrich_extraction_dict(extraction, parse_json)
     rows: list[dict[str, Any]] = []
 
     if table_key == "product-elements":

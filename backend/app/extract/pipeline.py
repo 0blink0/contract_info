@@ -21,6 +21,7 @@ from backend.app.extract.llm.subtable_extract import (
 
 )
 
+from backend.app.extract.evidence_enrich import enrich_extraction_result
 from backend.app.extract.merge import merge_extraction, merge_field
 from backend.app.extract.row_sort import sort_fee_rates, sort_subscription_fees
 
@@ -324,6 +325,7 @@ async def extract_document(
     )
     warnings.extend(path_b_warnings)
 
+    result = enrich_extraction_result(result, document)
     return result, warnings, path_b_dict
 
 
