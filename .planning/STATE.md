@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: 桌面化交付
 status: ready_to_execute
-stopped_at: Phase 14 planned (3 plans, 3 waves)
-last_updated: "2026-05-29T00:00:00.000Z"
-last_activity: 2026-05-29 -- Phase 14 plans verified and ready to execute
+stopped_at: Phase 14 context gathered
+last_updated: "2026-05-29T02:49:03.294Z"
+last_activity: 2026-05-29 -- Phase 14 execution started
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 11
   completed_plans: 8
-  percent: 75
+  percent: 73
 ---
 
 # State: CTRX
@@ -21,14 +21,14 @@ progress:
 See: `contract_info/.planning/PROJECT.md`
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 14 — 打包与安装分发（待规划/执行）
+**Current focus:** Phase 14 — build-pipeline
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: 14 (构建流水线) — PLANNED
-Plan: 3 plans ready (Wave 0 → 1 → 2), status: Ready to execute
-Last activity: 2026-05-29 -- Phase 14 plans created and verified (3 plans, 3 waves)
+Phase: 14 (build-pipeline) — EXECUTING
+Plan: 1 of 3
+Last activity: 2026-05-29 -- Phase 14 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
