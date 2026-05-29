@@ -80,27 +80,27 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UP-01 | — | Pending |
-| UP-02 | — | Pending |
-| UP-03 | — | Pending |
-| UP-04 | — | Pending |
-| API-01 | — | Pending |
-| API-02 | — | Pending |
-| API-03 | — | Pending |
-| NAV-01 | — | Pending |
-| NAV-02 | — | Pending |
-| NAV-03 | — | Pending |
-| HUB-01 | — | Pending |
-| HUB-02 | — | Pending |
-| HUB-03 | — | Pending |
-| TBL-01 | — | Pending |
-| TBL-02 | — | Pending |
-| TBL-03 | — | Pending |
-| TBL-04 | — | Pending |
-| TBL-05 | — | Pending |
-| PB-01 | — | Pending |
-| PB-02 | — | Pending |
-| FE-01 | — | Pending |
-| FE-02 | — | Pending |
+| UP-01 | Phase 19 | Pending |
+| UP-02 | Phase 19 | Pending |
+| UP-03 | Phase 19 | Pending |
+| UP-04 | Phase 15 | Pending |
+| API-01 | Phase 15 | Pending |
+| API-02 | Phase 15 | Pending |
+| API-03 | Phase 15 | Pending |
+| NAV-01 | Phase 16 | Pending |
+| NAV-02 | Phase 16 | Pending |
+| NAV-03 | Phase 16 | Pending |
+| HUB-01 | Phase 18 | Pending |
+| HUB-02 | Phase 18 | Pending |
+| HUB-03 | Phase 18 | Pending |
+| TBL-01 | Phase 17 | Pending |
+| TBL-02 | Phase 17 | Pending |
+| TBL-03 | Phase 17 | Pending |
+| TBL-04 | Phase 17 | Pending |
+| TBL-05 | Phase 17 | Pending |
+| PB-01 | Phase 18 | Pending |
+| PB-02 | Phase 18 | Pending |
+| FE-01 | Phase 19 | Pending |
+| FE-02 | Phase 16 | Pending |
 
-*Traceability filled by roadmapper.*
+*Coverage: 22/22 v1.3 requirements mapped (Phases 15–19). Updated by roadmapper 2026-05-29.*

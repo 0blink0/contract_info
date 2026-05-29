@@ -3,11 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: 多文件并行与详情页重构
 status: planning
-last_updated: "2026-05-29T07:11:37.606Z"
+last_updated: "2026-05-29"
 last_activity: 2026-05-29
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
+  current_phase: 15
   total_plans: 0
   completed_plans: 0
   percent: 0
@@ -20,15 +21,45 @@ progress:
 See: `contract_info/.planning/PROJECT.md`
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验（本地桌面，无服务器依赖）
-**Current focus:** v1.2 archived — ready for /gsd:new-milestone
+**Current focus:** v1.3 — 多文件并行与详情页重构（Phases 15–19）
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 15 — 后端并行与分表 API（未开始）
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-29 — Milestone v1.3 started
+Status: Roadmap defined — ready for `/gsd-plan-phase 15`
+Last activity: 2026-05-29 — v1.3 ROADMAP（Phases 15–19）已创建
+
+Progress: `[░░░░░░░░░░] 0/5 phases (v1.3)`
+
+## Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| v1.3 phases | 5 (15–19) |
+| v1.3 requirements | 22 |
+| Plans complete (v1.3) | 0 |
+
+## Accumulated Context
+
+### Decisions
+
+- v1.3 构建顺序：后端并行与分表 API → 路由骨架 → 五表工作页 → Hub/字段 B → 多文件上传 UI（与研究 SUMMARY 一致）
+- 并行上限 3：产品约束 + SQLite/LLM 资源约束；后端 409 守门 + 前端 limit=3
+- Hub 不嵌入完整 ExportPreview；job 级校验在 Hub，六页不各自触发全量 LLM 校验
+
+### Todos
+
+- [ ] `/gsd-plan-phase 15` — 后端并行与分表 API
+
+### Blockers
+
+_None_
+
+## Session Continuity
+
+_Last roadmap update: 2026-05-29 — gsd-roadmapper created v1.3 phases 15–19_
 
 ## Archived Context
 
