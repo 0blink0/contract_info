@@ -10,6 +10,7 @@ from backend.app.export.column_map import (
     template_header_for_fee_key,
     template_header_for_subscription_key,
 )
+from backend.app.services.parse_block_tables import resolve_excerpt_table
 from backend.app.services.preview_service import PREVIEW_STATUSES, SNIPPET_DISPLAY, build_job_preview
 from backend.app.validate.evidence import _block_text, resolve_evidence_text
 from backend.app.validate.field_labels import label_for_validation_field
@@ -107,6 +108,25 @@ def _resolve_capture_excerpt(
     return None, None
 
 
+def _verification_evidence(
+    raw: Any,
+    value: str | None,
+    parse_json: dict,
+    *,
+    section: str | None = None,
+) -> tuple[str | None, str | None, dict[str, Any] | None]:
+    excerpt, capture_source = _resolve_capture_excerpt(raw, value, parse_json)
+    excerpt_table = resolve_excerpt_table(
+        raw if isinstance(raw, dict) else None,
+        parse_json,
+        section=section,
+        value=value,
+    )
+    if excerpt_table and capture_source not in ("rule",):
+        capture_source = capture_source or "table"
+    return excerpt, capture_source, excerpt_table
+
+
 def _row_template(
     *,
     field: str,
@@ -115,6 +135,7 @@ def _row_template(
     excerpt: str | None,
     page_no: int | None = None,
     capture_source: str | None = None,
+    excerpt_table: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
         "field": field,
@@ -126,6 +147,8 @@ def _row_template(
     }
     if capture_source:
         row["capture_source"] = capture_source
+    if excerpt_table and excerpt_table.get("rows"):
+        row["excerpt_table"] = excerpt_table
     return row
 
 
@@ -197,15 +220,15 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
             for field_name, raw in elements.items():
                 if not isinstance(raw, dict):
                     val = str(raw).strip() if raw is not None else ""
-                    snippet, block_id = None, None
-                    excerpt, capture_source = None, None
+                    block_id = None
                 else:
                     val = str(raw.get("value") or "").strip()
-                    snippet, block_id = _snippet_and_block(raw)
-                excerpt, capture_source = _resolve_capture_excerpt(
+                    _, block_id = _snippet_and_block(raw)
+                excerpt, capture_source, excerpt_table = _verification_evidence(
                     raw if isinstance(raw, dict) else {},
                     val or None,
                     parse_json,
+                    section="product-elements",
                 )
                 page_no = _page_for_block(block_id, parse_json)
                 rows.append(
@@ -216,6 +239,7 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                         excerpt=excerpt,
                         page_no=page_no,
                         capture_source=capture_source,
+                        excerpt_table=excerpt_table,
                     )
                 )
     elif table_key == "fee-rates":
@@ -223,13 +247,22 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
         for i, row in enumerate(fee_list):
             if not isinstance(row, dict):
                 continue
-            snippet, block_id = _snippet_and_block(row)
+            _, block_id = _snippet_and_block(row)
             page_no = _page_for_block(block_id, parse_json)
+            row_excerpt, row_source, row_table = _verification_evidence(
+                row, None, parse_json, section="fee-rates"
+            )
             for key, val in row.items():
                 if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
                 cell_val = str(val).strip() if val is not None else None
-                excerpt, capture_source = _resolve_capture_excerpt(row, cell_val, parse_json)
+                excerpt, capture_source, excerpt_table = _verification_evidence(
+                    row, cell_val, parse_json, section="fee-rates"
+                )
+                if not (excerpt_table and excerpt_table.get("rows")) and row_table:
+                    excerpt_table = row_table
+                if not excerpt:
+                    excerpt, capture_source = row_excerpt, row_source or capture_source
                 label = template_header_for_fee_key(key)
                 field_path = f"fee_rates[{i}].{key}"
                 rows.append(
@@ -240,6 +273,7 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                         excerpt=excerpt,
                         page_no=page_no,
                         capture_source=capture_source,
+                        excerpt_table=excerpt_table,
                     )
                 )
     elif table_key == "lock-periods":
@@ -249,11 +283,20 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                 continue
             _, block_id = _snippet_and_block(row)
             page_no = _page_for_block(block_id, parse_json)
+            row_excerpt, row_source, row_table = _verification_evidence(
+                row, None, parse_json, section="lock-periods"
+            )
             for key, val in row.items():
                 if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
                 cell_val = str(val).strip() if val is not None else None
-                excerpt, capture_source = _resolve_capture_excerpt(row, cell_val, parse_json)
+                excerpt, capture_source, excerpt_table = _verification_evidence(
+                    row, cell_val, parse_json, section="lock-periods"
+                )
+                if not (excerpt_table and excerpt_table.get("rows")) and row_table:
+                    excerpt_table = row_table
+                if not excerpt:
+                    excerpt, capture_source = row_excerpt, row_source or capture_source
                 field_path = f"lock_periods[{i}].{key}"
                 rows.append(
                     _row_template(
@@ -263,6 +306,7 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                         excerpt=excerpt,
                         page_no=page_no,
                         capture_source=capture_source,
+                        excerpt_table=excerpt_table,
                     )
                 )
     elif table_key == "share-classes":
@@ -272,11 +316,20 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                 continue
             _, block_id = _snippet_and_block(row)
             page_no = _page_for_block(block_id, parse_json)
+            row_excerpt, row_source, row_table = _verification_evidence(
+                row, None, parse_json, section="share-classes"
+            )
             for key, val in row.items():
                 if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
                 cell_val = str(val).strip() if val is not None else None
-                excerpt, capture_source = _resolve_capture_excerpt(row, cell_val, parse_json)
+                excerpt, capture_source, excerpt_table = _verification_evidence(
+                    row, cell_val, parse_json, section="share-classes"
+                )
+                if not (excerpt_table and excerpt_table.get("rows")) and row_table:
+                    excerpt_table = row_table
+                if not excerpt:
+                    excerpt, capture_source = row_excerpt, row_source or capture_source
                 field_path = f"share_classes[{i}].{key}"
                 rows.append(
                     _row_template(
@@ -286,6 +339,7 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                         excerpt=excerpt,
                         page_no=page_no,
                         capture_source=capture_source,
+                        excerpt_table=excerpt_table,
                     )
                 )
     elif table_key == "subscription-fee-rates":
@@ -295,11 +349,20 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                 continue
             _, block_id = _snippet_and_block(row)
             page_no = _page_for_block(block_id, parse_json)
+            row_excerpt, row_source, row_table = _verification_evidence(
+                row, None, parse_json, section="subscription-fee-rates"
+            )
             for key, val in row.items():
                 if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
                 cell_val = str(val).strip() if val is not None else None
-                excerpt, capture_source = _resolve_capture_excerpt(row, cell_val, parse_json)
+                excerpt, capture_source, excerpt_table = _verification_evidence(
+                    row, cell_val, parse_json, section="subscription-fee-rates"
+                )
+                if not (excerpt_table and excerpt_table.get("rows")) and row_table:
+                    excerpt_table = row_table
+                if not excerpt:
+                    excerpt, capture_source = row_excerpt, row_source or capture_source
                 label = template_header_for_subscription_key(key)
                 field_path = f"subscription_fees[{i}].{key}"
                 rows.append(
@@ -310,6 +373,7 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                         excerpt=excerpt,
                         page_no=page_no,
                         capture_source=capture_source,
+                        excerpt_table=excerpt_table,
                     )
                 )
 

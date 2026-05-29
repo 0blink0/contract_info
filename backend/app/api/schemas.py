@@ -160,6 +160,10 @@ class ValidationItemResponse(BaseModel):
     suggestion: str | None = None
 
 
+class ExcerptTablePayload(BaseModel):
+    rows: list[list[str]] = Field(default_factory=list)
+
+
 class VerificationRow(BaseModel):
     field: str
     field_label: str
@@ -167,6 +171,7 @@ class VerificationRow(BaseModel):
     page_no: int | None = None
     page_no_note: str | None = None
     excerpt: str | None = None
+    excerpt_table: ExcerptTablePayload | None = None
     capture_source: str | None = None
     validation_status: str | None = None
     validation_reason: str | None = None

@@ -103,6 +103,39 @@ def test_verification_falls_back_to_exported_preview_when_extraction_empty():
     assert rows[0]["page_no_note"] == "页码暂未解析"
 
 
+def test_fee_verification_includes_excerpt_table():
+    record = SimpleNamespace(
+        extraction_result={
+            "fee_rates": [
+                {
+                    "block_id": "fee-t",
+                    "运营费类型": "管理费",
+                    "费率（%/年）": "1.5",
+                }
+            ],
+        },
+        parse_json={
+            "blocks": [
+                {
+                    "id": "fee-t",
+                    "type": "table",
+                    "rows": [
+                        ["", "A类", "B类"],
+                        ["年管理费率", "1.5%", "1.2%"],
+                    ],
+                }
+            ]
+        },
+        validation_result=None,
+    )
+    rows = build_verification_rows(record, "fee-rates")
+    assert rows
+    assert any(r.get("excerpt_table", {}).get("rows") for r in rows)
+    table_row = next(r for r in rows if r.get("excerpt_table"))
+    assert table_row["capture_source"] in ("table", "block", "snippet")
+    assert len(table_row["excerpt_table"]["rows"]) >= 2
+
+
 def test_validation_overlay():
     record = SimpleNamespace(
         extraction_result={

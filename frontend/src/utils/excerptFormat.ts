@@ -37,10 +37,30 @@ export function formatExcerptParagraphs(text: string | null | undefined): string
   return sentences.length ? sentences : [normalized]
 }
 
+export function excerptTablePreview(
+  table: { rows?: string[][] } | null | undefined,
+): string | null {
+  const rows = table?.rows?.filter((r) => r?.some((c) => String(c || '').trim()))
+  if (!rows?.length) return null
+  const cols = Math.max(...rows.map((r) => r.length), 0)
+  return `[合同表格 ${rows.length}行×${cols}列]`
+}
+
 export function excerptPreview(text: string | null | undefined, maxLen = 36): string {
   const raw = text?.trim()
   if (!raw) return '—'
   const oneLine = raw.replace(/\s+/g, ' ')
   if (oneLine.length <= maxLen) return oneLine
   return `${oneLine.slice(0, maxLen)}…`
+}
+
+export function verificationExcerptTeaser(row: {
+  excerpt?: string | null
+  excerpt_table?: { rows?: string[][] } | null
+}): string {
+  const tableLabel = excerptTablePreview(row.excerpt_table)
+  const text = excerptPreview(row.excerpt)
+  if (tableLabel && text !== '—') return `${tableLabel} ${text}`
+  if (tableLabel) return tableLabel
+  return text
 }

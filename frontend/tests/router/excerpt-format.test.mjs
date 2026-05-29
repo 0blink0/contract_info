@@ -16,4 +16,6 @@ const code = fs.readFileSync(utilPath, 'utf-8')
 test('excerpt format utilities are exported', () => {
   assert.match(code, /export function formatExcerptParagraphs/)
   assert.match(code, /export function excerptPreview/)
+  assert.match(code, /export function excerptTablePreview/)
+  assert.match(code, /export function verificationExcerptTeaser/)
 })

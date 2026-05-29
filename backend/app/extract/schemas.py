@@ -21,6 +21,8 @@ class FieldValue(BaseModel):
 class LockPeriodRow(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 
+    block_id: str | None = None
+    snippet: str | None = None
     产品名称: str | None = None
     份额类型: str | None = None
     锁定期: str | None = None
@@ -39,6 +41,8 @@ class LockPeriodRow(BaseModel):
 class ShareClassRow(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 
+    block_id: str | None = None
+    snippet: str | None = None
     基金全称: str | None = None
     基金代码: str | None = None
     分级份额名称: str | None = None
@@ -95,6 +99,7 @@ class PathBDocument(BaseModel):
 class SubscriptionFeeRow(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 
+    block_id: str | None = None
     基金名称: str | None = None
     基金代码: str | None = None
     申赎费类型: str | None = None
@@ -112,6 +117,8 @@ class SubscriptionFeeRow(BaseModel):
 class FeeRateRow(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 
+    block_id: str | None = None
+    snippet: str | None = None
     基金名称: str | None = None
     基金代码: str | None = None
     运营费类型: str | None = None

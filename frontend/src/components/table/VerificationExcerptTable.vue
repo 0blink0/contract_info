@@ -4,7 +4,10 @@ import { ElMessage } from 'element-plus'
 import type { TableVerificationResponse, VerificationRow } from '@/api/types'
 import { getTableVerification } from '@/api/client'
 import type { TableKey } from '@/constants/jobSections'
-import { excerptPreview, formatExcerptParagraphs } from '@/utils/excerptFormat'
+import {
+  formatExcerptParagraphs,
+  verificationExcerptTeaser,
+} from '@/utils/excerptFormat'
 
 const props = defineProps<{
   jobId: string
@@ -25,18 +28,47 @@ const selectedRow = computed(() => {
     const hit = rows.find((r) => r.field === selectedField.value)
     if (hit) return hit
   }
-  return rows.find((r) => r.excerpt?.trim()) ?? rows[0]
+  return (
+    rows.find((r) => r.excerpt_table?.rows?.length || r.excerpt?.trim()) ?? rows[0]
+  )
 })
 
 const excerptParagraphs = computed(() =>
   formatExcerptParagraphs(selectedRow.value?.excerpt),
 )
 
+const excerptTableRows = computed(
+  () => selectedRow.value?.excerpt_table?.rows?.filter((r) => r?.length) ?? [],
+)
+
+const excerptTableHeader = computed(() => {
+  const rows = excerptTableRows.value
+  return rows.length > 1 ? rows[0] : null
+})
+
+const excerptTableBody = computed(() => {
+  const rows = excerptTableRows.value
+  if (rows.length <= 1) return rows
+  return rows.slice(1)
+})
+
+const excerptTableColCount = computed(() =>
+  Math.max(excerptTableHeader.value?.length ?? 0, ...excerptTableBody.value.map((r) => r.length), 0),
+)
+
+function padTableRow(row: string[]): string[] {
+  const n = excerptTableColCount.value
+  const out = [...row]
+  while (out.length < n) out.push('')
+  return out
+}
+
 const CAPTURE_LABELS: Record<string, string> = {
   rule: '规则抓取原文',
   llm: '模型摘录',
   snippet: '合同摘录',
   block: '段落原文',
+  table: '合同表格原文',
   value: '字段对应原文',
 }
 
@@ -63,7 +95,7 @@ function selectRow(row: VerificationRow) {
 }
 
 function pickDefaultRow(rows: VerificationRow[]) {
-  const withExcerpt = rows.find((r) => r.excerpt?.trim())
+  const withExcerpt = rows.find((r) => r.excerpt_table?.rows?.length || r.excerpt?.trim())
   selectedField.value = (withExcerpt ?? rows[0])?.field ?? null
 }
 
@@ -133,9 +165,12 @@ watch(
             <template #default="{ row }">
               <span
                 class="excerpt-teaser"
-                :class="{ 'excerpt-teaser--empty': !row.excerpt?.trim() }"
+                :class="{
+                  'excerpt-teaser--empty':
+                    !row.excerpt?.trim() && !row.excerpt_table?.rows?.length,
+                }"
               >
-                {{ excerptPreview(row.excerpt) }}
+                {{ verificationExcerptTeaser(row) }}
               </span>
             </template>
           </el-table-column>
@@ -177,10 +212,40 @@ watch(
             </p>
             <p class="excerpt-body-label">{{ excerptKindLabel }}</p>
           </div>
-          <div v-if="excerptParagraphs.length" class="excerpt-body">
+          <div
+            v-if="excerptTableRows.length || excerptParagraphs.length"
+            class="excerpt-body"
+          >
+            <div v-if="excerptTableRows.length" class="excerpt-table-block">
+              <table class="contract-source-table">
+                <thead v-if="excerptTableHeader">
+                  <tr>
+                    <th
+                      v-for="(cell, ci) in padTableRow(excerptTableHeader)"
+                      :key="`h-${ci}`"
+                    >
+                      {{ cell || ' ' }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(row, ri) in excerptTableBody"
+                    :key="`r-${ri}`"
+                  >
+                    <td
+                      v-for="(cell, ci) in padTableRow(row)"
+                      :key="`c-${ri}-${ci}`"
+                    >
+                      {{ cell || ' ' }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <p
               v-for="(para, idx) in excerptParagraphs"
-              :key="idx"
+              :key="`p-${idx}`"
               class="excerpt-para"
             >
               {{ para }}
@@ -312,6 +377,38 @@ watch(
 
 .excerpt-para:last-child {
   margin-bottom: 0;
+}
+
+.excerpt-table-block {
+  margin-bottom: 1em;
+  overflow-x: auto;
+}
+
+.contract-source-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.contract-source-table th,
+.contract-source-table td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+  color: #334155;
+}
+
+.contract-source-table th {
+  background: #f1f5f9;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.contract-source-table tbody tr:nth-child(even) {
+  background: #f8fafc;
 }
 
 .excerpt-teaser {

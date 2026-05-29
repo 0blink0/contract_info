@@ -293,6 +293,7 @@ def _fee_rows_from_share_classification_table(
         if len(col_letters) < 2:
             continue
         parsed_any = False
+        table_block_id = str(block.get("id") or "") or None
         for tr in table_rows[1:]:
             if not tr:
                 continue
@@ -314,6 +315,7 @@ def _fee_rows_from_share_classification_table(
                     基金名称=format_subscription_fund_name(name, letter) or name,
                     运营费类型=fee_type,
                     计费频率="按年",
+                    block_id=table_block_id,
                 )
                 _apply_rate(row, pct.group(1))
                 rows.append(row)

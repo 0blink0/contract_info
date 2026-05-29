@@ -81,6 +81,10 @@ export interface JobPreviewSectionResponse {
   subscription_rows?: Record<string, string | null>[]
 }
 
+export interface ExcerptTablePayload {
+  rows: string[][]
+}
+
 export interface VerificationRow {
   field: string
   field_label: string
@@ -88,7 +92,9 @@ export interface VerificationRow {
   page_no?: number | null
   page_no_note?: string | null
   excerpt?: string | null
-  /** rule | snippet | block | value — how excerpt was resolved */
+  /** Contract table block when field was taken from a docx table */
+  excerpt_table?: ExcerptTablePayload | null
+  /** rule | snippet | block | table | value — how excerpt was resolved */
   capture_source?: string | null
   validation_status?: string | null
   validation_reason?: string | null
