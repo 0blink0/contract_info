@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: 桌面化交付
-status: executing
-stopped_at: Phase 12 context gathered
-last_updated: "2026-05-28T08:20:41.716Z"
-last_activity: 2026-05-28 -- Phase 11 execution started
+status: verifying
+stopped_at: Phase 14 context gathered
+last_updated: "2026-05-29T01:41:48.463Z"
+last_activity: 2026-05-28 -- 向导完成并进入主页面人工验收通过
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 25
+  completed_phases: 3
+  total_plans: 8
+  completed_plans: 8
+  percent: 75
 ---
 
 # State: CTRX
@@ -21,15 +21,15 @@ progress:
 See: `contract_info/.planning/PROJECT.md`
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验  
-**Current focus:** Phase 11 — SQLite 迁移与路径修复
+**Current focus:** Phase 14 — 打包与安装分发（待规划/执行）
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: 11 (SQLite 迁移与路径修复) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 11
-Last activity: 2026-05-28 -- Phase 11 execution started
+Phase: 13 (Electron 壳与 IPC) — EXECUTED
+Plan: 2 plans completed
+Status: Verification FLAG (partial human_done) — onboarding 主链路已人工通过，Settings 新 Key 生效待补验
+Last activity: 2026-05-28 -- 向导完成并进入主页面人工验收通过
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -85,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-28T08:20:41.706Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/CTRX-12-pyinstaller/12-CONTEXT.md
+Last session: 2026-05-29T01:41:48.444Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/CTRX-14-build-pipeline/14-CONTEXT.md
