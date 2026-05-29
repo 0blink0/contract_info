@@ -17,6 +17,8 @@ const props = defineProps<{
   jobId: string
   tableKey: TableKey
   status: string
+  /** Job has LLM validation result (show LLM校验 column even if this table has no issues). */
+  validationAvailable?: boolean
   canEditValues?: boolean
   saveLoading?: boolean
 }>()
@@ -63,10 +65,28 @@ const excerptTableBlocks = computed((): ExcerptTableBlock[] =>
 
 const excerptSummarySpans = computed(() => excerptSummaryRowspans(tableRows.value))
 
-/** Column index of「摘录摘要」— shifts when validation column visible. */
-const excerptColumnIndex = computed(() =>
-  data.value?.rows?.some((r) => r.validation_status) ? 3 : 2,
+const showLlmColumn = computed(
+  () =>
+    Boolean(props.validationAvailable) ||
+    tableRows.value.some((r) => r.validation_status),
 )
+
+const tableFailCount = computed(
+  () => tableRows.value.filter((r) => r.validation_status === 'fail').length,
+)
+const tableWarnCount = computed(
+  () => tableRows.value.filter((r) => r.validation_status === 'warn').length,
+)
+
+/** Column index of「摘录摘要」— shifts when LLM校验 column visible. */
+const excerptColumnIndex = computed(() => (showLlmColumn.value ? 3 : 2))
+
+function llmStatusTagType(status: string | null | undefined) {
+  if (status === 'fail') return 'danger'
+  if (status === 'warn') return 'warning'
+  if (status === 'pass') return 'success'
+  return 'info'
+}
 
 function excerptSpanMethod({
   rowIndex,
@@ -238,8 +258,14 @@ watch(
       <div class="verification-header-main">
         <h4 class="verification-title">摘录核对</h4>
         <el-text type="info" size="small">
-          对照右侧原文修改字段值；同组字段共用一条摘录摘要
+          对照右侧原文修改字段值；同组字段共用一条摘录摘要；LLM校验 列显示摘录一致性结果
         </el-text>
+        <el-tag v-if="tableFailCount > 0" type="danger" size="small">
+          fail {{ tableFailCount }}
+        </el-tag>
+        <el-tag v-if="tableWarnCount > 0" type="warning" size="small">
+          warn {{ tableWarnCount }}
+        </el-tag>
       </div>
       <div v-if="canEditValues" class="verification-actions">
         <template v-if="!editing">
@@ -261,6 +287,15 @@ watch(
         </template>
       </div>
     </div>
+
+    <el-alert
+      v-if="!loading && tableFailCount > 0"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="verification-advisory"
+      title="本表存在与合同摘录不一致的字段，请复核后再导入 CRM；仍可保存并下载 Excel。"
+    />
 
     <el-skeleton v-if="loading" :rows="3" animated />
 
@@ -295,6 +330,28 @@ watch(
               <span v-else class="value-readonly">{{ row.value ?? '—' }}</span>
             </template>
           </el-table-column>
+          <el-table-column
+            v-if="showLlmColumn"
+            label="LLM校验"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tooltip
+                v-if="row.validation_status"
+                :content="row.validation_reason || row.validation_status"
+                placement="top"
+                :show-after="200"
+              >
+                <el-tag
+                  size="small"
+                  :type="llmStatusTagType(row.validation_status)"
+                >
+                  {{ row.validation_status }}
+                </el-tag>
+              </el-tooltip>
+              <span v-else class="llm-status-empty">—</span>
+            </template>
+          </el-table-column>
           <el-table-column label="摘录摘要" min-width="160">
             <template #default="{ row, $index }">
               <span
@@ -307,21 +364,6 @@ watch(
               >
                 {{ excerptSummaryForRow(row, $index) }}
               </span>
-            </template>
-          </el-table-column>
-          <el-table-column
-            v-if="tableRows.some((r) => r.validation_status)"
-            label="校验"
-            width="88"
-          >
-            <template #default="{ row }">
-              <el-tag
-                v-if="row.validation_status"
-                size="small"
-                :type="row.validation_status === 'fail' ? 'danger' : 'warning'"
-              >
-                {{ row.validation_status }}
-              </el-tag>
             </template>
           </el-table-column>
         </el-table>
@@ -346,7 +388,25 @@ watch(
               >
                 规则抓取
               </el-tag>
+              <el-tooltip
+                v-if="selectedRow.validation_status"
+                :content="selectedRow.validation_reason || selectedRow.validation_status"
+                placement="top"
+              >
+                <el-tag
+                  size="small"
+                  :type="llmStatusTagType(selectedRow.validation_status)"
+                >
+                  LLM {{ selectedRow.validation_status }}
+                </el-tag>
+              </el-tooltip>
             </div>
+            <p
+              v-if="selectedRow.validation_reason"
+              class="excerpt-llm-reason"
+            >
+              {{ selectedRow.validation_reason }}
+            </p>
             <p v-if="selectedRow.value" class="excerpt-value" :title="selectedRow.value">
               <span class="excerpt-value-label">字段值</span>
               {{ valueSummary(selectedRow.value) }}
@@ -460,6 +520,22 @@ watch(
   font-size: 15px;
   font-weight: 600;
   color: #0f172a;
+}
+
+.verification-advisory {
+  margin-bottom: 12px;
+}
+
+.llm-status-empty {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.excerpt-llm-reason {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #b45309;
 }
 
 .verification-layout {

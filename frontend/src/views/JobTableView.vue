@@ -152,6 +152,7 @@ async function onVerificationSave(rows: VerificationRow[]) {
         :job-id="jobId"
         :table-key="tableKey"
         :status="status"
+        :validation-available="detail?.validation_available ?? false"
         :can-edit-values="canEditVerification"
         :save-loading="verificationSaving"
         @save="onVerificationSave"

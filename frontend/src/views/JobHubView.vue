@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import HubSectionCard from '@/components/hub/HubSectionCard.vue'
 import WarningsList from '@/components/WarningsList.vue'
-import ValidationPanel from '@/components/ValidationPanel.vue'
 import { useJobDetailInject } from '@/composables/useJobDetailContext'
 import { useHubSummary } from '@/composables/useHubSummary'
 import { JOB_FIELD_B } from '@/constants/jobSections'
@@ -16,10 +15,6 @@ const {
   canLoadSummaries,
   reload,
 } = useHubSummary()
-
-const PREVIEW_PLUS = new Set(['extracted', 'exporting', 'exported', 'export_failed'])
-
-const showValidation = computed(() => PREVIEW_PLUS.has(status.value))
 
 const validationFail = computed(() => detail.value?.validation_fail_count ?? 0)
 const validationWarn = computed(() => detail.value?.validation_warn_count ?? 0)
@@ -101,16 +96,6 @@ function tableSubtitle(rowCount: number | null, loading: boolean): string {
       :count="detail.extraction_warnings_count"
       class="hub-warnings"
     />
-
-    <ValidationPanel
-      v-if="jobId && detail"
-      :job-id="jobId"
-      :visible="showValidation"
-      :available="detail.validation_available"
-      :fail-count="detail.validation_fail_count"
-      :warn-count="detail.validation_warn_count"
-      class="hub-validation"
-    />
   </div>
 </template>
 
@@ -150,7 +135,4 @@ function tableSubtitle(rowCount: number | null, loading: boolean): string {
   margin-bottom: 16px;
 }
 
-.hub-validation {
-  margin-bottom: 8px;
-}
 </style>

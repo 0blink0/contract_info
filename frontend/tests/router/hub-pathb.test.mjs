@@ -10,11 +10,24 @@ const hubCode = read('frontend/src/views/JobHubView.vue')
 const layoutCode = read('frontend/src/layouts/JobDetailLayout.vue')
 const fieldBCode = read('frontend/src/views/JobFieldBView.vue')
 
-test('JobHubView has summary, warnings, and validation', () => {
+test('JobHubView has summary and warnings without stacked ValidationPanel', () => {
   assert.match(hubCode, /useHubSummary/)
   assert.match(hubCode, /HubSectionCard/)
   assert.match(hubCode, /WarningsList/)
-  assert.match(hubCode, /ValidationPanel/)
+  assert.doesNotMatch(hubCode, /ValidationPanel/)
+  assert.match(hubCode, /validation_fail_count/)
+})
+
+test('VerificationExcerptTable shows LLM validation column', () => {
+  const code = read('frontend/src/components/table/VerificationExcerptTable.vue')
+  assert.match(code, /label="LLM校验"/)
+  assert.match(code, /validationAvailable/)
+  assert.match(code, /validation_reason/)
+})
+
+test('JobTableView passes validation availability to excerpt table', () => {
+  const code = read('frontend/src/views/JobTableView.vue')
+  assert.match(code, /validation-available/)
 })
 
 test('JobDetailLayout does not stack hub-only panels', () => {
