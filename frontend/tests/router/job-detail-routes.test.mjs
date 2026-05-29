@@ -49,9 +49,10 @@ test('JobDetailLayout shows status and downloads only on hub route', () => {
   assert.match(layoutCode, /child-shell--page/)
 })
 
-test('JobTableView has section title without per-page download', () => {
+test('JobTableView has section title and per-table download beside save', () => {
   assert.match(tableCode, /section-title/)
-  assert.doesNotMatch(tableCode, /下载\{\{ label \}\}/)
+  assert.match(tableCode, /下载\{\{ label \}\}/)
+  assert.match(tableCode, /toolbar-actions/)
 })
 
 test('only JobDetailLayout uses useJobPoll among layout and child views', () => {
