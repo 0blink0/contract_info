@@ -42,7 +42,11 @@ from backend.app.services.preview_edit_service import (
     apply_preview_edits,
     apply_section_preview_edits,
 )
-from backend.app.services.preview_service import get_job_preview, slice_preview
+from backend.app.services.preview_service import (
+    get_job_preview,
+    get_job_preview_section,
+    slice_preview,
+)
 from backend.app.config import data_dir, exports_dir
 from backend.app.extract.path_b_crm import build_crm_handoff
 from backend.app.export.review_workbook import build_review_workbook
@@ -190,7 +194,7 @@ def _preview_response_from_data(data: dict) -> JobPreviewResponse:
 
 
 def _section_response_from_data(data: dict, section: PreviewSection) -> JobPreviewSectionResponse:
-    sliced = slice_preview(data, section)
+    sliced = data if data.get("section") == section else slice_preview(data, section)
     return JobPreviewSectionResponse(
         job_id=sliced["job_id"],
         section=section,
@@ -212,7 +216,7 @@ def _section_response_from_data(data: dict, section: PreviewSection) -> JobPrevi
 @router.get("/{job_id}/preview/{section}", response_model=JobPreviewSectionResponse)
 def preview_job_section(job_id: uuid.UUID, section: PreviewSection) -> JobPreviewSectionResponse:
     try:
-        data = get_job_preview(job_id)
+        data = get_job_preview_section(job_id, section)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

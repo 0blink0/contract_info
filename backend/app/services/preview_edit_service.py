@@ -69,7 +69,7 @@ def apply_section_preview_edits(
 ) -> dict[str, Any]:
     from backend.app.db.session import SessionLocal
     from backend.app.models.contract_file import ContractFile
-    from backend.app.services.preview_service import build_job_preview
+    from backend.app.services.preview_service import build_section_preview
 
     session = SessionLocal()
     try:
@@ -127,7 +127,7 @@ def apply_section_preview_edits(
         record = session.get(ContractFile, file_id)
         if record is None:
             raise LookupError(f"contract_file not found: {file_id}")
-        return build_job_preview(record)
+        return build_section_preview(record, section)
     finally:
         session.close()
 

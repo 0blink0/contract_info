@@ -19,11 +19,20 @@ FULL_PREVIEW = {
 
 def test_get_section_fee_matches_full(api_client, api_headers):
     job_id = FULL_PREVIEW["job_id"]
-    with patch("backend.app.api.routes.jobs.get_job_preview", return_value=FULL_PREVIEW):
+    section_payload = {
+        **FULL_PREVIEW,
+        "job_id": job_id,
+        "section": "fee-rates",
+    }
+    with patch(
+        "backend.app.api.routes.jobs.get_job_preview_section",
+        return_value=section_payload,
+    ):
         section_resp = api_client.get(
             f"/api/v1/jobs/{job_id}/preview/fee-rates",
             headers=api_headers,
         )
+    with patch("backend.app.api.routes.jobs.get_job_preview", return_value=FULL_PREVIEW):
         full_resp = api_client.get(
             f"/api/v1/jobs/{job_id}/preview",
             headers=api_headers,

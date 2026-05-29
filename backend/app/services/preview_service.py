@@ -343,152 +343,201 @@ def _subscription_from_extraction(
     return _append_snippet_column(columns_order, rows, raw_sub)
 
 
-def build_job_preview(record) -> dict[str, Any]:
+def _exported_xlsx_path(record, rel_attr: str) -> Path | None:
+    if record.status != "exported":
+        return None
+    rel = getattr(record, rel_attr, None)
+    if not rel:
+        return None
+    path = (data_dir() / rel).resolve()
+    return path if path.is_file() else None
 
+
+def _load_product_section(record) -> tuple[str, list[dict[str, str | None]]]:
+    source = "extraction"
+    product_rows: list[dict[str, str | None]] = []
+    path = _exported_xlsx_path(record, "product_xlsx_path")
+    if path:
+        _, product_data = _read_xlsx_table(
+            path,
+            PRODUCT_SHEET,
+            PRODUCT_HEADER_ROW,
+            PRODUCT_DATA_ROW,
+            max_data_rows=5,
+        )
+        if product_data:
+            wide = product_data[0]
+            product_rows = [{"field": k, "value": v} for k, v in wide.items() if v]
+            source = "xlsx"
+    if not product_rows and record.extraction_result:
+        product_rows = _product_from_extraction(record.extraction_result)
+    return source, product_rows
+
+
+def _load_fee_section(record) -> tuple[str, list[str], list[dict[str, str | None]]]:
+    source = "extraction"
+    fee_columns: list[str] = []
+    fee_rows: list[dict[str, str | None]] = []
+    path = _exported_xlsx_path(record, "fee_xlsx_path")
+    if path:
+        fee_columns, fee_rows = _read_xlsx_table(
+            path, FEE_SHEET, FEE_HEADER_ROW, FEE_DATA_START_ROW
+        )
+        source = "xlsx"
+    if not fee_rows and record.extraction_result:
+        fee_columns, fee_rows = _fee_from_extraction(record.extraction_result)
+    return source, fee_columns, fee_rows
+
+
+def _load_lock_section(record) -> tuple[str, list[str], list[dict[str, str | None]]]:
+    source = "extraction"
+    lock_columns: list[str] = []
+    lock_rows: list[dict[str, str | None]] = []
+    path = _exported_xlsx_path(record, "lock_xlsx_path")
+    if path:
+        lock_columns, lock_rows = _read_xlsx_table(
+            path, LOCK_SHEET, LOCK_HEADER_ROW, LOCK_DATA_START_ROW
+        )
+        source = "xlsx"
+    if not lock_rows and record.extraction_result:
+        lock_columns, lock_rows = _table_from_extraction_list(
+            record.extraction_result.get("lock_periods") or []
+        )
+    return source, lock_columns, lock_rows
+
+
+def _load_share_section(record) -> tuple[str, list[str], list[dict[str, str | None]]]:
+    source = "extraction"
+    share_columns: list[str] = []
+    share_rows: list[dict[str, str | None]] = []
+    path = _exported_xlsx_path(record, "share_xlsx_path")
+    if path:
+        share_columns, share_rows = _read_xlsx_table(
+            path, SHARE_SHEET, SHARE_HEADER_ROW, SHARE_DATA_START_ROW
+        )
+        source = "xlsx"
+    if not share_rows and record.extraction_result:
+        share_columns, share_rows = _table_from_extraction_list(
+            record.extraction_result.get("share_classes") or []
+        )
+    return source, share_columns, share_rows
+
+
+def _load_subscription_section(
+    record,
+) -> tuple[str, list[str], list[dict[str, str | None]]]:
+    source = "extraction"
+    subscription_columns: list[str] = []
+    subscription_rows: list[dict[str, str | None]] = []
+    path = _exported_xlsx_path(record, "subscription_xlsx_path")
+    if path:
+        subscription_columns, subscription_rows = _read_xlsx_table(
+            path,
+            SUBSCRIPTION_SHEET,
+            SUBSCRIPTION_HEADER_ROW,
+            SUBSCRIPTION_DATA_START_ROW,
+        )
+        source = "xlsx"
+    if not subscription_rows and record.extraction_result:
+        subscription_columns, subscription_rows = _subscription_from_extraction(
+            record.extraction_result
+        )
+    return source, subscription_columns, subscription_rows
+
+
+def build_section_preview(record, section: str) -> dict[str, Any]:
+    """Build preview payload for a single table section (no other xlsx/sections)."""
     if record.status not in PREVIEW_STATUSES:
-
         raise ValueError(f"Preview not available for status: {record.status}")
 
+    base: dict[str, Any] = {"job_id": record.id, "section": section}
+
+    if section == "product-elements":
+        source, product_rows = _load_product_section(record)
+        if not product_rows:
+            raise ValueError("No preview data for product-elements — run extract/export first")
+        return {**base, "source": source, "product_rows": product_rows}
+
+    if section == "fee-rates":
+        source, fee_columns, fee_rows = _load_fee_section(record)
+        return {
+            **base,
+            "source": source,
+            "fee_columns": fee_columns,
+            "fee_rows": fee_rows,
+        }
+
+    if section == "lock-periods":
+        source, lock_columns, lock_rows = _load_lock_section(record)
+        return {
+            **base,
+            "source": source,
+            "lock_columns": lock_columns,
+            "lock_rows": lock_rows,
+        }
+
+    if section == "share-classes":
+        source, share_columns, share_rows = _load_share_section(record)
+        return {
+            **base,
+            "source": source,
+            "share_columns": share_columns,
+            "share_rows": share_rows,
+        }
+
+    if section == "subscription-fee-rates":
+        source, subscription_columns, subscription_rows = _load_subscription_section(record)
+        return {
+            **base,
+            "source": source,
+            "subscription_columns": subscription_columns,
+            "subscription_rows": subscription_rows,
+        }
+
+    raise ValueError(f"Unknown preview section: {section}")
 
 
-    source = "extraction"
+def build_job_preview(record) -> dict[str, Any]:
+    if record.status not in PREVIEW_STATUSES:
+        raise ValueError(f"Preview not available for status: {record.status}")
 
+    sources: set[str] = set()
     product_rows: list[dict[str, str | None]] = []
-
     fee_columns: list[str] = []
-
     fee_rows: list[dict[str, str | None]] = []
-
     lock_columns: list[str] = []
-
     lock_rows: list[dict[str, str | None]] = []
-
     share_columns: list[str] = []
-
     share_rows: list[dict[str, str | None]] = []
-
     subscription_columns: list[str] = []
-
     subscription_rows: list[dict[str, str | None]] = []
 
-    if record.status == "exported" and getattr(record, "product_xlsx_path", None):
+    try:
+        pe = build_section_preview(record, "product-elements")
+        product_rows = pe["product_rows"]
+        sources.add(pe["source"])
+    except ValueError:
+        pass
 
-        product_path = (data_dir() / record.product_xlsx_path).resolve()
+    fr = build_section_preview(record, "fee-rates")
+    fee_columns = fr["fee_columns"]
+    fee_rows = fr["fee_rows"]
+    sources.add(fr["source"])
 
-        if product_path.is_file():
+    lk = build_section_preview(record, "lock-periods")
+    lock_columns = lk["lock_columns"]
+    lock_rows = lk["lock_rows"]
+    sources.add(lk["source"])
 
-            _, product_data = _read_xlsx_table(
+    sh = build_section_preview(record, "share-classes")
+    share_columns = sh["share_columns"]
+    share_rows = sh["share_rows"]
+    sources.add(sh["source"])
 
-                product_path, PRODUCT_SHEET, PRODUCT_HEADER_ROW, PRODUCT_DATA_ROW, max_data_rows=5
-
-            )
-
-            if product_data:
-
-                wide = product_data[0]
-
-                product_rows = [
-
-                    {"field": k, "value": v} for k, v in wide.items() if v
-
-                ]
-
-            source = "xlsx"
-
-
-
-    if record.status == "exported" and getattr(record, "fee_xlsx_path", None):
-
-        fee_path = (data_dir() / record.fee_xlsx_path).resolve()
-
-        if fee_path.is_file():
-
-            fee_columns, fee_rows = _read_xlsx_table(
-
-                fee_path, FEE_SHEET, FEE_HEADER_ROW, FEE_DATA_START_ROW
-
-            )
-
-            source = "xlsx"
-
-
-
-    lock_rel = getattr(record, "lock_xlsx_path", None)
-
-    if record.status == "exported" and lock_rel:
-
-        lock_path = (data_dir() / lock_rel).resolve()
-
-        if lock_path.is_file():
-
-            lock_columns, lock_rows = _read_xlsx_table(
-
-                lock_path, LOCK_SHEET, LOCK_HEADER_ROW, LOCK_DATA_START_ROW
-
-            )
-
-            source = "xlsx"
-
-
-
-    share_rel = getattr(record, "share_xlsx_path", None)
-
-    if record.status == "exported" and share_rel:
-
-        share_path = (data_dir() / share_rel).resolve()
-
-        if share_path.is_file():
-
-            share_columns, share_rows = _read_xlsx_table(
-
-                share_path, SHARE_SHEET, SHARE_HEADER_ROW, SHARE_DATA_START_ROW
-
-            )
-
-            source = "xlsx"
-
-    sub_rel = getattr(record, "subscription_xlsx_path", None)
-    if record.status == "exported" and sub_rel:
-        sub_path = (data_dir() / sub_rel).resolve()
-        if sub_path.is_file():
-            subscription_columns, subscription_rows = _read_xlsx_table(
-                sub_path,
-                SUBSCRIPTION_SHEET,
-                SUBSCRIPTION_HEADER_ROW,
-                SUBSCRIPTION_DATA_START_ROW,
-            )
-            source = "xlsx"
-
-    if record.extraction_result:
-
-        ext = record.extraction_result
-
-        if not product_rows:
-
-            product_rows = _product_from_extraction(ext)
-
-        if not fee_rows:
-
-            fee_columns, fee_rows = _fee_from_extraction(ext)
-
-        if not lock_rows:
-
-            lock_columns, lock_rows = _table_from_extraction_list(
-
-                ext.get("lock_periods") or []
-
-            )
-
-        if not share_rows:
-
-            share_columns, share_rows = _table_from_extraction_list(
-
-                ext.get("share_classes") or []
-
-            )
-
-        if not subscription_rows:
-            subscription_columns, subscription_rows = _subscription_from_extraction(ext)
+    sub = build_section_preview(record, "subscription-fee-rates")
+    subscription_columns = sub["subscription_columns"]
+    subscription_rows = sub["subscription_rows"]
+    sources.add(sub["source"])
 
     if (
         not product_rows
@@ -498,6 +547,8 @@ def build_job_preview(record) -> dict[str, Any]:
         and not subscription_rows
     ):
         raise ValueError("No preview data — run extract/export first")
+
+    source = "xlsx" if "xlsx" in sources else "extraction"
 
     return {
         "job_id": record.id,
@@ -539,6 +590,20 @@ def get_job_preview(file_id: uuid.UUID) -> dict[str, Any]:
 
     finally:
 
+        session.close()
+
+
+def get_job_preview_section(file_id: uuid.UUID, section: str) -> dict[str, Any]:
+    from backend.app.db.session import SessionLocal
+    from backend.app.models.contract_file import ContractFile
+
+    session = SessionLocal()
+    try:
+        record = session.get(ContractFile, file_id)
+        if record is None:
+            raise LookupError(f"contract_file not found: {file_id}")
+        return build_section_preview(record, section)
+    finally:
         session.close()
 
 
