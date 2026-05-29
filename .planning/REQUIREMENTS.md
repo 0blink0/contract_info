@@ -27,9 +27,9 @@
 
 ### BUILD — 构建流水线
 
-- [ ] **BUILD-01**: electron-builder 配置产出 Windows NSIS 安装包（`.exe`）和 Linux AppImage，`extraResources` 引用 PyInstaller `--onedir` 产物目录，`asarUnpack` 排除大型二进制
-- [ ] **BUILD-02**: 提供 4 步构建脚本（PowerShell `.ps1` 和 Bash `.sh` 各一份）：① PyInstaller 打包 Python → ② Vite 构建 Vue SPA → ③ TypeScript 编译 Electron 主进程 → ④ electron-builder 生成安装包
-- [ ] **BUILD-03**: 构建流水线同时产出 Linux `.deb` 安装包，可通过 `dpkg -i` 安装
+- [x] **BUILD-01**: electron-builder 配置产出 Windows NSIS 安装包（`.exe`）和 Linux AppImage，`extraResources` 引用 PyInstaller `--onedir` 产物目录，`asarUnpack` 排除大型二进制
+- [x] **BUILD-02**: 提供 4 步构建脚本（PowerShell `.ps1` 和 Bash `.sh` 各一份）：① PyInstaller 打包 Python → ② Vite 构建 Vue SPA → ③ TypeScript 编译 Electron 主进程 → ④ electron-builder 生成安装包
+- [x] **BUILD-03**: 构建流水线同时产出 Linux `.deb` 安装包，可通过 `dpkg -i` 安装
 
 ## Future Requirements (v1.3+)
 
@@ -69,9 +69,9 @@
 | ELEC-02 | Phase 13 | Pending |
 | ELEC-03 | Phase 13 | Pending |
 | ELEC-04 | Phase 13 | Pending |
-| BUILD-01 | Phase 14 | Pending |
-| BUILD-02 | Phase 14 | Pending |
-| BUILD-03 | Phase 14 | Pending |
+| BUILD-01 | Phase 14 | Complete |
+| BUILD-02 | Phase 14 | Complete |
+| BUILD-03 | Phase 14 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 14 total

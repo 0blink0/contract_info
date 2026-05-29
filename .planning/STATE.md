@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: 桌面化交付
 status: ready_to_execute
-stopped_at: Phase 14 context gathered
-last_updated: "2026-05-29T02:49:03.294Z"
-last_activity: 2026-05-29 -- Phase 14 execution started
+stopped_at: 14-03 Task 1 complete — awaiting human checkpoint (Task 2)
+last_updated: "2026-05-29T03:20:26.706Z"
+last_activity: 2026-05-29
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 8
-  percent: 73
+  completed_plans: 11
+  percent: 100
 ---
 
 # State: CTRX
@@ -27,10 +27,10 @@ See: `contract_info/.planning/PROJECT.md`
 ## Current Position
 
 Phase: 14 (build-pipeline) — EXECUTING
-Plan: 1 of 3
-Last activity: 2026-05-29 -- Phase 14 execution started
+Plan: 2 of 3
+Last activity: 2026-05-29
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 14-build-pipeline P03 | 25min | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Recent decisions affecting current work:
 - v1.2 start: --onedir PyInstaller (never --onefile — AV false-positive risk)
 - v1.2 start: electron-store pin to v10 if Electron main uses CommonJS require()
 - v1.2 start: SQLite replaces PostgreSQL; Docker path preserved unchanged
+- [Phase ?]: TypeScript 6 NodeNext emit requires allowImportingTsExtensions + rewriteRelativeImportExtensions when .ts extensions in imports
+- [Phase ?]: electron-builder 26.x version injection uses -c.extraMetadata.version=X yargs dot-notation (not --extraMetadata JSON)
+- [Phase ?]: signAndEditExecutable=false in win config skips winCodeSign symlink extraction on restricted Windows hosts; code signing is out of scope per REQUIREMENTS.md
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-29T01:41:48.444Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/CTRX-14-build-pipeline/14-CONTEXT.md
+Last session: 2026-05-29T03:20:26.697Z
+Stopped at: 14-03 Task 1 complete — awaiting human checkpoint (Task 2)
+Resume file: .planning/phases/CTRX-14-build-pipeline/14-03-PLAN.md
