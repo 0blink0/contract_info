@@ -12,7 +12,7 @@ $Root = Resolve-Path (Join-Path $PSScriptRoot '..')
 Set-Location $Root
 
 function Test-BackendBundle {
-    Test-Path 'electron\resources\ctrx-backend-win-x64-v1.2.0\ctrx-backend.exe' -or
+    (Test-Path 'electron\resources\ctrx-backend-win-x64-v1.2.0\ctrx-backend.exe') -or
         (Test-Path 'electron\resources\.backend-manifest.json')
 }
 
