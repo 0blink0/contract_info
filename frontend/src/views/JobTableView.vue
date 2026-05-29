@@ -1,21 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { downloadBlob } from '@/api/client'
+import { ElMessageBox } from 'element-plus'
 import { useJobDetailInject } from '@/composables/useJobDetailContext'
 import { useSectionPreview } from '@/composables/useSectionPreview'
 import TablePreviewEditor from '@/components/table/TablePreviewEditor.vue'
 import VerificationExcerptTable from '@/components/table/VerificationExcerptTable.vue'
-import {
-  isValidTableKey,
-  sectionLabel,
-  TABLE_DOWNLOAD_FILES,
-  type TableKey,
-} from '@/constants/jobSections'
+import { isValidTableKey, sectionLabel, type TableKey } from '@/constants/jobSections'
 
 const route = useRoute()
-const { jobId, status, detail } = useJobDetailInject()
+const { jobId, status } = useJobDetailInject()
 
 const tableKeyParam = computed(() => {
   const k = route.params.tableKey
@@ -38,19 +32,6 @@ const {
   markDirty,
   save,
 } = useSectionPreview(tableKeyParam)
-
-const showDownload = computed(() => detail.value?.status === 'exported')
-
-async function onDownload() {
-  const id = jobId.value
-  const key = tableKey.value
-  if (!id || !key) return
-  try {
-    await downloadBlob(id, key, TABLE_DOWNLOAD_FILES[key])
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '下载失败')
-  }
-}
 
 onBeforeRouteLeave(async () => {
   if (!dirty.value) return true
@@ -75,26 +56,16 @@ onBeforeRouteLeave(async () => {
   <div v-if="tableKey && jobId" class="table-view">
     <div class="table-toolbar">
       <h3 class="section-title">{{ label }}</h3>
-      <div class="toolbar-actions">
-        <el-button
-          v-if="canEdit"
-          type="primary"
-          size="small"
-          :loading="saving"
-          :disabled="!dirty || !preview"
-          @click="save"
-        >
-          保存修改
-        </el-button>
-        <el-button
-          v-if="showDownload"
-          type="success"
-          size="small"
-          @click="onDownload"
-        >
-          下载{{ label }}
-        </el-button>
-      </div>
+      <el-button
+        v-if="canEdit"
+        type="primary"
+        size="small"
+        :loading="saving"
+        :disabled="!dirty || !preview"
+        @click="save"
+      >
+        保存修改
+      </el-button>
     </div>
 
     <el-alert

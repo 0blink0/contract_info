@@ -172,73 +172,78 @@ async function onDownloadReport() {
     <el-skeleton v-else-if="loading && !detail" :rows="6" animated />
 
     <template v-else-if="detail">
-      <div class="title-row">
-        <h2 class="filename">{{ detail.filename }}</h2>
-        <el-button
-          v-if="canDelete"
-          type="danger"
-          plain
-          size="small"
-          @click="onDelete"
-        >
-          删除
-        </el-button>
-      </div>
-
-      <p class="status-line">
-        状态：<el-tag>{{ statusLabelZh(detail.status) }}</el-tag>
-        <span class="raw-status">{{ detail.status }}</span>
-      </p>
-
-      <ProcessStepper :status="detail.status" />
-
-      <el-alert
-        v-if="detail.error_message"
-        type="error"
-        :title="detail.error_message"
-        show-icon
-        :closable="false"
-        class="error-box"
-      />
-
-      <div class="actions">
-        <el-button
-          v-if="showStart"
-          type="primary"
-          :loading="running"
-          @click="onStartOrRetry"
-        >
-          开始处理
-        </el-button>
-        <el-button
-          v-if="showRetry"
-          type="warning"
-          :loading="running"
-          @click="onStartOrRetry"
-        >
-          重试
-        </el-button>
-        <template v-if="showDownloads">
+      <template v-if="isHubRoute">
+        <div class="title-row">
+          <h2 class="filename">{{ detail.filename }}</h2>
           <el-button
-            v-for="sec in JOB_TABLE_SECTIONS"
-            :key="sec.key"
-            type="success"
-            @click="downloadTable(sec.key)"
+            v-if="canDelete"
+            type="danger"
+            plain
+            size="small"
+            @click="onDelete"
           >
-            下载{{ sec.label }}
+            删除
           </el-button>
-        </template>
-        <el-button
-          v-if="showReportDownload"
-          type="primary"
-          :loading="downloadingReport"
-          @click="onDownloadReport"
-        >
-          下载核对报告
-        </el-button>
-      </div>
+        </div>
 
-      <div class="child-shell surface-card">
+        <p class="status-line">
+          状态：<el-tag>{{ statusLabelZh(detail.status) }}</el-tag>
+          <span class="raw-status">{{ detail.status }}</span>
+        </p>
+
+        <ProcessStepper :status="detail.status" />
+
+        <el-alert
+          v-if="detail.error_message"
+          type="error"
+          :title="detail.error_message"
+          show-icon
+          :closable="false"
+          class="error-box"
+        />
+
+        <div class="actions">
+          <el-button
+            v-if="showStart"
+            type="primary"
+            :loading="running"
+            @click="onStartOrRetry"
+          >
+            开始处理
+          </el-button>
+          <el-button
+            v-if="showRetry"
+            type="warning"
+            :loading="running"
+            @click="onStartOrRetry"
+          >
+            重试
+          </el-button>
+          <template v-if="showDownloads">
+            <el-button
+              v-for="sec in JOB_TABLE_SECTIONS"
+              :key="sec.key"
+              type="success"
+              @click="downloadTable(sec.key)"
+            >
+              下载{{ sec.label }}
+            </el-button>
+          </template>
+          <el-button
+            v-if="showReportDownload"
+            type="primary"
+            :loading="downloadingReport"
+            @click="onDownloadReport"
+          >
+            下载核对报告
+          </el-button>
+        </div>
+      </template>
+
+      <div
+        class="child-shell"
+        :class="isHubRoute ? 'surface-card' : 'child-shell--page'"
+      >
         <router-view />
       </div>
     </template>
@@ -303,5 +308,13 @@ async function onDownloadReport() {
 .child-shell {
   margin-top: 8px;
   padding: 20px;
+}
+
+.child-shell--page {
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 </style>

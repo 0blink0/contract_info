@@ -44,6 +44,16 @@ test('JobDetailLayout back button returns to hub on child routes', () => {
   assert.match(layoutCode, /function onBack/)
 })
 
+test('JobDetailLayout shows status and downloads only on hub route', () => {
+  assert.match(layoutCode, /v-if="isHubRoute"/)
+  assert.match(layoutCode, /child-shell--page/)
+})
+
+test('JobTableView has section title without per-page download', () => {
+  assert.match(tableCode, /section-title/)
+  assert.doesNotMatch(tableCode, /下载\{\{ label \}\}/)
+})
+
 test('only JobDetailLayout uses useJobPoll among layout and child views', () => {
   assert.match(layoutCode, /useJobPoll/)
   assert.doesNotMatch(hubCode, /useJobPoll/)
