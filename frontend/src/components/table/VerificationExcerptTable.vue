@@ -84,7 +84,7 @@ watch(
         </template>
       </el-table-column>
     </el-table>
-    <el-empty v-else description="暂无摘录核对数据" :image-size="64" />
+    <el-empty v-else description="暂无摘录核对数据（需完成抽取；仅导出 Excel 时无合同原文摘录）" :image-size="64" />
   </div>
 </template>
 

@@ -41,6 +41,47 @@ def test_page_no_unavailable():
     assert rows[0]["page_no_note"] == "页码暂未解析"
 
 
+def test_verification_falls_back_to_exported_preview_when_extraction_empty():
+    record = SimpleNamespace(
+        status="exported",
+        extraction_result=None,
+        parse_json={},
+        validation_result=None,
+        product_xlsx_path=None,
+        fee_xlsx_path=None,
+        lock_xlsx_path=None,
+        share_xlsx_path=None,
+        subscription_xlsx_path=None,
+    )
+
+    preview = {
+        "job_id": "test",
+        "source": "xlsx",
+        "product_rows": [{"field": "基金全称", "value": "石云测试基金"}],
+        "fee_columns": [],
+        "fee_rows": [],
+        "lock_columns": [],
+        "lock_rows": [],
+        "share_columns": [],
+        "share_rows": [],
+        "subscription_columns": [],
+        "subscription_rows": [],
+    }
+
+    from unittest.mock import patch
+
+    with patch(
+        "backend.app.services.verification_service.build_job_preview",
+        return_value=preview,
+    ):
+        rows = build_verification_rows(record, "product-elements")
+
+    assert len(rows) == 1
+    assert rows[0]["field_label"] == "基金全称"
+    assert rows[0]["value"] == "石云测试基金"
+    assert rows[0]["page_no_note"] == "页码暂未解析"
+
+
 def test_validation_overlay():
     record = SimpleNamespace(
         extraction_result={

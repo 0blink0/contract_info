@@ -9,10 +9,13 @@ from backend.app.export.column_map import (
     template_header_for_fee_key,
     template_header_for_subscription_key,
 )
+from backend.app.services.preview_service import PREVIEW_STATUSES, SNIPPET_DISPLAY, build_job_preview
 from backend.app.validate.evidence import resolve_evidence_text
 from backend.app.validate.field_labels import label_for_validation_field
 
 PAGE_UNAVAILABLE_NOTE = "页码暂未解析"
+
+_SKIP_PREVIEW_KEYS = frozenset({"snippet", "_snippet", "摘录", "block_id"})
 
 
 def _page_for_block(block_id: str | None, parse_json: dict | None) -> int | None:
@@ -62,6 +65,80 @@ def _overlay_validation(
             continue
         row["validation_status"] = item.get("status")
         row["validation_reason"] = item.get("reason")
+
+
+def _row_template(
+    *,
+    field: str,
+    field_label: str,
+    value: str | None,
+    excerpt: str | None,
+    page_no: int | None = None,
+) -> dict[str, Any]:
+    return {
+        "field": field,
+        "field_label": field_label,
+        "value": value,
+        "page_no": page_no,
+        "page_no_note": None if page_no is not None else PAGE_UNAVAILABLE_NOTE,
+        "excerpt": excerpt,
+    }
+
+
+def _verification_rows_from_preview(
+    preview: dict[str, Any],
+    table_key: PreviewSection,
+) -> list[dict[str, Any]]:
+    """When extraction JSON is empty but exported xlsx preview exists, still show核对行."""
+    rows: list[dict[str, Any]] = []
+
+    if table_key == "product-elements":
+        for item in preview.get("product_rows") or []:
+            if not isinstance(item, dict):
+                continue
+            field = str(item.get("field") or "").strip()
+            if not field:
+                continue
+            val = item.get("value")
+            value = str(val).strip() if val is not None else None
+            rows.append(
+                _row_template(
+                    field=field,
+                    field_label=field,
+                    value=value or None,
+                    excerpt=None,
+                )
+            )
+        return rows
+
+    columns_key, rows_key = {
+        "fee-rates": ("fee_columns", "fee_rows"),
+        "lock-periods": ("lock_columns", "lock_rows"),
+        "share-classes": ("share_columns", "share_rows"),
+        "subscription-fee-rates": ("subscription_columns", "subscription_rows"),
+    }[table_key]
+    columns = list(preview.get(columns_key) or [])
+    data_rows = preview.get(rows_key) or []
+    for i, row in enumerate(data_rows):
+        if not isinstance(row, dict):
+            continue
+        excerpt_raw = row.get(SNIPPET_DISPLAY)
+        excerpt = str(excerpt_raw).strip() if excerpt_raw else None
+        for col, val in row.items():
+            if col in _SKIP_PREVIEW_KEYS or col == SNIPPET_DISPLAY:
+                continue
+            if col not in columns and columns:
+                continue
+            text = str(val).strip() if val is not None else None
+            rows.append(
+                _row_template(
+                    field=f"{rows_key}[{i}].{col}",
+                    field_label=str(col),
+                    value=text or None,
+                    excerpt=excerpt,
+                )
+            )
+    return rows
 
 
 def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str, Any]]:
@@ -181,6 +258,14 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                         "excerpt": excerpt,
                     }
                 )
+
+    if not rows and getattr(record, "status", None) in PREVIEW_STATUSES:
+        try:
+            preview = build_job_preview(record)
+        except ValueError:
+            preview = None
+        if preview:
+            rows = _verification_rows_from_preview(preview, table_key)
 
     _overlay_validation(rows, getattr(record, "validation_result", None))
     for row in rows:

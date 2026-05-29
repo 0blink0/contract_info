@@ -3,6 +3,7 @@ import type {
   JobPreviewSectionResponse,
   PreviewSection,
   ProductPreviewItem,
+  VerificationRow,
 } from '@/api/types'
 
 export const JOB_TABLE_SECTIONS = [
@@ -181,6 +182,45 @@ export function slicePreviewSection(
 
 /** Merge sectional PUT body into full preview for legacy save endpoint. */
 type JobPreviewUpdatePayload = Omit<JobPreview, 'job_id' | 'source'>
+
+const PAGE_UNAVAILABLE_NOTE = '页码暂未解析'
+
+/** Build核对 rows from sectional preview when verification API is missing or empty. */
+export function verificationRowsFromSectionPreview(
+  section: JobPreviewSectionResponse,
+  tableKey: TableKey,
+): VerificationRow[] {
+  if (tableKey === 'product-elements') {
+    return (section.product_rows ?? []).map((r) => ({
+      field: r.field,
+      field_label: r.field,
+      value: r.value ?? null,
+      page_no: null,
+      page_no_note: PAGE_UNAVAILABLE_NOTE,
+      excerpt: null,
+    }))
+  }
+  const { columns, rows } = listSectionData(section, tableKey)
+  const out: VerificationRow[] = []
+  rows.forEach((row, i) => {
+    const excerptRaw = row[SNIPPET_DISPLAY_COLUMN]
+    const excerpt =
+      typeof excerptRaw === 'string' && excerptRaw.trim() ? excerptRaw.trim() : null
+    const cols = columns.length ? columns : Object.keys(row)
+    for (const col of cols) {
+      if (col === SNIPPET_DISPLAY_COLUMN) continue
+      out.push({
+        field: `${tableKey}[${i}].${col}`,
+        field_label: col,
+        value: row[col] ?? null,
+        page_no: null,
+        page_no_note: PAGE_UNAVAILABLE_NOTE,
+        excerpt,
+      })
+    }
+  })
+  return out
+}
 
 export function mergeSectionIntoFullPreview(
   full: JobPreview,

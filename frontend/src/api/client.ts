@@ -15,7 +15,9 @@ import { getApiBase } from '@/stores/appBootstrap'
 import {
   mergeSectionIntoFullPreview,
   slicePreviewSection,
+  verificationRowsFromSectionPreview,
 } from '@/constants/jobSections'
+import type { TableKey } from '@/constants/jobSections'
 
 function apiHeaders(): HeadersInit {
   const headers: HeadersInit = {}
@@ -151,23 +153,40 @@ export async function saveJobPreviewSection(
   }
 }
 
+async function verificationWithPreviewFallback(
+  jobId: string,
+  tableKey: PreviewSection,
+  partial: TableVerificationResponse,
+): Promise<TableVerificationResponse> {
+  if (partial.rows?.length) {
+    return partial
+  }
+  const section = await getJobPreviewSection(jobId, tableKey)
+  const rows = verificationRowsFromSectionPreview(section, tableKey as TableKey)
+  return {
+    ...partial,
+    rows,
+    page_no_available: partial.page_no_available && rows.some((r) => r.page_no != null),
+  }
+}
+
 export async function getTableVerification(
   jobId: string,
   tableKey: PreviewSection,
 ): Promise<TableVerificationResponse> {
+  const empty = (): TableVerificationResponse => ({
+    job_id: jobId,
+    table_key: tableKey,
+    rows: [],
+    page_no_available: false,
+  })
   try {
     const res = await apiFetch(`/jobs/${jobId}/verification/${tableKey}`)
-    return res.json()
+    const data = (await res.json()) as TableVerificationResponse
+    return verificationWithPreviewFallback(jobId, tableKey, data)
   } catch (e) {
-    if (isNotFoundError(e)) {
-      return {
-        job_id: jobId,
-        table_key: tableKey,
-        rows: [],
-        page_no_available: false,
-      }
-    }
-    throw e
+    if (!isNotFoundError(e)) throw e
+    return verificationWithPreviewFallback(jobId, tableKey, empty())
   }
 }
 
