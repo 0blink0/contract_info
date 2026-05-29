@@ -495,10 +495,10 @@ pytest backend/tests -q --ignore=backend/tests/golden -m "not llm"
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **409 响应体格式** — 纯 string detail vs `{detail, active_count}`；推荐结构化 dict 便于 Phase 19 上传页。
-2. **verification 列表表 field 路径** — 是否与 validation `field` 完全一致以便 overlay；推荐是（复用 `label_for_validation_field`）。
+1. **409 响应体格式** — **RESOLVED:** 使用结构化 `detail` dict：`{"detail": "已有 3 个任务正在处理，请稍后再试", "active_count": 3}`（见 15-01-PLAN Task 2）。
+2. **verification 列表表 field 路径** — **RESOLVED:** 与 validation `field` 路径一致（如 `fee_rates[0].管理费率`），overlay 用相同键；列表表 `field_label` 用列头中文（见 15-03-PLAN Task 1）。
 
 ---
 

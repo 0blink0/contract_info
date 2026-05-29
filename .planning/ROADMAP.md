@@ -55,62 +55,90 @@
 ## Phase Details
 
 ### Phase 15: 后端并行与分表 API
+
 **Goal**: 系统可安全并行处理最多 3 个解析任务，并支持按表读写 preview 与核对数据
 **Depends on**: Phase 14
 **Requirements**: UP-04, API-01, API-02, API-03
 **Success Criteria** (what must be TRUE):
+
   1. 当已有 3 个任务处于 pipeline 执行中时，再触发第 4 个「开始处理」会收到明确可读错误，且该任务不会被启动
   2. 用户（经前端或 API）可单独读取并保存某一张导入表的 preview；保存后其它四张表的 extraction 行数与内容保持不变
   3. 可获取某张导入表的核对数据：字段名、字段值、摘录页码（不可用时允许空值并标注）、原文摘录
   4. 最多 3 个解析任务可同时推进，各任务进度独立可查，不因 SQLite 写锁导致应用整体无响应
-**Plans**: TBD
+
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 15-01-PLAN.md — JobRunner、全局 409 守门、lifespan、并行测试（API-03, UP-04）
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 15-02-PLAN.md — 分表 preview GET/PUT、全量 PUT Optional 修复、分表测试（API-01）
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 15-03-PLAN.md — verification 端点、LLM Semaphore(2)、核对测试（API-02）
 
 ### Phase 16: 详情路由与子菜单骨架
+
 **Goal**: 用户可从左侧菜单在 Hub 与五表、字段 B 子页之间清晰导航，且详情区状态由 Layout 统一维护
 **Depends on**: Phase 15
 **Requirements**: NAV-01, NAV-02, NAV-03, FE-02
 **Success Criteria** (what must be TRUE):
+
   1. 进入某任务详情后，左侧出现可折叠的「文件详情」子菜单，含五张导入表与字段 B 共六项
   2. 用户可通过 URL 直达 Hub（`/jobs/:id`）、某表页（`/jobs/:id/tables/:tableKey`）、字段 B 页（`/jobs/:id/field-b`），刷新后仍停留在对应页面
   3. 从文件列表进入任务时默认落在 Hub；当前子路由与左侧子菜单高亮一致
   4. 在详情子页间切换时，任务状态由 Layout 层单一轮询更新，子页不会各自重复发起全量 job 轮询
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 17: 五表独立工作页
+
 **Goal**: 运营可在每张导入表独立页面完成编辑、摘录核对与单表下载
 **Depends on**: Phase 16
 **Requirements**: TBL-01, TBL-02, TBL-03, TBL-04, TBL-05
 **Success Criteria** (what must be TRUE):
+
   1. 用户可在五张导入表各自页面看到与 v1.2 对应 tab 一致的列，并可就地编辑
   2. 用户保存某表编辑后，下载该表 xlsx 反映最新已保存内容
   3. 每表页内展示摘录核对表：字段、字段值、摘录所在页码、原文摘录
   4. 每表页提供该表 xlsx 的单独下载按钮
   5. 存在未保存编辑时离开该表页会收到确认提示，避免静默丢失修改
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 18: Hub 摘要与字段 B 专页
+
 **Goal**: Hub 仅作任务总览与导航入口；字段 B 在专页展示建议摘录供人工判断
 **Depends on**: Phase 17
 **Requirements**: HUB-01, HUB-02, HUB-03, PB-01, PB-02
 **Success Criteria** (what must be TRUE):
+
   1. Hub 展示任务元信息、处理步骤、五表与字段 B 的摘要卡片及「进入详情」按钮，不出现完整可编辑大表或 v1.2 单体页式的全量面板堆叠
   2. Hub 可查看 warnings 列表，并可一键查看 job 级校验摘要/结果
   3. 字段 B 专页展示业绩报酬与开放日的建议摘录及页码（页码不可用时界面有明确说明），供人工判断是否手录
   4. 用户可在字段 B 页复制或下载 path-b JSON（延续 v1.2 能力）
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 19: 多文件上传与并行进度 UI
+
 **Goal**: 用户可一次上传最多 3 份 docx，并在上传页并行查看与触发处理
 **Depends on**: Phase 18
 **Requirements**: UP-01, UP-02, UP-03, FE-01
 **Success Criteria** (what must be TRUE):
+
   1. 用户在上传页一次最多选择 3 个 docx；尝试选第 4 个时前端阻止并给出提示
   2. 上传页同时展示最多 3 个任务的解析/导出进度（状态、步骤、错误信息各自独立）
   3. 用户可对多个 pending 任务批量触发「开始处理」，或进入某任务详情单独重试
   4. 上传页上各任务进度通过多 job 轮询保持同步更新，不会出现仅最后一个任务刷新的情况
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -132,7 +160,7 @@
 | 12. PyInstaller 打包 | v1.2 | 2/2 | Complete | 2026-05-29 |
 | 13. Electron 壳与 IPC | v1.2 | 2/2 | Complete | 2026-05-29 |
 | 14. 构建流水线 | v1.2 | 3/3 | Complete | 2026-05-29 |
-| 15. 后端并行与分表 API | v1.3 | 0/? | Not started | — |
+| 15. 后端并行与分表 API | v1.3 | 0/3 | Not started | — |
 | 16. 详情路由与子菜单骨架 | v1.3 | 0/? | Not started | — |
 | 17. 五表独立工作页 | v1.3 | 0/? | Not started | — |
 | 18. Hub 摘要与字段 B 专页 | v1.3 | 0/? | Not started | — |
