@@ -79,7 +79,7 @@ async function onStartOrRetry() {
 
 function goToDetail() {
   if (!activeJobId.value) return
-  void router.push({ name: 'job-detail', params: { id: activeJobId.value } })
+  void router.push({ name: 'job-hub', params: { id: activeJobId.value } })
 }
 
 const poll = useJobPoll(

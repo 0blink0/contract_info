@@ -47,7 +47,7 @@
 ### v1.3 多文件并行与详情页重构 (Phases 15–19)
 
 - [x] **Phase 15: 后端并行与分表 API** - ThreadPool 真并行、run 409 守门、分表 preview 与核对端点
-- [ ] **Phase 16: 详情路由与子菜单骨架** - JobDetailLayout 嵌套路由、左侧六链、Hub 占位与统一轮询
+- [x] **Phase 16: 详情路由与子菜单骨架** - JobDetailLayout 嵌套路由、左侧六链、Hub 占位与统一轮询
 - [ ] **Phase 17: 五表独立工作页** - 每表可编辑 preview、摘录核对表、单表下载与 dirty 守卫
 - [ ] **Phase 18: Hub 摘要与字段 B 专页** - Hub 摘要卡与校验入口、字段 B 摘录与 JSON 导出
 - [ ] **Phase 19: 多文件上传与并行进度 UI** - ≤3 docx 选择与批量处理、上传页多任务进度轮询
@@ -98,15 +98,15 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 16-01-PLAN.md — jobSections、JobDetailLayout、嵌套路由、provide/inject 单一 poll（NAV-02, FE-02）
+- [x] 16-01-PLAN.md — jobSections、JobDetailLayout、嵌套路由、provide/inject 单一 poll（NAV-02, FE-02）
 
 **Wave 2**
 
-- [ ] 16-02-PLAN.md — AppLayout 子菜单、Hub/表/字段 B 占位页、列表/上传入口 job-hub（NAV-01, NAV-03）
+- [x] 16-02-PLAN.md — AppLayout 子菜单、Hub/表/字段 B 占位页、列表/上传入口 job-hub（NAV-01, NAV-03）
 
 **Wave 3**
 
-- [ ] 16-03-PLAN.md — 路由契约测试 + typecheck/build 门禁（D-26, D-27）
+- [x] 16-03-PLAN.md — 路由契约测试 + typecheck/build 门禁（D-26, D-27）
 
 **UI hint**: yes
 

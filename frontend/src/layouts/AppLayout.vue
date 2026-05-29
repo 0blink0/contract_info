@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { List, Upload } from '@element-plus/icons-vue'
+import { List, Setting, Upload } from '@element-plus/icons-vue'
+import { JOB_FIELD_B, JOB_TABLE_SECTIONS } from '@/constants/jobSections'
 
 const route = useRoute()
 
 const activeMenu = computed(() => {
-  if (route.path.startsWith('/jobs/')) return '/jobs'
+  if (route.path.startsWith('/jobs/') && route.params.id) return '/jobs'
   return route.path
 })
+
+const jobId = computed(() => {
+  const id = route.params.id
+  return typeof id === 'string' ? id : null
+})
+
+const menuActive = computed(() => (jobId.value ? route.path : activeMenu.value))
+
+const defaultOpeneds = computed(() => (jobId.value ? ['job-detail-nav'] : []))
 </script>
 
 <template>
@@ -22,7 +32,8 @@ const activeMenu = computed(() => {
         </div>
       </div>
       <el-menu
-        :default-active="activeMenu"
+        :default-active="menuActive"
+        :default-openeds="defaultOpeneds"
         router
         class="nav-menu"
         background-color="transparent"
@@ -33,9 +44,28 @@ const activeMenu = computed(() => {
           <el-icon><Upload /></el-icon>
           <span>文件上传解析</span>
         </el-menu-item>
-        <el-menu-item index="/jobs">
+        <el-menu-item index="/jobs" :class="{ 'jobs-parent-active': !!jobId }">
           <el-icon><List /></el-icon>
           <span>文件列表</span>
+        </el-menu-item>
+        <el-sub-menu v-if="jobId" index="job-detail-nav">
+          <template #title>
+            <span>文件详情</span>
+          </template>
+          <el-menu-item
+            v-for="sec in JOB_TABLE_SECTIONS"
+            :key="sec.key"
+            :index="`/jobs/${jobId}/tables/${sec.key}`"
+          >
+            <span>{{ sec.label }}</span>
+          </el-menu-item>
+          <el-menu-item :index="`/jobs/${jobId}/field-b`">
+            <span>{{ JOB_FIELD_B.label }}</span>
+          </el-menu-item>
+        </el-sub-menu>
+        <el-menu-item index="/settings">
+          <el-icon><Setting /></el-icon>
+          <span>系统设置</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -108,6 +138,22 @@ const activeMenu = computed(() => {
 
 .nav-menu :deep(.el-menu-item.is-active) {
   background: rgba(59, 130, 246, 0.25) !important;
+}
+
+.nav-menu :deep(.el-menu-item.jobs-parent-active) {
+  background: rgba(59, 130, 246, 0.25) !important;
+  color: #ffffff !important;
+}
+
+.nav-menu :deep(.el-sub-menu__title) {
+  border-radius: 8px;
+  color: #cbd5e1;
+}
+
+.nav-menu :deep(.el-sub-menu .el-menu-item) {
+  min-width: auto;
+  padding-left: 48px !important;
+  height: 40px;
 }
 
 .app-main {

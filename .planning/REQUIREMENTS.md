@@ -21,9 +21,9 @@
 
 ### 导航与路由（NAV）
 
-- [ ] **NAV-01**: 左侧菜单在存在当前 job 上下文时展示可折叠「文件详情」子菜单，含五表 + 字段 B 六项
-- [ ] **NAV-02**: 使用 `JobDetailLayout` 嵌套路由：`/jobs/:id`（Hub）、`/jobs/:id/tables/:tableKey`（五表）、`/jobs/:id/field-b`（字段 B）
-- [ ] **NAV-03**: 从文件列表进入某 job 时默认落在 Hub；子菜单高亮与当前子路由一致
+- [x] **NAV-01**: 左侧菜单在存在当前 job 上下文时展示可折叠「文件详情」子菜单，含五表 + 字段 B 六项
+- [x] **NAV-02**: 使用 `JobDetailLayout` 嵌套路由：`/jobs/:id`（Hub）、`/jobs/:id/tables/:tableKey`（五表）、`/jobs/:id/field-b`（字段 B）
+- [x] **NAV-03**: 从文件列表进入某 job 时默认落在 Hub；子菜单高亮与当前子路由一致
 
 ### 详情 Hub（HUB）
 
@@ -47,7 +47,7 @@
 ### 前端基础设施（FE）
 
 - [ ] **FE-01**: `useJobsPoll`（或等效）支持注册多个 jobId 并批量轮询状态，供上传页与多任务进度使用
-- [ ] **FE-02**: 详情 Layout 层单一 poll + provide/inject，子页不各自重复全量 job 轮询
+- [x] **FE-02**: 详情 Layout 层单一 poll + provide/inject，子页不各自重复全量 job 轮询
 
 ## Future Requirements（post-v1.3 / v2）
 
@@ -87,9 +87,9 @@
 | API-01 | Phase 15 | Complete |
 | API-02 | Phase 15 | Complete |
 | API-03 | Phase 15 | Complete |
-| NAV-01 | Phase 16 | Pending |
-| NAV-02 | Phase 16 | Pending |
-| NAV-03 | Phase 16 | Pending |
+| NAV-01 | Phase 16 | Complete |
+| NAV-02 | Phase 16 | Complete |
+| NAV-03 | Phase 16 | Complete |
 | HUB-01 | Phase 18 | Pending |
 | HUB-02 | Phase 18 | Pending |
 | HUB-03 | Phase 18 | Pending |
@@ -101,6 +101,6 @@
 | PB-01 | Phase 18 | Pending |
 | PB-02 | Phase 18 | Pending |
 | FE-01 | Phase 19 | Pending |
-| FE-02 | Phase 16 | Pending |
+| FE-02 | Phase 16 | Complete |
 
 *Coverage: 22/22 v1.3 requirements mapped (Phases 15–19). Updated by roadmapper 2026-05-29.*

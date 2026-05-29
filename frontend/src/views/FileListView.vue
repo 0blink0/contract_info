@@ -25,7 +25,7 @@ async function refresh() {
 }
 
 function openDetail(jobId: string) {
-  void router.push({ name: 'job-detail', params: { id: jobId } })
+  void router.push({ name: 'job-hub', params: { id: jobId } })
 }
 
 async function onDelete(row: JobListItem) {
