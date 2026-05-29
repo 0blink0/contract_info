@@ -12,10 +12,10 @@
 
 ## Current State
 
-- **Shipped:** v1.1（2026-05-26）
+- **Shipped:** v1.1（2026-05-26）；v1.2 build pipeline complete (2026-05-29)
 - **Delivery scope:** 抽取质量黄金回归、申赎费率第 5 张导入表、路径 B JSON（业绩报酬/开放日）、LLM 校验结果 API/UI 展示
-- **Runtime:** FastAPI + Vue + PostgreSQL + Docker；LLM 通过 OpenAI-compatible 接口可切换模型（如 qwen）
-- **Recent closure:** 里程碑审计 gap 已清理（ValidationPanel 可用性 gate、需求追溯补齐、Nyquist frontmatter 补齐）
+- **Runtime:** FastAPI + Vue + SQLite + Electron 桌面壳（Windows NSIS + Linux AppImage/deb）
+- **Phase 14 complete:** `scripts/build.ps1 -Version 1.2.0` → `dist/CTRX-Setup-1.2.0.exe` (133MB NSIS installer); `scripts/build.sh --version 1.2.0` → AppImage + deb on Ubuntu 22.04; extraResources layout verified; Phase 13 electron tests all pass
 
 ## Current Milestone: v1.2 桌面化交付
 
@@ -36,14 +36,14 @@
 
 - ✓ docx 解析、P1+ 扩展抽取、4 xlsx、API/UI、PostgreSQL、Docker — v1.0
 
-### Active (v1.2)
+### Validated (v1.2 — Phase 14)
 
-- Electron 桌面壳与子进程管理
-- PyInstaller Python 运行时打包
-- SQLite 替换 PostgreSQL
-- 首次启动 LLM 设置向导
-- 应用内 Settings 页面
-- Windows/Linux 构建流水线
+- ✓ Windows/Linux 构建流水线 — BUILD-01/02/03 — Phase 14
+- ✓ Electron 桌面壳与子进程管理 — Phases 12-13
+- ✓ PyInstaller Python 运行时打包 — Phase 12
+- ✓ SQLite 替换 PostgreSQL — Phase 11
+- ✓ 首次启动 LLM 设置向导 — Phase 13
+- ✓ 应用内 Settings 页面 — Phase 13
 
 ### Out of Scope（当前）
 
@@ -69,6 +69,8 @@
 
 ## Evolution
 
+**Milestone v1.2（2026-05-29）：** 从 Docker-only 部署转型为 Electron 桌面应用。Phase 14 完成构建流水线（electron-builder 26.x + TypeScript 6 + NodeNext），产出 CTRX-Setup-1.2.0.exe (133MB) 和 AppImage/deb 脚本；关键修复：TypeScript 6 allowImportingTsExtensions+rewriteRelativeImportExtensions、electron-builder -c.extraMetadata.version 语法、signAndEditExecutable=false。
+
 **Milestone v1.1（2026-05-26）：** 从「能导出」转向「接近人工填写 + 可校验」，并完成五表、路径 B、校验闭环。
 
 ## Constraints
@@ -87,4 +89,4 @@
 
 ---
 
-*Last updated: 2026-05-28 — v1.2 milestone started*
+*Last updated: 2026-05-29 — Phase 14 complete, v1.2 build pipeline delivered*
