@@ -10,5 +10,7 @@ exports/*
 out.json
 frontend/node_modules/
 frontend/dist/
+node_modules/
+dist/
 
 # 本地规划提交在 monorepo 时可选；独立仓库可保留 .planning
