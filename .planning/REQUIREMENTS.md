@@ -27,9 +27,9 @@
 
 ### 详情 Hub（HUB）
 
-- [ ] **HUB-01**: Hub 页仅展示任务元信息、处理步骤、五表 + 字段 B 的摘要卡片（名称、行数/状态、校验 fail/warn 计数可选）及「进入详情」按钮
-- [ ] **HUB-02**: Hub 页不包含完整可编辑大表或 PathB/Validation 全量面板（避免重复 v1.2 单体页）
-- [ ] **HUB-03**: Hub 保留 warnings 列表与 job 级校验摘要入口（一键查看校验结果）
+- [x] **HUB-01**: Hub 页仅展示任务元信息、处理步骤、五表 + 字段 B 的摘要卡片（名称、行数/状态、校验 fail/warn 计数可选）及「进入详情」按钮
+- [x] **HUB-02**: Hub 页不包含完整可编辑大表或 PathB/Validation 全量面板（避免重复 v1.2 单体页）
+- [x] **HUB-03**: Hub 保留 warnings 列表与 job 级校验摘要入口（一键查看校验结果）
 
 ### 五表工作页（TBL）
 
@@ -41,8 +41,8 @@
 
 ### 字段 B（PB）
 
-- [ ] **PB-01**: 字段 B 专页展示业绩报酬与开放日的建议摘录及页码（来自 path-b / source_snippets），供人工判断，不自动写入 CRM 枚举
-- [ ] **PB-02**: 字段 B 页可复制或下载 path-b JSON（延续 v1.2 PathBPanel 能力）
+- [x] **PB-01**: 字段 B 专页展示业绩报酬与开放日的建议摘录及页码（来自 path-b / source_snippets），供人工判断，不自动写入 CRM 枚举
+- [x] **PB-02**: 字段 B 页可复制或下载 path-b JSON（延续 v1.2 PathBPanel 能力）
 
 ### 前端基础设施（FE）
 
@@ -90,16 +90,16 @@
 | NAV-01 | Phase 16 | Complete |
 | NAV-02 | Phase 16 | Complete |
 | NAV-03 | Phase 16 | Complete |
-| HUB-01 | Phase 18 | Pending |
-| HUB-02 | Phase 18 | Pending |
-| HUB-03 | Phase 18 | Pending |
+| HUB-01 | Phase 18 | Complete |
+| HUB-02 | Phase 18 | Complete |
+| HUB-03 | Phase 18 | Complete |
 | TBL-01 | Phase 17 | Complete |
 | TBL-02 | Phase 17 | Complete |
 | TBL-03 | Phase 17 | Complete |
 | TBL-04 | Phase 17 | Complete |
 | TBL-05 | Phase 17 | Complete |
-| PB-01 | Phase 18 | Pending |
-| PB-02 | Phase 18 | Pending |
+| PB-01 | Phase 18 | Complete |
+| PB-02 | Phase 18 | Complete |
 | FE-01 | Phase 19 | Pending |
 | FE-02 | Phase 16 | Complete |
 

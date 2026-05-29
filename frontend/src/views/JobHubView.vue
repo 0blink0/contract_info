@@ -1,88 +1,156 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { computed } from 'vue'
+import HubSectionCard from '@/components/hub/HubSectionCard.vue'
+import WarningsList from '@/components/WarningsList.vue'
+import ValidationPanel from '@/components/ValidationPanel.vue'
 import { useJobDetailInject } from '@/composables/useJobDetailContext'
-import { JOB_FIELD_B, JOB_TABLE_SECTIONS } from '@/constants/jobSections'
+import { useHubSummary } from '@/composables/useHubSummary'
+import { JOB_FIELD_B } from '@/constants/jobSections'
 
-const { jobId } = useJobDetailInject()
+const { jobId, detail, status } = useJobDetailInject()
+
+const {
+  tableSummaries,
+  pathBSummary,
+  pathBLoading,
+  canLoadSummaries,
+  reload,
+} = useHubSummary()
+
+const PREVIEW_PLUS = new Set(['extracted', 'exporting', 'exported', 'export_failed'])
+
+const showValidation = computed(() => PREVIEW_PLUS.has(status.value))
+
+const validationFail = computed(() => detail.value?.validation_fail_count ?? 0)
+const validationWarn = computed(() => detail.value?.validation_warn_count ?? 0)
+
+function tableSubtitle(rowCount: number | null, loading: boolean): string {
+  if (loading) return '加载中…'
+  if (!canLoadSummaries.value) return '尚未抽取'
+  if (rowCount === null) return '—'
+  return `${rowCount} 行`
+}
 </script>
 
 <template>
   <div class="hub-view">
-    <h3 class="section-title">任务总览</h3>
-    <p class="section-desc">
-      从下方进入各导入表或字段 B 专页。完整摘要与校验入口将在后续版本提供。
-    </p>
-    <el-row :gutter="12" class="nav-cards">
+    <div class="hub-header">
+      <h3 class="section-title">任务总览</h3>
+      <div class="hub-header-tags">
+        <el-tag v-if="validationFail > 0" type="danger" size="small">
+          校验 fail {{ validationFail }}
+        </el-tag>
+        <el-tag v-if="validationWarn > 0" type="warning" size="small">
+          校验 warn {{ validationWarn }}
+        </el-tag>
+        <el-button
+          v-if="canLoadSummaries"
+          size="small"
+          text
+          type="primary"
+          @click="reload"
+        >
+          刷新摘要
+        </el-button>
+      </div>
+    </div>
+
+    <el-alert
+      v-if="!canLoadSummaries"
+      type="info"
+      :closable="false"
+      show-icon
+      title="抽取完成后可查看各表行数摘要"
+      class="status-alert"
+    />
+
+    <el-row :gutter="12" class="summary-cards">
       <el-col
-        v-for="sec in JOB_TABLE_SECTIONS"
-        :key="sec.key"
+        v-for="row in tableSummaries"
+        :key="row.key"
         :xs="24"
         :sm="12"
         :md="8"
       >
-        <RouterLink
+        <HubSectionCard
           v-if="jobId"
-          class="nav-card"
-          :to="{ name: 'job-table', params: { id: jobId, tableKey: sec.key } }"
-        >
-          <span class="nav-card-label">{{ sec.label }}</span>
-          <span class="nav-card-hint">进入详情 →</span>
-        </RouterLink>
+          :title="row.label"
+          :subtitle="tableSubtitle(row.rowCount, row.loading)"
+          :loading="row.loading"
+          :to="{ name: 'job-table', params: { id: jobId, tableKey: row.key } }"
+        />
       </el-col>
       <el-col :xs="24" :sm="12" :md="8">
-        <RouterLink
+        <HubSectionCard
           v-if="jobId"
-          class="nav-card"
+          :title="JOB_FIELD_B.label"
+          :subtitle="
+            pathBLoading
+              ? '加载中…'
+              : pathBSummary ?? (detail?.path_b_available ? '—' : '暂无路径 B')
+          "
+          :loading="pathBLoading"
           :to="{ name: JOB_FIELD_B.routeName, params: { id: jobId } }"
-        >
-          <span class="nav-card-label">{{ JOB_FIELD_B.label }}</span>
-          <span class="nav-card-hint">进入详情 →</span>
-        </RouterLink>
+        />
       </el-col>
     </el-row>
+
+    <WarningsList
+      v-if="detail"
+      :warnings="detail.extraction_warnings"
+      :count="detail.extraction_warnings_count"
+      class="hub-warnings"
+    />
+
+    <ValidationPanel
+      v-if="jobId && detail"
+      :job-id="jobId"
+      :visible="showValidation"
+      :available="detail.validation_available"
+      :fail-count="detail.validation_fail_count"
+      :warn-count="detail.validation_warn_count"
+      class="hub-validation"
+    />
   </div>
 </template>
 
 <style scoped>
 .section-title {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #0f172a;
 }
 
-.section-desc {
-  margin: 0 0 20px;
-  color: #64748b;
-  font-size: 14px;
-}
-
-.nav-card {
+.hub-header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 16px;
-  margin-bottom: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--app-border);
-  background: #fff;
-  text-decoration: none;
-  color: inherit;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
-.nav-card:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+.hub-header-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.nav-card-label {
-  font-weight: 600;
-  color: #0f172a;
+.status-alert {
+  margin-bottom: 16px;
 }
 
-.nav-card-hint {
-  font-size: 13px;
-  color: #3b82f6;
+.summary-cards {
+  margin-bottom: 20px;
+}
+
+.hub-warnings {
+  margin-bottom: 16px;
+}
+
+.hub-validation {
+  margin-bottom: 8px;
 }
 </style>

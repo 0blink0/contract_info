@@ -18,7 +18,6 @@ import {
 import { useJobPoll } from '@/composables/useJobPoll'
 import { JOB_DETAIL_KEY } from '@/composables/useJobDetailContext'
 import ProcessStepper from '@/components/ProcessStepper.vue'
-import WarningsList from '@/components/WarningsList.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -222,11 +221,6 @@ async function onDownloadReport() {
           下载核对报告
         </el-button>
       </div>
-
-      <WarningsList
-        :warnings="detail.extraction_warnings"
-        :count="detail.extraction_warnings_count"
-      />
 
       <div class="child-shell surface-card">
         <router-view />

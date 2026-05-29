@@ -124,3 +124,14 @@ export function listSectionData(preview: JobPreviewSectionResponse, key: TableKe
 export function productRows(preview: JobPreviewSectionResponse): ProductPreviewItem[] {
   return preview.product_rows ?? []
 }
+
+export function sectionRowCount(
+  key: TableKey,
+  preview: JobPreviewSectionResponse,
+): number {
+  if (key === 'product-elements') {
+    return preview.product_rows?.length ?? 0
+  }
+  const { rows } = listSectionData(preview, key)
+  return rows.length
+}
