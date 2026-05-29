@@ -16,7 +16,10 @@
     "electron-store": "^10.1.0"
   },
   "scripts": {
-    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:electron": "tsc -p tsconfig.electron.json && node scripts/copy-electron-preload.mjs",
+    "desktop:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop-dev.ps1",
+    "desktop:dev:quick": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop-dev.ps1 -Quick",
+    "desktop:dev:watch": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop-dev.ps1 -Watch",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux"
   },
@@ -30,8 +33,8 @@
     },
     "files": [
       "dist/electron/**",
-      { "from": "frontend/dist", "to": "frontend/dist", "filter": ["**/*"] },
       { "from": "electron/preload.cjs", "to": "dist/electron/preload.cjs" },
+      { "from": "frontend/dist", "to": "frontend/dist", "filter": ["**/*"] },
       "package.json"
     ],
     "extraResources": [
@@ -56,7 +59,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "CTRX",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "include": "build/installer.nsh"
     },
     "linux": {
       "target": [

@@ -197,7 +197,34 @@ curl -s http://localhost:8000/api/v1/jobs/{job_id}/validation -H "X-API-Key: YOU
 
 CLI（`parse` / `extract` / `export`）仍可用。
 
-## 前端（v1.1）
+## 桌面应用开发（Electron，一键）
+
+在 **`contract_info` 根目录**（不是 `frontend/`）执行：
+
+```powershell
+cd contract_info
+npm install          # 根目录：electron 依赖（首次）
+npm install --prefix frontend
+
+# 一键：编译 Electron 主进程 + 前端，拉起内置 PyInstaller 后端并打开窗口
+npm run desktop:dev
+```
+
+| 命令 | 说明 |
+|------|------|
+| `npm run desktop:dev` | 全量构建后启动桌面版（改代码后需重跑，或改用 watch） |
+| `npm run desktop:dev:quick` | 已有 `dist/` 时跳过前端/Electron 编译，仅重启窗口（改 Python 后需先 `scripts/package_backend.ps1`） |
+| `npm run desktop:dev:watch` | Vite 热更新 + Electron，适合只改前端 UI |
+
+**说明：**
+
+- 首次若缺少 `electron/resources/ctrx-backend-*`，脚本会自动跑 PyInstaller（需已安装 `pyinstaller` 与 venv 依赖）。
+- 桌面版后端端口为 **8765**（由 Electron 子进程拉起），与下方 Web 开发的 **8000** 无关。
+- 在 `frontend/` 目录也可执行 `npm run desktop:dev`（会转发到根目录脚本）。
+
+安装包构建见 `.planning/milestones/v1.2-phases/CTRX-14-build-pipeline/`；日常开发不必每次打 NSIS。
+
+## 前端（v1.1，浏览器）
 
 需同时启动 **后端 API** 与 **Vite 开发服务器**：
 

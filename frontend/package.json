@@ -5,17 +5,27 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "desktop:dev": "npm run desktop:dev --prefix ..",
+    "desktop:dev:quick": "npm run desktop:dev:quick --prefix ..",
+    "desktop:dev:watch": "npm run desktop:dev:watch --prefix ..",
     "build": "vue-tsc --noEmit -p tsconfig.app.json && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
+    "test:electron": "node --test ../electron/tests/**/*.test.mjs",
+    "test:router": "node --test tests/router/**/*.test.mjs",
+    "test:frontend": "node --test tests/frontend/**/*.test.mjs",
+    "lint": "eslint"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "electron-store": "^10.1.0",
     "element-plus": "^2.9.0",
     "vue": "^3.5.13",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
+    "eslint": "^10.4.0",
     "typescript": "~5.7.2",
     "vite": "^6.0.3",
     "vue-tsc": "^2.2.0"
