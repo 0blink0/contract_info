@@ -59,3 +59,31 @@
 **Archive:** [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md), [milestones/v1.1-REQUIREMENTS.md](milestones/v1.1-REQUIREMENTS.md)
 
 ---
+
+## v1.2 桌面化交付 (Shipped: 2026-05-29)
+
+**Phases completed:** 4 phases (11–14), 11 plans
+
+**Delivered:** SQLite 迁移 + PyInstaller 打包 + Electron 生命周期壳 + Windows/Linux 一键安装包 → CTRX 从 Docker-only 转型为桌面应用
+
+**Key accomplishments:**
+
+1. **Phase 11** — SQLite 完整迁移：PostgreSQL 方言类型全替换（JSONB→JSON, UUID→Uuid），WAL 模式开启，CTRX_DATA_DIR 路径隔离，programmatic Alembic on startup
+2. **Phase 12** — PyInstaller 单 spec 打包：hiddenimports 审计基线 + CI 门禁（check_hiddenimports_diff.py）+ Windows 主链路烟测通过（health→upload→extract→download）
+3. **Phase 13** — Electron 主进程状态机：子进程生命周期管理、健康轮询（300ms/30s）、崩溃自动重试（最多 3 次）、SIGTERM→SIGKILL 优雅退出；3 通道 contextBridge IPC + electron-store
+4. **Phase 13** — 首启向导（Welcome→凭证→连接测试）+ Settings 页面（保存后重启事务 + 失败回滚配置）；向导未完成封闭主界面
+5. **Phase 14** — 构建流水线：electron-builder 26.x NSIS + AppImage + deb 一键构建，产出 CTRX-Setup-1.2.0.exe（133MB）
+6. **Phase 14** — 修复 TypeScript 6 NodeNext 双标志（allowImportingTsExtensions+rewriteRelativeImportExtensions）、electron-builder 26.x 版本注入语法、signAndEditExecutable=false
+
+**Stats:** 4 phases · 11 plans · 57 files changed · 10,908 insertions · 2 days (2026-05-28 → 2026-05-29)
+
+**Known deferred items at close:** 1 (PKG-03 Linux clean-VM verify, user-approved — see STATE.md Deferred Items)
+
+**Archives:**
+
+- [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
+- [milestones/v1.2-REQUIREMENTS.md](milestones/v1.2-REQUIREMENTS.md)
+
+**Tag:** `v1.2`
+
+---

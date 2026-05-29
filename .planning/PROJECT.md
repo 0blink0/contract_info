@@ -4,6 +4,8 @@
 
 面向私募综合业务管理系统的**半自动录入工具**：运营上传基金合同（**docx**），系统解析、抽取字段，生成可导入 Excel（产品要素、运营费率、申赎费率、锁定期、分级份额），并输出**业绩报酬/开放日** JSON 供 CRM 手录；可选 **LLM 校验层** 核对摘录与填值是否一致。
 
+现为 **Electron 桌面应用**，双击 CTRX-Setup-1.2.0.exe 即可安装使用，无需 Python 或 Docker 环境。
+
 独立子项目，根目录 `contract_info/`。
 
 ## Core Value
@@ -12,23 +14,10 @@
 
 ## Current State
 
-- **Shipped:** v1.1（2026-05-26）；v1.2 build pipeline complete (2026-05-29)
-- **Delivery scope:** 抽取质量黄金回归、申赎费率第 5 张导入表、路径 B JSON（业绩报酬/开放日）、LLM 校验结果 API/UI 展示
+- **Shipped:** v1.2（2026-05-29）— 桌面化交付完成
 - **Runtime:** FastAPI + Vue + SQLite + Electron 桌面壳（Windows NSIS + Linux AppImage/deb）
-- **Phase 14 complete:** `scripts/build.ps1 -Version 1.2.0` → `dist/CTRX-Setup-1.2.0.exe` (133MB NSIS installer); `scripts/build.sh --version 1.2.0` → AppImage + deb on Ubuntu 22.04; extraResources layout verified; Phase 13 electron tests all pass
-
-## Current Milestone: v1.2 桌面化交付
-
-**Goal:** 将 CTRX 从 Docker-only 部署转型为 Electron 桌面应用，双击安装包即用，内嵌 Python + SQLite，首次启动完成 LLM 配置。
-
-**Target features:**
-- Electron 桌面壳（Windows + Linux）
-- PyInstaller 打包 Python/FastAPI 后端为可执行文件
-- SQLite 替换 PostgreSQL（SQLAlchemy 迁移适配）
-- Electron 管理 Python 子进程生命周期
-- 首次启动设置向导（LLM API Base + Key + Model）
-- 应用内 Settings 页面（可随时修改）
-- 构建流水线：Windows .exe 安装包 + Linux AppImage/deb
+- **Deliverable:** `scripts/build.ps1 -Version 1.2.0` → `dist/CTRX-Setup-1.2.0.exe` (133MB NSIS installer)
+- **v1.2 complete:** SQLite 替换 PostgreSQL、PyInstaller 打包、Electron 生命周期壳（首启向导+Settings）、构建流水线（electron-builder 26.x）
 
 ## Requirements
 
@@ -36,27 +25,46 @@
 
 - ✓ docx 解析、P1+ 扩展抽取、4 xlsx、API/UI、PostgreSQL、Docker — v1.0
 
-### Validated (v1.2 — Phase 14)
+### Validated (v1.1)
 
-- ✓ Windows/Linux 构建流水线 — BUILD-01/02/03 — Phase 14
-- ✓ Electron 桌面壳与子进程管理 — Phases 12-13
-- ✓ PyInstaller Python 运行时打包 — Phase 12
-- ✓ SQLite 替换 PostgreSQL — Phase 11
-- ✓ 首次启动 LLM 设置向导 — Phase 13
-- ✓ 应用内 Settings 页面 — Phase 13
+- ✓ 黄金回归基线与回归脚本 — v1.1
+- ✓ 申赎费率第五张导入表 — v1.1
+- ✓ 路径 B（业绩报酬/开放日）JSON 输出 — v1.1
+- ✓ LLM 校验层 API + ValidationPanel UI — v1.1
+- ✓ 五表下载 + 左侧菜单路由 — v1.1
+
+### Validated (v1.2)
+
+- ✓ SQLite 替换 PostgreSQL（方言类型全替换，WAL 模式，CTRX_DATA_DIR 路径隔离）— DB-01/02/03/04 — Phase 11
+- ✓ PyInstaller Python 运行时打包（--onedir，hiddenimports 审计 CI 门禁，Windows 烟测）— PKG-01/02/03 — Phase 12
+- ✓ Electron 主进程生命周期状态机（健康轮询，崩溃重试，SIGTERM→SIGKILL 退出）— ELEC-01 — Phase 13
+- ✓ contextBridge 3 通道 IPC + electron-store 配置持久化 — ELEC-02 — Phase 13
+- ✓ 首次启动 LLM 设置向导（向导强门禁）— ELEC-03 — Phase 13
+- ✓ 应用内 Settings 页面（保存后重启事务 + 失败回滚）— ELEC-04 — Phase 13
+- ✓ Windows/Linux 构建流水线（NSIS + AppImage + deb，build.ps1/sh，extraResources）— BUILD-01/02/03 — Phase 14
+
+### Active (v1.3 候选)
+
+- [ ] **PATHB-EX-01**: 业绩报酬提取方式自动映射到 CRM 枚举值（减少人工判断）
+- [ ] **PATHB-EX-02**: 业绩基准类型与门槛净值枚举精度提升
+- [ ] Linux clean-VM 验证（PKG-03 defer 项：在 Linux 主机或 CI runner 跑 package_backend.sh + build.sh）
 
 ### Out of Scope（当前）
 
 - 黄金 xlsx 作为线上自动批改器
 - CRM 自动录入、PDF、批量队列（见 v2）
-- 路径 B 枚举映射增强（→ v1.3）
 - 批量多文件上传/ZIP（→ v2 预研）
+- 自动更新（auto-update）— 需代码签名基础设施
+- 系统托盘图标 — 过度工程化，内部工具无需
+- Keychain / OS 凭证存储 — config.json 已足够
+- Windows 代码签名 — 内部分发暂不需要
 
 ## Context
 
 - 开发黄金样例：`example/产品要素 - 副本(1).xlsx`、`example/产品运营费率导入模板.xlsx`、`example/产品申赎费率导入模板.xlsx`
-- 字段规格：`FIELD_SPEC.md`（本里程碑需更新）
-- v1 归档：`.planning/milestones/1.0-*`
+- 字段规格：`FIELD_SPEC.md`
+- 归档：`.planning/milestones/` (v1.0, v1.1, v1.2)
+- 构建产物：`dist/CTRX-Setup-1.2.0.exe` (Windows), `scripts/build.sh` (Linux)
 
 ## Key Decisions
 
@@ -66,17 +74,24 @@
 | 校验层只看摘录 | 可解释、可审计 | v1.1 采用 |
 | 路径 B 仍 JSON 手录 | 无 CRM 母版 Excel | v1.1 采用 |
 | 申赎费率独立第 5 表 | 业务新增导入模板 | v1.1 采用 |
+| --onedir PyInstaller（非 --onefile） | 规避 AV 误报风险 | v1.2 采用 |
+| electron-store pin v10 | CommonJS require() 兼容 | v1.2 采用 |
+| SQLite 替换 PostgreSQL | 桌面应用无服务器，SQLite 足够 | v1.2 采用 |
+| signAndEditExecutable: false | 跳过 winCodeSign 符号链接提取（代码签名超出 v1.2 范围） | v1.2 采用 ✓ |
+| allowImportingTsExtensions + rewriteRelativeImportExtensions | TypeScript 6 NodeNext emit 模式双标志（TS5097 修复） | v1.2 采用 ✓ |
+| -c.extraMetadata.version=X 语法 | electron-builder 26.x 版本注入（旧 --extraMetadata JSON 语法已弃用） | v1.2 采用 ✓ |
 
 ## Evolution
 
-**Milestone v1.2（2026-05-29）：** 从 Docker-only 部署转型为 Electron 桌面应用。Phase 14 完成构建流水线（electron-builder 26.x + TypeScript 6 + NodeNext），产出 CTRX-Setup-1.2.0.exe (133MB) 和 AppImage/deb 脚本；关键修复：TypeScript 6 allowImportingTsExtensions+rewriteRelativeImportExtensions、electron-builder -c.extraMetadata.version 语法、signAndEditExecutable=false。
+**Milestone v1.2（2026-05-29）：** 从 Docker-only 部署转型为 Electron 桌面应用。4 个阶段（11-14）历时 2 天，57 文件改动，10,908 行插入。Phase 14 完成构建流水线（electron-builder 26.x + TypeScript 6 + NodeNext），产出 CTRX-Setup-1.2.0.exe (133MB)；关键修复：TypeScript 6 allowImportingTsExtensions+rewriteRelativeImportExtensions、electron-builder -c.extraMetadata.version 语法、signAndEditExecutable=false。
 
 **Milestone v1.1（2026-05-26）：** 从「能导出」转向「接近人工填写 + 可校验」，并完成五表、路径 B、校验闭环。
 
 ## Constraints
 
-- 输入：docx；LLM 抽取与校验依赖 `.env` API Key
+- 输入：docx；LLM 抽取与校验依赖 `.env` API Key（桌面端通过 Settings 页面配置）
 - 样例合同与 xlsx 在 `example/`，不提交敏感生产数据
+- Linux 构建需在 Ubuntu 22.04（glibc 2.35）环境执行
 
 <details>
 <summary>Archived Milestone Notes (v1.1 planning snapshot)</summary>
@@ -89,4 +104,4 @@
 
 ---
 
-*Last updated: 2026-05-29 — Phase 14 complete, v1.2 build pipeline delivered*
+*Last updated: 2026-05-29 — v1.2 桌面化交付 milestone archived*
