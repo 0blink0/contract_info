@@ -93,7 +93,21 @@ Plans:
   3. 从文件列表进入任务时默认落在 Hub；当前子路由与左侧子菜单高亮一致
   4. 在详情子页间切换时，任务状态由 Layout 层单一轮询更新，子页不会各自重复发起全量 job 轮询
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 16-01-PLAN.md — jobSections、JobDetailLayout、嵌套路由、provide/inject 单一 poll（NAV-02, FE-02）
+
+**Wave 2**
+
+- [ ] 16-02-PLAN.md — AppLayout 子菜单、Hub/表/字段 B 占位页、列表/上传入口 job-hub（NAV-01, NAV-03）
+
+**Wave 3**
+
+- [ ] 16-03-PLAN.md — 路由契约测试 + typecheck/build 门禁（D-26, D-27）
+
 **UI hint**: yes
 
 ### Phase 17: 五表独立工作页
