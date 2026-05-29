@@ -1,0 +1,70 @@
+{
+  "name": "ctrx",
+  "version": "1.2.0",
+  "description": "Contract element extraction — desktop app",
+  "author": "blink",
+  "license": "UNLICENSED",
+  "main": "dist/electron/main.js",
+  "type": "module",
+  "devDependencies": {
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1",
+    "typescript": "^6.0.3",
+    "@types/node": "^25.9.1"
+  },
+  "dependencies": {
+    "electron-store": "^10.1.0"
+  },
+  "scripts": {
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.ctrx.app",
+    "productName": "CTRX",
+    "copyright": "Copyright © 2026 blink",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/electron/**",
+      { "from": "frontend/dist", "to": "frontend/dist", "filter": ["**/*"] },
+      { "from": "electron/preload.cjs", "to": "dist/electron/preload.cjs" },
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "electron/resources",
+        "to": "electron/resources",
+        "filter": [
+          "ctrx-backend-*/**",
+          "ctrx-backend-*",
+          ".backend-manifest.json"
+        ]
+      }
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "CTRX",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb",      "arch": ["x64"] }
+      ],
+      "category": "Office",
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
+  }
+}
