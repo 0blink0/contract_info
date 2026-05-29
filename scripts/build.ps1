@@ -28,7 +28,7 @@ Pop-Location
 
 Write-Host "=== Step 4: electron-builder (Windows NSIS) ==="
 Push-Location $Root
-npx electron-builder --win --extraMetadata "{""version"":""$Version""}"
+npx electron-builder --win "-c.extraMetadata.version=$Version"
 Pop-Location
 
 Write-Host "Build complete. Artifacts in dist/"

@@ -35,6 +35,6 @@ echo "=== Step 3: tsc electron main process ==="
 (cd "$ROOT" && npx tsc -p tsconfig.electron.json)
 
 echo "=== Step 4: electron-builder (Linux AppImage + deb) ==="
-(cd "$ROOT" && npx electron-builder --linux --extraMetadata "{\"version\":\"$VERSION\"}")
+(cd "$ROOT" && npx electron-builder --linux "-c.extraMetadata.version=$VERSION")
 
 echo "Build complete. Artifacts in dist/"

@@ -8,7 +8,9 @@
     "strict": true,
     "skipLibCheck": true,
     "sourceMap": false,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
   },
   "include": ["electron/**/*.ts"],
   "exclude": ["electron/tests/**"]
