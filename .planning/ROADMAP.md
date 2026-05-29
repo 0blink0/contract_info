@@ -152,7 +152,21 @@ Plans:
   3. 字段 B 专页展示业绩报酬与开放日的建议摘录及页码（页码不可用时界面有明确说明），供人工判断是否手录
   4. 用户可在字段 B 页复制或下载 path-b JSON（延续 v1.2 能力）
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 18-01-PLAN.md — useHubSummary + HubSectionCard + JobHubView 摘要卡（HUB-01）
+
+**Wave 2**
+
+- [ ] 18-02-PLAN.md — Hub 挂载 WarningsList + ValidationPanel；Layout 精简（HUB-02, HUB-03）
+
+**Wave 3**
+
+- [ ] 18-03-PLAN.md — usePathB + PathBDetail + JobFieldBView + 测试（PB-01, PB-02）
+
 **UI hint**: yes
 
 ### Phase 19: 多文件上传与并行进度 UI
