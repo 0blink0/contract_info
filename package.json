@@ -50,7 +50,6 @@
     ],
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
@@ -68,7 +67,6 @@
         { "target": "deb",      "arch": ["x64"] }
       ],
       "category": "Office",
-      "icon": "build/icon.png",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   }
