@@ -6,7 +6,7 @@ import { useJobDetailInject } from '@/composables/useJobDetailContext'
 import { useHubSummary } from '@/composables/useHubSummary'
 import { JOB_FIELD_B } from '@/constants/jobSections'
 
-const { jobId, detail, status } = useJobDetailInject()
+const { jobId, detail } = useJobDetailInject()
 
 const {
   tableSummaries,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { TableVerificationResponse, VerificationRow } from '@/api/types'
 import { getTableVerification } from '@/api/client'
@@ -161,12 +161,24 @@ const canEditValues = computed(
     (data.value?.rows?.length ?? 0) > 0,
 )
 
-function startEdit() {
-  if (!data.value?.rows?.length) return
-  draftRows.value = structuredClone(data.value.rows)
+function cloneVerificationRows(rows: VerificationRow[]): VerificationRow[] {
+  try {
+    return structuredClone(rows)
+  } catch {
+    return JSON.parse(JSON.stringify(rows)) as VerificationRow[]
+  }
+}
+
+async function startEdit() {
+  if (!data.value?.rows?.length) {
+    ElMessage.warning('暂无核对数据，无法编辑')
+    return
+  }
+  draftRows.value = cloneVerificationRows(data.value.rows)
   draftDirty.value = false
   editing.value = true
   emit('editing-change', true)
+  await nextTick()
 }
 
 function cancelEdit() {
@@ -302,6 +314,7 @@ watch(
     <div v-else-if="tableRows.length" class="verification-layout">
       <div class="verification-main">
         <el-table
+          :key="editing ? 'verification-edit' : 'verification-view'"
           :data="tableRows"
           size="small"
           stripe

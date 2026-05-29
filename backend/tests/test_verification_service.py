@@ -41,6 +41,26 @@ def test_page_no_unavailable():
     assert rows[0]["page_no_note"] == "页码暂未解析"
 
 
+def test_rule_capture_does_not_duplicate_value_when_already_in_snippet():
+    record = SimpleNamespace(
+        extraction_result={
+            "product_elements": {
+                "首次申购起点": {
+                    "value": "100万",
+                    "snippet": "首次净申购金额应不低于100万元",
+                    "source": "rule",
+                }
+            },
+        },
+        parse_json={},
+        validation_result=None,
+    )
+    rows = build_verification_rows(record, "product-elements")
+    row = next(r for r in rows if r["field"] == "首次申购起点")
+    assert row["excerpt"] == "首次净申购金额应不低于100万元"
+    assert not (row["excerpt"] or "").rstrip().endswith("100万 100万")
+
+
 def test_rule_capture_prefers_full_section_body_in_excerpt():
     body = "1、权益类：股票。2、固定收益类：债券。" * 3
     record = SimpleNamespace(

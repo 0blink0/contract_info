@@ -93,8 +93,11 @@ def _resolve_capture_excerpt(
         not source and val and snip and len(val) > len(snip) + 40
     )
     if rule_like and val:
-        if snip and snip not in val:
-            return f"{snip}\n\n{val}", "rule"
+        if snip:
+            if val in snip:
+                return snip, "rule"
+            if snip not in val:
+                return f"{snip}\n\n{val}", "rule"
         return val, "rule"
 
     if snip:

@@ -46,15 +46,16 @@ const verificationRef = ref<{
 const verificationEditing = ref(false)
 const verificationSaving = ref(false)
 
+const PREVIEW_EDIT_STATUSES = new Set([
+  'extracted',
+  'exporting',
+  'exported',
+  'export_failed',
+])
+
 const canEditVerification = computed(
   () =>
-    Boolean(
-      tableKey.value &&
-        preview.value &&
-        (status.value === 'extracted' ||
-          status.value === 'exported' ||
-          status.value === 'export_failed'),
-    ),
+    Boolean(tableKey.value && PREVIEW_EDIT_STATUSES.has(status.value)),
 )
 
 const showDownload = computed(() => detail.value?.status === 'exported')
