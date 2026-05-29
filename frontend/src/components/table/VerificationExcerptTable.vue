@@ -17,6 +17,13 @@ const props = defineProps<{
   jobId: string
   tableKey: TableKey
   status: string
+  canEditValues?: boolean
+  saveLoading?: boolean
+}>()
+
+const emit = defineEmits<{
+  save: [rows: VerificationRow[]]
+  'editing-change': [editing: boolean]
 }>()
 
 const PREVIEW_STATUSES = new Set(['extracted', 'exporting', 'exported', 'export_failed'])
@@ -24,9 +31,16 @@ const PREVIEW_STATUSES = new Set(['extracted', 'exporting', 'exported', 'export_
 const loading = ref(false)
 const data = ref<TableVerificationResponse | null>(null)
 const selectedField = ref<string | null>(null)
+const editing = ref(false)
+const draftRows = ref<VerificationRow[]>([])
+const draftDirty = ref(false)
+
+const tableRows = computed(() =>
+  editing.value ? draftRows.value : (data.value?.rows ?? []),
+)
 
 const selectedRow = computed(() => {
-  const rows = data.value?.rows ?? []
+  const rows = tableRows.value
   if (!rows.length) return null
   if (selectedField.value) {
     const hit = rows.find((r) => r.field === selectedField.value)
@@ -47,9 +61,7 @@ const excerptTableBlocks = computed((): ExcerptTableBlock[] =>
   allExcerptTables(selectedRow.value ?? {}).filter((t) => (t.rows?.length ?? 0) > 0),
 )
 
-const excerptSummarySpans = computed(() =>
-  excerptSummaryRowspans(data.value?.rows ?? []),
-)
+const excerptSummarySpans = computed(() => excerptSummaryRowspans(tableRows.value))
 
 /** Column index of「摘录摘要」— shifts when validation column visible. */
 const excerptColumnIndex = computed(() =>
@@ -117,10 +129,41 @@ const listTableGroupLabel = computed(() => {
   if (!field) return ''
   const key = listTableRowKey(field)
   if (!key) return ''
-  const rows = data.value?.rows ?? []
+  const rows = tableRows.value
   const sameGroup = rows.filter((r) => listTableRowKey(r.field) === key)
   return sameGroup.length > 1 ? key : ''
 })
+
+const canEditValues = computed(
+  () =>
+    Boolean(props.canEditValues) &&
+    PREVIEW_STATUSES.has(props.status) &&
+    (data.value?.rows?.length ?? 0) > 0,
+)
+
+function startEdit() {
+  if (!data.value?.rows?.length) return
+  draftRows.value = structuredClone(data.value.rows)
+  draftDirty.value = false
+  editing.value = true
+  emit('editing-change', true)
+}
+
+function cancelEdit() {
+  editing.value = false
+  draftDirty.value = false
+  draftRows.value = []
+  emit('editing-change', false)
+}
+
+function onValueInput() {
+  draftDirty.value = true
+}
+
+function submitSave() {
+  if (!editing.value) return
+  emit('save', structuredClone(draftRows.value))
+}
 
 function valueSummary(value: string | null | undefined, maxLen = 72): string {
   const raw = value?.trim()
@@ -149,6 +192,7 @@ async function load() {
   if (!PREVIEW_STATUSES.has(props.status)) {
     data.value = null
     selectedField.value = null
+    cancelEdit()
     return
   }
   loading.value = true
@@ -159,14 +203,27 @@ async function load() {
     } else {
       selectedField.value = null
     }
+    if (editing.value) {
+      cancelEdit()
+    }
   } catch (e) {
     data.value = null
     selectedField.value = null
+    cancelEdit()
     ElMessage.warning(e instanceof Error ? e.message : '核对数据加载失败')
   } finally {
     loading.value = false
   }
 }
+
+function finishSave() {
+  editing.value = false
+  draftDirty.value = false
+  draftRows.value = []
+  emit('editing-change', false)
+}
+
+defineExpose({ reload: load, finishSave, cancelEdit })
 
 watch(
   () => [props.jobId, props.tableKey, props.status] as const,
@@ -178,18 +235,39 @@ watch(
 <template>
   <div class="verification-table">
     <div class="verification-header">
-      <h4 class="verification-title">摘录核对</h4>
-      <el-text type="info" size="small">
-        点击左侧行阅读完整摘录；同一运营费行等多字段共用一条摘要
-      </el-text>
+      <div class="verification-header-main">
+        <h4 class="verification-title">摘录核对</h4>
+        <el-text type="info" size="small">
+          对照右侧原文修改字段值；同组字段共用一条摘录摘要
+        </el-text>
+      </div>
+      <div v-if="canEditValues" class="verification-actions">
+        <template v-if="!editing">
+          <el-button type="primary" plain size="small" @click="startEdit">
+            编辑
+          </el-button>
+        </template>
+        <template v-else>
+          <el-button size="small" @click="cancelEdit">取消</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            :loading="saveLoading"
+            :disabled="!draftDirty || saveLoading"
+            @click="submitSave"
+          >
+            保存修改
+          </el-button>
+        </template>
+      </div>
     </div>
 
     <el-skeleton v-if="loading" :rows="3" animated />
 
-    <div v-else-if="data?.rows?.length" class="verification-layout">
+    <div v-else-if="tableRows.length" class="verification-layout">
       <div class="verification-main">
         <el-table
-          :data="data.rows"
+          :data="tableRows"
           size="small"
           stripe
           border
@@ -205,8 +283,17 @@ watch(
             min-width="120"
             show-overflow-tooltip
           />
-          <el-table-column label="字段值" min-width="100" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.value ?? '—' }}</template>
+          <el-table-column label="字段值" min-width="120">
+            <template #default="{ row }">
+              <el-input
+                v-if="editing"
+                v-model="row.value"
+                size="small"
+                @input="onValueInput"
+                @click.stop
+              />
+              <span v-else class="value-readonly">{{ row.value ?? '—' }}</span>
+            </template>
           </el-table-column>
           <el-table-column label="摘录摘要" min-width="160">
             <template #default="{ row, $index }">
@@ -223,7 +310,7 @@ watch(
             </template>
           </el-table-column>
           <el-table-column
-            v-if="data.rows.some((r) => r.validation_status)"
+            v-if="tableRows.some((r) => r.validation_status)"
             label="校验"
             width="88"
           >
@@ -342,9 +429,30 @@ watch(
 .verification-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 8px 12px;
   margin-bottom: 12px;
+}
+
+.verification-header-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.verification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.value-readonly {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .verification-title {

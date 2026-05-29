@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { downloadBlob } from '@/api/client'
+import { downloadBlob, saveJobPreviewSection } from '@/api/client'
+import type { VerificationRow } from '@/api/types'
 import { useJobDetailInject } from '@/composables/useJobDetailContext'
 import { useSectionPreview } from '@/composables/useSectionPreview'
 import TablePreviewEditor from '@/components/table/TablePreviewEditor.vue'
 import VerificationExcerptTable from '@/components/table/VerificationExcerptTable.vue'
 import {
+  applyVerificationRowsToPreview,
+  buildSectionSaveBody,
   isValidTableKey,
+  normalizeSectionPreview,
   sectionLabel,
   TABLE_DOWNLOAD_FILES,
   type TableKey,
@@ -31,13 +35,27 @@ const label = computed(() => (tableKey.value ? sectionLabel(tableKey.value) : ''
 const {
   preview,
   loading,
-  saving,
-  dirty,
-  canEdit,
   canShowPreview,
-  markDirty,
-  save,
 } = useSectionPreview(tableKeyParam)
+
+const verificationRef = ref<{
+  reload: () => Promise<void>
+  finishSave: () => void
+  cancelEdit: () => void
+} | null>(null)
+const verificationEditing = ref(false)
+const verificationSaving = ref(false)
+
+const canEditVerification = computed(
+  () =>
+    Boolean(
+      tableKey.value &&
+        preview.value &&
+        (status.value === 'extracted' ||
+          status.value === 'exported' ||
+          status.value === 'export_failed'),
+    ),
+)
 
 const showDownload = computed(() => detail.value?.status === 'exported')
 
@@ -53,10 +71,10 @@ async function onDownload() {
 }
 
 onBeforeRouteLeave(async () => {
-  if (!dirty.value) return true
+  if (!verificationEditing.value) return true
   try {
     await ElMessageBox.confirm(
-      '有未保存的修改，确定离开当前页面？',
+      '摘录核对有未保存的修改，确定离开当前页面？',
       '未保存的修改',
       {
         type: 'warning',
@@ -69,6 +87,26 @@ onBeforeRouteLeave(async () => {
     return false
   }
 })
+
+async function onVerificationSave(rows: VerificationRow[]) {
+  const key = tableKey.value
+  const id = jobId.value
+  if (!key || !id || !preview.value) return
+  verificationSaving.value = true
+  try {
+    const updated = applyVerificationRowsToPreview(key, preview.value, rows)
+    const body = buildSectionSaveBody(key, updated)
+    const data = await saveJobPreviewSection(id, key, body)
+    preview.value = normalizeSectionPreview(key, data)
+    verificationRef.value?.finishSave()
+    await verificationRef.value?.reload()
+    ElMessage.success('已保存并更新上方预览与 Excel')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+  } finally {
+    verificationSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -83,16 +121,6 @@ onBeforeRouteLeave(async () => {
           @click="onDownload"
         >
           下载{{ label }}
-        </el-button>
-        <el-button
-          v-if="canEdit"
-          type="primary"
-          size="default"
-          :loading="saving"
-          :disabled="!dirty || !preview"
-          @click="save"
-        >
-          保存修改
         </el-button>
       </div>
     </div>
@@ -109,21 +137,25 @@ onBeforeRouteLeave(async () => {
 
     <template v-else>
       <el-text type="info" size="small" class="source-hint">
-        修改后请点击「保存修改」写入数据库并更新 Excel；下载按钮将导出最新文件。
+        上方为数据预览；请在下方「摘录核对」中点击「编辑」对照原文修改字段值并保存。
       </el-text>
 
       <TablePreviewEditor
         :table-key="tableKey"
         :preview="preview"
-        :can-edit="canEdit"
+        :can-edit="false"
         :loading="loading"
-        @dirty="markDirty"
       />
 
       <VerificationExcerptTable
+        ref="verificationRef"
         :job-id="jobId"
         :table-key="tableKey"
         :status="status"
+        :can-edit-values="canEditVerification"
+        :save-loading="verificationSaving"
+        @save="onVerificationSave"
+        @editing-change="(v) => (verificationEditing = v)"
       />
     </template>
   </div>

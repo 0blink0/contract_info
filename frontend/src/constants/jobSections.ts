@@ -222,6 +222,49 @@ export function verificationRowsFromSectionPreview(
   return out
 }
 
+/** Backend verification `field` paths: fee_rates[0].运营费类型 or product field name. */
+export function parseVerificationFieldPath(
+  field: string,
+): { index: number; extractionKey: string } | { productField: string } | null {
+  const listMatch = field.match(/^([a-z_]+)\[(\d+)\]\.(.+)$/i)
+  if (listMatch) {
+    return {
+      index: Number(listMatch[2]),
+      extractionKey: listMatch[3],
+    }
+  }
+  if (field && !field.includes('[')) {
+    return { productField: field }
+  }
+  return null
+}
+
+/** Apply核对表字段值 edits onto sectional preview before PUT /preview/{section}. */
+export function applyVerificationRowsToPreview(
+  tableKey: TableKey,
+  preview: JobPreviewSectionResponse,
+  rows: VerificationRow[],
+): JobPreviewSectionResponse {
+  const next = structuredClone(preview) as JobPreviewSectionResponse
+  for (const row of rows) {
+    const value = row.value ?? ''
+    const parsed = parseVerificationFieldPath(row.field)
+    if (!parsed) continue
+    if ('productField' in parsed) {
+      const items = next.product_rows ?? []
+      const item = items.find((r) => r.field === parsed.productField)
+      if (item) item.value = value
+      continue
+    }
+    const { rows: listRows } = listSectionData(next, tableKey)
+    const target = listRows[parsed.index]
+    if (!target) continue
+    const col = row.field_label || parsed.extractionKey
+    target[col] = value
+  }
+  return next
+}
+
 export function mergeSectionIntoFullPreview(
   full: JobPreview,
   section: PreviewSection,
