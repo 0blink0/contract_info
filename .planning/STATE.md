@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: 桌面化交付
-status: verifying
-stopped_at: Phase 14 context gathered
-last_updated: "2026-05-29T01:41:48.463Z"
-last_activity: 2026-05-28 -- 向导完成并进入主页面人工验收通过
+status: ready_to_execute
+stopped_at: Phase 14 planned (3 plans, 3 waves)
+last_updated: "2026-05-29T00:00:00.000Z"
+last_activity: 2026-05-29 -- Phase 14 plans verified and ready to execute
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 8
+  total_plans: 11
   completed_plans: 8
   percent: 75
 ---
@@ -26,10 +26,9 @@ See: `contract_info/.planning/PROJECT.md`
 
 ## Current Position
 
-Phase: 13 (Electron 壳与 IPC) — EXECUTED
-Plan: 2 plans completed
-Status: Verification FLAG (partial human_done) — onboarding 主链路已人工通过，Settings 新 Key 生效待补验
-Last activity: 2026-05-28 -- 向导完成并进入主页面人工验收通过
+Phase: 14 (构建流水线) — PLANNED
+Plan: 3 plans ready (Wave 0 → 1 → 2), status: Ready to execute
+Last activity: 2026-05-29 -- Phase 14 plans created and verified (3 plans, 3 waves)
 
 Progress: [░░░░░░░░░░] 0%
 

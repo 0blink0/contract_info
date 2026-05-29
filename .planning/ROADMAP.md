@@ -104,11 +104,15 @@ Plans:
   2. `CTRX-1.2.0.AppImage` 在 Ubuntu 22.04 上运行，应用完整可用
   3. `CTRX-1.2.0.deb` 通过 `dpkg -i` 安装，应用可从系统菜单启动
   4. `.ps1` 和 `.sh` 构建脚本各一份，4 步流程（PyInstaller → Vite → tsc → electron-builder）可无人值守运行
-**Plans:** 3 plans
+**Plans:** 3/3 plans ready
 Plans:
-- [ ] 14-01-PLAN.md — Wave 0: root package.json (electron-builder inline config), tsconfig.electron.json, npm install, placeholder icons
-- [ ] 14-02-PLAN.md — Wave 1: scripts/build.ps1 + scripts/build.sh (4-step dispatchers, fail-fast, --extraMetadata version injection)
-- [ ] 14-03-PLAN.md — Wave 2: tsc dry-run, Windows build smoke test, human acceptance gate (installer behavior + Linux artifacts)
+  - **Wave 0:**
+- [ ] 14-01-PLAN.md — root package.json (electron-builder inline config) + tsconfig.electron.json + npm install + icon placeholders (BUILD-01, BUILD-03)
+  - **Wave 1 *(blocked on Wave 0)*:**
+- [ ] 14-02-PLAN.md — scripts/build.ps1 + scripts/build.sh 4-step dispatchers with fail-fast + --extraMetadata version injection (BUILD-02)
+  - **Wave 2 *(blocked on Wave 1)*:**
+- [ ] 14-03-PLAN.md — tsc dry-run + Windows build smoke test + human acceptance gate (BUILD-01, BUILD-02, BUILD-03)
+**Cross-cutting constraints:** `extraResources.to="electron/resources"` must match main.ts backendEntrypoint() candidate 3; `preload.cjs` staged as FileSet at `dist/electron/preload.cjs`; version injected via `--extraMetadata` (never modifies package.json source)
 
 ## Progress
 
@@ -125,8 +129,8 @@ Plans:
 | 9. LLM 校验层 | v1.1 | — | Complete | 2026-05-26 |
 | 10. UI 导航与下载 | v1.1 | — | Complete | 2026-05-26 |
 | 11. SQLite 迁移与路径修复 | v1.2 | 4/4 | Complete   | 2026-05-28 |
-| 12. PyInstaller 打包 | v1.2 | 0/? | Not started | - |
-| 13. Electron 壳与 IPC | v1.2 | 0/? | Not started | - |
+| 12. PyInstaller 打包 | v1.2 | 2/2 | Complete | 2026-05-29 |
+| 13. Electron 壳与 IPC | v1.2 | 2/2 | Complete | 2026-05-29 |
 | 14. 构建流水线 | v1.2 | 0/3 | Planned | - |
 
 ---
