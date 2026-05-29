@@ -1,231 +1,213 @@
-# Project Research Summary
+# CTRX v1.3 研究摘要
 
-**Project:** CTRX v1.2 -- Electron Desktop Packaging Milestone
-**Domain:** Electron desktop shell wrapping an existing FastAPI + Vue 3 SPA with PostgreSQL to SQLite migration
-**Researched:** 2026-05-28
-**Confidence:** HIGH
+**项目:** 合同要素抽取（CTRX）— 多文件并行与详情页重构  
+**领域:** Electron 桌面 · FastAPI + Vue 3 + SQLite（v1.2 基座不变）  
+**调研日期:** 2026-05-29  
+**整体置信度:** HIGH（栈/功能/架构基于仓库与 `PROJECT.md`）；页码端到端为 MEDIUM
+
+---
 
 ## Executive Summary
 
-CTRX v1.2 is a well-scoped migration milestone: an already-shipped web app (upload, extract, validate, export contract data via LLM) gains a native Windows and Linux desktop installer. The core pattern -- Electron main process spawning a PyInstaller-bundled FastAPI subprocess, with the Vue SPA loaded as static files -- is a mature, well-documented approach with clear precedents (Ollama Desktop, local AI tools). The technology choices have high confidence: Electron 42 + electron-builder 26 for the shell, PyInstaller 6.20 for the Python binary, SQLite replacing PostgreSQL, and electron-store for LLM credential persistence.
+CTRX v1.3 在 **已交付的 v1.2 桌面栈** 上做增量演进：不引入 Celery、Pinia 或新表格库，核心是用 **stdlib `ThreadPoolExecutor(3)`** 替代「多次 `BackgroundTasks.add_task`」的假并行，用 **vue-router 嵌套 children + Element Plus 子菜单** 拆解 v1.2 的 `JobDetail.vue` 单体页，并保留「每 docx 一 job、五表 xlsx + 路径 B 手录」的业务闭环。
 
-The single largest risk is not the Electron integration itself but the PostgreSQL-to-SQLite migration hiding in the codebase. All seven existing Alembic migrations and the ContractFile model use PostgreSQL-specific dialect types (postgresql.JSONB, postgresql.UUID) that must be replaced with SQLAlchemy generic types (sa.JSON, sa.String(36)) before any packaging work begins. A second structural problem is that PROJECT_ROOT and storage_path are computed relative to __file__ -- paths that point into a read-only or ephemeral PyInstaller _MEIPASS temp directory when packaged. These two issues will cause silent data corruption and invisible file loss if not corrected in the first phase.
+产品形态仍是 **运营半自动录入工具**：一次最多 3 份 docx 并行解析，详情区变为 **Hub 总览 + 六页工作流**（五张导入表 + 字段 B），每页三件套为可编辑 preview、摘录核对表（字段/值/页码/原文）、单表下载。Hub 只做摘要与导航，避免重复 v1.2 长页堆叠。
 
-The recommended approach is three sequential phases: (1) SQLite migration and path correctness, (2) PyInstaller binary build and smoke-test on a clean VM, (3) Electron shell, first-run wizard, and packaging. This ordering is load-bearing: the SQLite code must work correctly in pure Python before it is bundled, and the binary must be verified on a clean machine before Electron IPC is layered on top. Skipping ahead produces compound failures that are difficult to diagnose. Docker deployment is explicitly preserved -- no changes are required to the server path.
----
-
-## Key Findings
-
-### Recommended Stack
-
-The desktop build adds a thin layer of new dependencies on top of the existing stack. Electron 42 wraps the Vue SPA and manages the Python subprocess lifecycle. electron-builder 26 produces the NSIS .exe installer (Windows) and AppImage (Linux) from a single electron-builder.yml. PyInstaller 6.20 compiles the FastAPI + Uvicorn + SQLAlchemy stack into a --onedir binary bundle (never --onefile -- AV false-positive risk is too high). SQLite replaces PostgreSQL; SQLAlchemy 2.x ORM requires only a dialect swap and type substitutions, not a query rewrite. electron-store 11 persists LLM configuration in %APPDATA%/CTRX/settings.json on Windows.
-
-**Core technologies:**
-- **Electron 42** -- desktop shell, subprocess management, IPC; industry standard; ships Chromium + Node; well-tested on Windows and Linux
-- **electron-builder 26** -- NSIS and AppImage packaging; better extraResources control than Forge; required for Python binary bundling
-- **PyInstaller 6.20 (--onedir)** -- Python binary; only mature option for FastAPI + pydantic + lxml; pyinstaller-hooks-contrib covers all major deps automatically
-- **SQLite (stdlib sqlite3 + optional aiosqlite 0.22)** -- replaces PostgreSQL; no server required; SQLAlchemy 2.x handles dialect transparently
-- **electron-store 11** -- LLM config persistence; stores JSON in OS userData; ESM-only (requires type:module or pin to v10 for CJS main process)
-- **vite-plugin-electron 0.29** -- dev-mode integration; enables npm run dev to start Vite + Electron together
-- **wait-on ~8** -- startup gate; Electron waits for Python HTTP port before loading the renderer URL
-
-**Critical version note:** electron-store v11 is ESM-only. If the Electron main process uses CommonJS require(), pin to ^10.0.0.
-
-### Expected Features
-
-The v1.2 milestone adds desktop-specific UX on top of the shipped v1.1 feature set. The target user is non-technical operations staff on Windows who double-click an installer and configure once.
-
-**Must have (table stakes -- v1.2 launch):**
-- First-run setup wizard (3 steps: Welcome -> LLM credentials -> connection test) -- app is unconfigurable without it
-- Config written to userData/config.json (electron-store) -- must survive restarts; NOT a .env file at project root
-- Backend subprocess spawned at app start, config injected as env vars (OPENAI_API_KEY, OPENAI_BASE_URL, LLM_MODEL)
-- Backend startup loading overlay until /api/v1/health returns 200 -- cold start takes 8-20 seconds; user must not see blank screen
-- Subprocess failure dialog with restart button and log path -- actionable, not generic network error
-- Settings page at /settings route -- re-entry after API key rotation
-- App menu with Quit + Settings shortcut + About
-- About dialog showing app.getVersion() -- needed for support ticket escalation
-
-**Should have (v1.2.x after validation):**
-- Backend log tail (last 50 lines) in Settings -- add when IT support tickets arrive
-- Model name presets dropdown -- add when model selection becomes frequent operation
-- Re-run wizard button in Settings -- add when first key rotation occurs
-- Masked API key display (sk-...****) -- trust indicator
-
-**Defer (v2+):**
-- Auto-update via electron-updater -- requires release server; over-engineered for a 2-person ops team
-- System tray background operation -- not an always-on tool; wastes memory on shared workstations
-- Multi-account / workspace profiles -- ops team shares one API account per org policy
-
-**Keystone dependency:** the config read/write layer (electron-store + IPC channels) must be a single abstraction shared by both wizard and settings page. If implemented independently, settings changes do not reach the backend on next restart.
-### Architecture Approach
-
-The architecture is a three-layer stack: Electron main process (Node.js) manages app lifecycle, spawns the Python subprocess, and owns IPC; the Renderer (Chromium, Vue 3 SPA from static dist/) makes HTTP calls to localhost as before; the PyInstaller binary runs FastAPI on port 18765. All mutable data -- SQLite file, uploads, exports, settings.json -- lives in app.getPath(userData) (%APPDATA%/CTRX on Windows, ~/.config/CTRX on Linux), completely separate from the read-only app bundle. The Vue SPA requires a one-line modification to api/client.ts to resolve an absolute http://127.0.0.1:{port}/api/v1 base URL via IPC, with a guard that leaves the existing relative URL intact for Docker/browser deployments.
-
-**Major components (new or modified):**
-
-1. **electron/main.ts** -- app entry, window creation, IPC hub (NEW)
-2. **electron/subprocess.ts** -- Python process spawn, health-poll loop (30s timeout, 300ms interval), crash recovery with 3-retry limit (NEW)
-3. **electron/ipc.ts** -- get-port, get-settings, save-settings, backend:restart, log:tail handlers (NEW)
-4. **electron/preload.ts** -- contextBridge.exposeInMainWorld -- the only surface the renderer can touch (NEW)
-5. **electron/settings-store.ts** -- electron-store read/write abstraction (NEW)
-6. **backend/desktop_main.py** -- PyInstaller entry point; reads CTRX_DATA_DIR, runs Alembic programmatically, starts uvicorn (NEW)
-7. **backend/app/config.py** -- adds get_user_data_dir() (checks sys.frozen), _bundle_root() (checks sys._MEIPASS), SQLite URL default (MODIFY)
-8. **backend/app/models/contract_file.py** -- postgresql.JSONB -> sa.JSON, postgresql.UUID -> sa.String(36) (MODIFY)
-9. **alembic/versions/001_init_sqlite.py** -- single fresh-schema migration replacing all 7 PostgreSQL migrations (NEW; old migrations archived)
-10. **frontend/src/views/SettingsView.vue** -- LLM settings page at /settings route (NEW)
-11. **ctrx.spec** -- PyInstaller spec with explicit hiddenimports list (NEW)
-12. **electron-builder.yml** -- NSIS + AppImage targets, extraResources, asarUnpack for Python binary (NEW)
-
-**Key patterns:**
-- Health-poll gate: never show main window until /api/v1/health returns 200
-- userData isolation: all mutable data in OS userData dir; bundle is read-only after install
-- Programmatic Alembic: alembic.command.upgrade(cfg, head) inside desktop_main.py, not a subprocess call
-- Dynamic API base: renderer calls window.electron.getPort() once at mount; falls back to relative URL when window.electron is undefined (Docker compat)
-
-### Critical Pitfalls
-
-1. **postgresql.JSONB/UUID dialect types in model and all 7 migrations** -- Replace with sa.JSON and sa.String(36) universally; write a single 001_init_sqlite.py. Symptom to catch: extraction_result returns Python str instead of dict.
-
-2. **PROJECT_ROOT and storage_path point into read-only _MEIPASS bundle** -- Add get_user_data_dir() that reads CTRX_DATA_DIR env var (set by Electron before spawning); store storage_path relative to CTRX_DATA_DIR, not PROJECT_ROOT. Silent symptom: uploads return 200 but no files written to disk.
-
-3. **PyInstaller missing hidden imports for FastAPI/uvicorn/pydantic dynamic loading** -- Maintain explicit hiddenimports in ctrx.spec covering at minimum: uvicorn.lifespan.on, uvicorn.protocols.http.auto, anyio._backends._asyncio, pydantic_core, pydantic_settings, sqlalchemy.dialects.sqlite.pysqlite, lxml.etree, lxml._elementpath, openpyxl.cell._writer, h11. Test on a clean VM with no Python installed.
-
-4. **PyInstaller --onefile triggers Windows Defender quarantine** -- Use --onedir exclusively; electron-builder wraps the directory so users never see it. Never use --onefile for this project.
-
-5. **asar packaging swallows the Python binary directory** -- Add asarUnpack: [resources/ctrx-backend/**/*] to electron-builder.yml. Assert fs.existsSync(backendExePath) before calling spawn().
-
-6. **lru_cache on get_settings() caches the PostgreSQL URL before SQLite URL is injected** -- Call get_settings.cache_clear() in desktop_main.py after env vars are set, before Alembic runs. Symptom: psycopg2.OperationalError in a packaged app that has no PostgreSQL.
-
-7. **Cold-start (8-20 seconds) perceived as crash** -- Show persistent loading splash from first frame; 30-second health-poll timeout; pipe Python stdout/stderr to log file; expose log path in error dialog.
----
-
-## Implications for Roadmap
-
-### Phase 1: SQLite Migration and Path Correctness
-
-**Rationale:** This is the blocker for everything else. The existing codebase contains PostgreSQL-specific type imports and a hard-coded PROJECT_ROOT path assumption that will silently corrupt data or fail to write files in any packaging scenario. These must be fixed and verified in pure Python before PyInstaller is introduced.
-
-**Delivers:** A working FastAPI + SQLite backend that runs with sqlite:/// URL, passes all existing API tests, reads/writes files to a configurable data directory, and has clean Alembic migrations with no PostgreSQL dialect dependencies.
-
-**Addresses (FEATURES.md):** Config persistence layer (the keystone dependency shared by wizard and settings page); backend startup precondition.
-
-**Avoids (PITFALLS.md):** Pitfall 1 (JSONB/UUID types), Pitfall 2 (PROJECT_ROOT writable path), Pitfall 4 (SQLite batch_alter_table), Pitfall 8 (Alembic wrong URL), Pitfall 9 (updated_at staleness), Pitfall 11 (storage_path wrong base).
-
-**Research flag:** Standard patterns. SQLAlchemy 2.x SQLite migration is well-documented; ARCHITECTURE.md provides exact code patterns. No additional research needed for planning.
+**主要风险** 集中在三类：(1) **全量 `PUT /preview` 在分表保存时清空其它表**；(2) **单 job 轮询模型无法支撑上传页 3 路进度**；(3) **页码字段尚未在 API/解析层统一**。缓解路径：优先 **分表 PATCH/GET preview API**、**`useJobsPoll` 注册表式轮询**、**python-docx 页分隔符估算页码**（不引入 PDF 引擎）。并行上限 3 既是产品约束，也是 SQLite/LLM/单进程 Python 的资源约束，需后端 409 守门 + 前端 `limit=3`。
 
 ---
 
-### Phase 2: PyInstaller Binary Build and Smoke Testing
+## Stack additions（v1.3 增补，无新运行时依赖）
 
-**Rationale:** PyInstaller must be verified in isolation on a clean machine before Electron IPC is layered on top. Compound failures (missing imports + wrong data paths + Electron spawn issues all at once) are extremely hard to diagnose. A passing smoke test on a clean Windows VM is the gate condition for Phase 3.
+| 增补 | 实现 | 用途 |
+|------|------|------|
+| 并行流水线 | `ThreadPoolExecutor(max_workers=3)` 单例，`pipeline_service` 提交 `run_pipeline` | 真并行 ≤3；勿依赖多个 BackgroundTask |
+| 批量上传（可选） | `files: list[UploadFile]` 或 3×`POST /upload` | 上传页多 docx |
+| 嵌套路由 | vue-router `children`：`/jobs/:id` + 五表 + `path-b` | Hub + 六页深链接 |
+| 详情子导航 | `JobDetailLayout` + `AppLayout` 内 `el-sub-menu` | 左侧可折叠五表 + 字段 B |
+| 多 job 轮询 | `useJobsPoll`（扩展 `useJobPoll`） | 上传页 ≤3 进度卡 |
+| 核对 UI | `el-table` + `el-input` 可编辑列 | 字段/值/页码/摘录 |
+| 页码 | python-docx `w:br[@w:type='page']` 估算 | **不**引入 docx2pdf/LibreOffice |
 
-**Delivers:** A ctrx-backend.exe (Windows) and ctrx-backend (Linux) that pass a full upload -> extract -> export smoke test on a machine with no Python or PostgreSQL installed, writing files to a CTRX_DATA_DIR test directory.
+**明确不引入:** Celery/ARQ、Pinia、AG Grid、aiosqlite、PDF 排版引擎。
 
-**Uses (STACK.md):** PyInstaller 6.20, ctrx.spec with explicit hiddenimports, --onedir mode.
-
-**Implements (ARCHITECTURE.md):** backend/desktop_main.py, ctrx.spec, _bundle_root() / get_user_data_dir() in config.py.
-
-**Avoids (PITFALLS.md):** Pitfall 2 (PROJECT_ROOT in packaged build), Pitfall 3 (hidden imports), Pitfall 6 (AV false positive from --onefile).
-
-**Research flag:** May need one rebuild iteration after first clean-VM test to catch LLM client transitive imports (openai SDK, httpx internals) not covered by the initial hiddenimports list.
-
----
-
-### Phase 3: Electron Shell, IPC, and First-Run Wizard
-
-**Rationale:** With a verified Python binary in hand, the Electron integration is straightforward plumbing. The main risks (subprocess lifecycle, port detection, asar packaging) are well-understood and addressable with known patterns. The first-run wizard and settings page are pure frontend work with no backend changes needed.
-
-**Delivers:** A launchable Electron app that spawns the Python binary, shows a loading splash until health check passes, displays the first-run wizard on first launch, and reaches the existing CTRX feature set. Settings page at /settings with LLM config.
-
-**Uses (STACK.md):** Electron 42, vite-plugin-electron 0.29, electron-store 11, wait-on ~8.
-
-**Implements (ARCHITECTURE.md):** electron/main.ts, subprocess.ts, ipc.ts, preload.ts, settings-store.ts, Vue SettingsView.vue, dynamic API_BASE in client.ts.
-
-**Addresses (FEATURES.md):** First-run wizard (P1), backend startup indicator (P1), subprocess failure error message (P1), settings page (P1), app menu + Quit (P1), About dialog (P1), masked API key display (P2).
-
-**Avoids (PITFALLS.md):** Pitfall 5 (port collision), Pitfall 7 (asar swallowing binary), Pitfall 10 (cold-start perceived crash), nodeIntegration security mistake.
-
-**Research flag:** Standard patterns. Electron subprocess management and IPC are thoroughly documented. No additional research needed.
+**版本/基座:** FastAPI 0.110+、Vue 3.5、Element Plus 2.9、Electron 42、SQLite WAL — 与 v1.2 一致。
 
 ---
 
-### Phase 4: Packaging, Installer Build, and Distribution
+## Feature priorities
 
-**Rationale:** Once the app runs correctly in electron . dev mode, electron-builder packaging is mostly configuration. The primary new risk is the asar/extraResources setup and Windows Defender behavior on the NSIS installer -- both testable with a clean VM.
+### P0 — 发布门槛（Must ship）
 
-**Delivers:** CTRX-Setup-1.2.0.exe (Windows NSIS installer) and CTRX-1.2.0.AppImage (Linux). Verified on clean Windows 11 VM with default Defender settings. Build pipeline documented.
+1. **上传页 ≤3 docx**：独立 job、并行进度、完成后进详情  
+2. **Hub**（`/jobs/:id`）：五表 + 字段 B 摘要、「进入详情」  
+3. **左侧子导航六页**：每页 — 可编辑区 + 摘录核对表 + 单表下载  
+4. **字段 B 专页**：业绩报酬/开放日摘录（页码就绪则显示，否则 follow-up）  
+5. **回归 v1.2**：设置向导、Electron、删除 job、五表 xlsx 正确性  
 
-**Uses (STACK.md):** electron-builder 26, NSIS target (Windows), AppImage + deb (Linux), GitHub Actions (two jobs: build-win on windows-latest, build-linux on ubuntu-latest).
+### P1 — Should ship
 
-**Implements (ARCHITECTURE.md):** electron-builder.yml, asarUnpack directive, 4-step build pipeline (PyInstaller -> Vite build -> tsc -> electron-builder).
+- Hub 上 Validation fail/warn 徽章 + 一键展开校验面板  
+- 路由切换 **dirty** 提示（`beforeRouteLeave`）  
+- 上传页「批量开始处理」（可选）  
 
-**Avoids (PITFALLS.md):** Pitfall 6 (AV quarantine via --onedir + code signing consideration), Pitfall 7 (asar unpack), Linux glibc version mismatch.
+### Defer（post-v1.3 / v2）
 
-**Research flag:** Standard patterns. Code signing setup may need additional research only if an EV certificate is obtained.
+- 按表局部 save（若 P0 用分表 API 则部分已覆盖）、PATHB 枚举映射、>3 队列/ZIP、DB 清理 UI、Linux clean-VM  
+
+### Anti-features（v1.3 禁止）
+
+- Hub 塞满 `ExportPreview` + 全量面板（重复 monolith）  
+- 六页各触发全量 LLM 校验  
+- >3 并行、CRM 自动录入、PDF/OCR、取消摘录列  
 
 ---
 
-### Phase Ordering Rationale
+## Architecture decisions
 
-- SQLite before PyInstaller: PostgreSQL-specific types cause runtime errors inside the bundle masked during Python dev mode. Fix at source and verify with unit tests before packaging.
-- PyInstaller before Electron: Isolates the two hardest failure modes (hidden imports, path resolution) to a phase with one variable. Once the binary is proven on a clean VM, Electron integration is additive plumbing.
-- Electron shell before packaging: electron . dev mode and packaged build differ only in asar. Building shell in dev mode confirms all IPC and subprocess logic; packaging phase adds only asar/installer wrapping.
-- No phase requires backtracking: each phase leaves a runnable, testable artifact the next phase builds on.
+### 路由与布局
 
-### Research Flags
+- **父路由** `JobDetailLayout`：`/jobs/:id` + `children`（Hub 默认、`product-elements` … `subscription-fee-rates`、`path-b`）  
+- **子菜单挂在 `AppLayout`**（非 Layout 内第二栏），`route.params.id` 动态链接  
+- **Hub**：元信息、stepper、摘要卡、`ValidationPanel`（job 级）、`WarningsList` — **无**大表格  
+- **表页** `JobTableView`：从 `ExportPreview` 拆单 tab + 核对表 + `downloadBlob(kind)`  
+- **字段 B** `JobPathBView`：自 `PathBPanel` 抽出，强化摘录/页码  
 
-**Phases with standard implementation (no additional research required):**
-- Phase 1 (SQLite migration): ARCHITECTURE.md provides exact code patterns for all type replacements and path functions
-- Phase 3 (Electron shell): IPC, contextBridge, subprocess lifecycle are mature, stable Electron APIs
-- Phase 4 (Packaging): electron-builder NSIS/AppImage targets are thoroughly documented
+### API（推荐新增）
 
-**Phases where one iteration may be needed after first test:**
-- Phase 2 (PyInstaller): hiddenimports list covers known deps; LLM client transitive imports should be verified against actual installed requirements on first clean-VM test
+| 端点 | 目的 |
+|------|------|
+| `GET/PUT /jobs/{id}/preview/{section}` | 分表读写，避免全量覆盖 |
+| `GET /jobs/{id}/verification/{table_key}` 或 review-rows | 核对表四列 JSON |
+| `count_in_progress` + `POST /run` → **409**（第 4 路） | 并行守门 |
+| `POST /upload/batch`（可选） | 简化上传状态机 |
+
+### 并发与数据流
+
+```
+选 1–3 docx → POST /upload (×n) → job_ids[]
+→ POST /run（未满 3 in-progress）→ useJobsPoll 批量 GET
+→ 完成 → /jobs/:id Hub → 子路由编辑 → 分表 PUT → 单表下载
+```
+
+- 每线程独立 `SessionLocal()`；SQLite WAL；**in-progress** 状态计入并发槽  
+- **Layout 单 poll + provide/inject**，子页不各自 `setInterval`  
+
+### 构建顺序（架构文档 5 步 → 路线图主题）
+
+1. 后端：并行守门 + 分表 preview API  
+2. 路由骨架 + `JobDetailLayout` + 子菜单  
+3. `JobTableView` 五表 + 分表 GET/PUT + 下载  
+4. Hub 摘要 + `JobPathBView`  
+5. `UploadView` 多文件 + 并行 run/轮询  
+
+---
+
+## Watch Out For（高发陷阱）
+
+| # | 陷阱 | 预防 |
+|---|------|------|
+| 1 | 单表保存走全量 `PUT /preview` → **其它表被 `or []` 清空** | **分表 PATCH/PUT** 或父级缓存全量 merge；契约测试未提交表行数不变 |
+| 2 | 多个 `BackgroundTasks` / 无池 → **假并行或 SQLite locked** | `ThreadPoolExecutor(3)` + 409 上限；3× pipeline 集成测（可 mock LLM） |
+| 3 | `useJobPoll` 单实例 → **上传页仅最后一个 job 更新** | `useJobsPoll` / 注册表，每 jobId 全局一条 poll 链 |
+| 4 | 路由切换卸载组件 → **未保存编辑丢失** | `dirtyTables` + `beforeRouteLeave`；Hub 仅摘要不拉全量 preview×5 |
+| 5 | 3 路并行 extract → **LLM 429/校验全 skipped** | 全局 `Semaphore(1)` 校验队列，或 Hub 显式「运行校验」 |
+| 6 | 子路径 `activeMenu` / 深链接刷新无 job 元数据 | 嵌套 `redirect`；父 Layout 一次 `loadDetail` |
+| 7 | 未保存即下载 → **旧 xlsx** | dirty 时禁用下载或强提示 |
+| 8 | 页码缺失却 UI 标「精确页码」 | 估算页标注「约第 N 页」或降级段落位置 |
+
+---
+
+## Recommended phase themes（路线图建议）
+
+基于依赖 **底→顶** 与陷阱耦合，建议 **5 个阶段主题**（可与 GSD phase 编号对齐）：
+
+### Theme 1：后端并行与分表契约
+**理由:** 阻塞真并行与分表 UI；陷阱 #1 #2 #8 的根因在此。  
+**交付:** `ThreadPoolExecutor(3)`、`count_in_progress` + run 409、`GET/PUT preview/{section}`、可选 `verification/{table_key}`、页码估算服务（MVP：estimated_page）。  
+**功能:** 并行解析守门、按表保存。  
+**规避:** 全量 PUT 清空、BackgroundTasks 假并行。  
+**研究标记:** 页码启发式需 **样本验证**（`/gsd-research-phase` 若合同样本复杂）。
+
+### Theme 2：详情路由骨架与导航
+**理由:** 前端信息架构前提；无此无法拆页。  
+**交付:** `JobDetailLayout`、`JobDetailSubMenu`、`JobHubView` 占位、嵌套 `children`、列表/上传跳转 Hub。  
+**功能:** Hub 入口、左侧六链。  
+**规避:** 双栏侧栏、Hub 嵌全量 ExportPreview（#4 #6）。  
+**研究标记:** 标准 vue-router 模式 — **可跳过深研**。
+
+### Theme 3：五表独立工作页
+**理由:** 核心业务 UX；依赖 Theme 1 分表 API。  
+**交付:** `JobTableView` ×5、核对表组件、单表下载、接分表 GET/PUT。  
+**功能:** 可编辑 + 摘录核对 + 下载（P0）。  
+**规避:** 六页各 poll、未保存下载（#3 #7）。  
+
+### Theme 4：Hub 摘要与字段 B 专页
+**理由:** 完成「总览仅入口」与路径 B 升级。  
+**交付:** Hub 卡片（行数/校验徽章）、`JobPathBView`、Validation 折叠/抽屉；扩展 PathB `page` 字段。  
+**功能:** Hub 摘要、字段 B 摘录+页码（页码可 partial 验收）。  
+**规避:** Hub N+1 全量 preview（#12）；六页各跑 LLM（#5）。  
+**研究标记:** 若 extraction 无 page 元数据 — **规划期 spike**。
+
+### Theme 5：多文件上传与并行进度 UI
+**理由:** 用户可见的 v1.3  headline；依赖 Theme 1 守门 + Theme 3 可跳转详情。  
+**交付:** `UploadView` `multiple` `limit=3`、`useJobsPoll`、并行 upload/run、进度卡、第四份 UI/API 拒绝。  
+**功能:** ≤3 并行上传与解析（P0）。  
+**规避:** 单 `activeJobId`、无 batch 契约混乱（#3 #7）。  
+**研究标记:** 可选 `POST /upload/batch` — 产品定夺即可。
+
+### Phase ordering rationale
+
+- **先后端契约再前端拆页**，否则分表保存必踩陷阱 #1。  
+- **路由骨架早于表页**，便于增量验收导航。  
+- **上传多文件放最后**，避免在无分表 API/无子路由时堆 UI 债务。  
+- Theme 1 与 Theme 5 共享并行栈研究结论，但 UI 依赖后端 409 与 poll 注册表。
+
+### Research flags
+
+| 主题 | 深研？ | 说明 |
+|------|--------|------|
+| Theme 1 页码 / verification API | **建议** | docx 无内置页码；`table_key` 映射需对照 `extraction_result` |
+| Theme 4 Hub 摘要字段 | **可选** | 扩展 `JobDetailResponse` vs 轻量 summary endpoint |
+| Theme 2 嵌套路由 | 跳过 | 项目已有 hash/history 双模式先例 |
+| Theme 3 Element 表格 | 跳过 | 与 v1.2 `ExportPreview` 同模式 |
+
 ---
 
 ## Confidence Assessment
 
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Stack | HIGH | All versions verified against npm registry and PyPI; compatibility matrix confirmed via Context7 (Electron, electron-builder, SQLAlchemy, electron-store) |
-| Features | HIGH | Patterns from stable Electron app UX conventions (Ollama, Cursor, DBeaver); IPC APIs stable since Electron 12 |
-| Architecture | HIGH | Health-poll gate, userData isolation, programmatic Alembic, dynamic API base are well-established; code snippets verified against existing codebase |
-| Pitfalls | HIGH | 9 of 11 pitfalls identified via direct codebase inspection of actual CTRX files; 2 (AV quarantine, hidden imports) from documented PyInstaller ecosystem issues |
+| 领域 | 置信度 | 说明 |
+|------|--------|------|
+| Stack | **HIGH** | 仓库现状 + FastAPI #13724 BackgroundTasks 串行 |
+| Features | **HIGH** | `PROJECT.md` + 组件直接检视 |
+| Architecture | **HIGH** | 路由/download kind 已对齐；分表 API 为推荐非强制 MVP |
+| Pitfalls | **HIGH** | `preview_edit_service` 全量语义、单 poll 已代码验证 |
+| 页码端到端 | **MEDIUM** | 启发式需合同样本；无 page 时字段 B 可降级验收 |
 
-**Overall confidence:** HIGH
+**整体:** HIGH（实施路径清晰），页码与核对 JSON API 为主要不确定性。
 
-### Gaps to Address
+### Gaps to address（规划期）
 
-- **electron-store v11 ESM caveat:** Determine module format of electron/main.ts at start of Phase 3. If CommonJS, pin electron-store to v10.
-- **LLM transitive hidden imports:** Run packaged binary against a real LLM call during Phase 2 smoke testing; the hiddenimports list may need one iteration for openai SDK or httpx internals.
-- **Linux glibc compatibility:** Build on ubuntu:22.04 Docker container for the Linux CI job to ensure glibc 2.35 compatibility; verify against target Debian/Ubuntu versions.
-- **Code signing for Windows:** Acceptable to skip for internal distribution to known machines. If SmartScreen blocks end users, an EV code signing certificate is the only complete fix.
+- **页码:** 解析层 `estimated_page` vs UI「约第 N 页」文案；PathB `source_snippets` 元数据扩展  
+- **核对 rows API:** 避免前端重复拼装与 `review_workbook` 列不一致  
+- **pending 是否占并发槽:** 与产品确认（仅 in-progress 计入为推荐）  
+- **按表 PUT vs 父级全量缓存:** Theme 1 必须二选一，勿混用  
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence)
+### 项目内（HIGH）
+- `contract_info/.planning/PROJECT.md` — v1.3 目标与 Out of Scope  
+- `contract_info/.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md`  
+- `backend/app/api/routes/jobs.py`, `services/pipeline_service.py`, `preview_edit_service.py`  
+- `frontend/src/composables/useJobPoll.ts`, `components/JobDetail.vue`, `ExportPreview.vue`  
+- `backend/tests/test_db_wal.py` — WAL 短写，非 pipeline 压测  
 
-- Context7 /electron/electron -- app.getPath, isPackaged, IPC (ipcMain.handle, contextBridge), BrowserWindow.loadFile, child process spawn
-- Context7 /electron-userland/electron-builder -- NSIS target, AppImage target, extraResources, asarUnpack
-- Context7 /sindresorhus/electron-store -- store.get, store.set, schema, ESM-only note
-- Context7 /websites/sqlalchemy_en_20 -- sa.JSON SQLite behavior, GUID TypeDecorator pattern, sqlite+aiosqlite dialect
-- PyPI pip index versions pyinstaller -- confirmed 6.20.0 latest stable
-- npm show electron version -- confirmed 42.3.0 latest stable
-- npm show electron-builder version -- confirmed 26.8.1 latest stable
-- Direct codebase inspection: backend/app/models/contract_file.py, alembic/versions/001-007, backend/app/config.py, backend/app/services/upload_service.py, frontend/src/api/client.ts
-
-### Secondary (MEDIUM confidence)
-
-- PyInstaller hidden imports list -- compiled from FastAPI/pydantic/uvicorn packaging issues (PyInstaller GitHub issues #4629, #6912 and community reports); needs clean-VM validation pass
-- SQLite ALTER TABLE DROP COLUMN compatibility -- SQLite release notes (3.35.0, 2021-03-12); batch_alter_table workaround from Alembic docs
-
-### Tertiary (LOW confidence -- validate during implementation)
-
-- Linux AppImage glibc compatibility -- based on general Linux packaging knowledge; verify with actual CI runner and target OS versions
-- electron-store ESM vs CJS decision -- depends on final electron/main.ts module format; resolve at Phase 3 start
+### 外部（MEDIUM–HIGH）
+- [FastAPI Discussion #13724](https://github.com/fastapi/fastapi/discussions/13724) — BackgroundTasks 顺序执行  
+- [vue-router Nested Routes](https://router.vuejs.org/guide/essentials/nested-routes.html)  
 
 ---
-*Research completed: 2026-05-28*
-*Ready for roadmap: yes*
+*研究完成: 2026-05-29*  
+*可进入路线图: 是 — 见 Recommended phase themes*

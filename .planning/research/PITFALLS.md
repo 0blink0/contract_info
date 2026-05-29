@@ -1,431 +1,225 @@
-# Pitfalls Research
+# 领域陷阱：CTRX v1.3
 
-**Domain:** Electron desktop packaging of an existing FastAPI + Vue + PostgreSQL app (CTRX v1.2)
-**Researched:** 2026-05-28
-**Confidence:** HIGH (based on direct codebase inspection + well-documented ecosystem issues)
+**领域：** 桌面合同抽取（FastAPI + Vue + SQLite + Electron）— 多文件并行（≤3）+ 详情六页路由重构  
+**调研日期：** 2026-05-29  
+**置信度：** HIGH（基于 `PROJECT.md`、`parse_service.py`、`useJobPoll.ts`、`pipeline_service.py`、`preview_edit_service.py`、现有前端路由与 v1.2 已交付基线）
 
----
-
-## Critical Pitfalls
-
-### Pitfall 1: `postgresql.JSONB` and `postgresql.UUID` imports survive SQLite migration in model and all seven Alembic migrations
-
-**What goes wrong:**
-Every column in `ContractFile` uses `postgresql.JSONB` and the primary key uses `postgresql.UUID`. All seven Alembic migrations import `from sqlalchemy.dialects import postgresql` and pass `postgresql.JSONB(...)` and `postgresql.UUID(as_uuid=True)` directly to `op.add_column` and `op.create_table`. SQLite does not have these dialect types. The engine will throw `CompileError: PostgreSQL dialect required` or silently create a TEXT column with no type coercion — meaning JSON columns read back as raw strings instead of dicts, and UUID columns read back as strings that break `.get(ContractFile, file_id)` comparisons.
-
-**Why it happens:**
-The original code was correct for PostgreSQL-only deployment. The dialect-specific type classes were not abstracted behind a compatibility layer because there was no need. When switching engines the imports still resolve (psycopg2 may not even be installed), but the dialect-specific compile path is invoked at DDL time.
-
-**How to avoid:**
-Replace ALL occurrences across the model AND migrations:
-- `postgresql.UUID(as_uuid=True)` → `sa.String(36)` with explicit `str(uuid)` serialization, OR use SQLAlchemy's `Uuid` type (2.0+ generic, works on SQLite)
-- `postgresql.JSONB(...)` → `sa.JSON()` (SQLAlchemy's generic JSON type, which uses TEXT on SQLite with automatic serialize/deserialize)
-Remove `psycopg2-binary` from the packaged requirements; add `aiosqlite` or use sync `sqlite3` (built-in).
-Write a single `compat_types.py` that exports `JSON_TYPE` and `UUID_TYPE` set conditionally on the database URL dialect, then import from there in both the model and migrations.
-
-**Warning signs:**
-- `ImportError: No module named 'psycopg2'` during PyInstaller boot (psycopg2 binary is not included)
-- `extraction_result` comes back as a Python string `'{"fields": ...}'` instead of a dict — symptom of JSON not being deserialized
-- `record.extraction_result["fields"]` raises `TypeError: string indices must be integers`
-
-**Phase to address:**
-SQLite migration phase (before any PyInstaller work; SQLite must be working in pure Python before packaging begins)
+> v1.2 桌面化/SQLite/PyInstaller 类陷阱已在里程碑 11–14 收口。本文档仅针对 **v1.3 多文件并行与 JobDetail 六页拆分**。
 
 ---
 
-### Pitfall 2: `PROJECT_ROOT` resolves to the `.app` bundle or temp `_MEIPASS` dir, not a writable location
+## 严重陷阱（可能导致数据丢失、假并行或大面积返工）
 
-**What goes wrong:**
-`config.py` computes `PROJECT_ROOT = Path(__file__).resolve().parents[2]`. In development this is the repo root. Under PyInstaller one-dir mode, `__file__` resolves inside the unpacked `_MEIPASS` temp directory. Writes to `PROJECT_ROOT / "uploads"` and `PROJECT_ROOT / "exports"` go into the read-only bundle directory. On Windows this fails silently (UAC-protected paths inside `%LOCALAPPDATA%\Temp`) or raises `PermissionError`. The app appears to accept uploads but produces no output files and logs nothing because the error is swallowed in `persist_upload`.
+### 陷阱 1：单表保存误用 `PUT /preview` 全量契约，清空其它四张表
 
-**Why it happens:**
-`Path(__file__).parents[N]` is the standard development idiom. It is never tested against a packaged layout where the source tree does not exist. PyInstaller sets `sys._MEIPASS` for the temp extraction dir but does not set anything for "where should I write user data."
+**会出现什么问题：**  
+`apply_preview_edits` 对缺失字段使用 `payload.get("fee_rows") or []` 等默认值。若六页拆分后某页只提交 `product_rows`，其余表键缺省 → 后端收到空列表 → `_apply_list_table_edits` 将 `extraction["fee_rates"]` 等写成 `[]`，并 `persist_export` 重生成 Excel。**其它表数据被静默抹除。**
 
-**How to avoid:**
-Add a `get_user_data_dir()` function to `config.py` that checks `sys.frozen` (set by PyInstaller):
-```python
-def get_user_data_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        # Electron sets CTRX_DATA_DIR before spawning the Python subprocess
-        data_dir = os.environ.get("CTRX_DATA_DIR")
-        if data_dir:
-            return Path(data_dir)
-        # Fallback: platform user data dir
-        if sys.platform == "win32":
-            return Path(os.environ["APPDATA"]) / "CTRX"
-        return Path.home() / ".ctrx"
-    return PROJECT_ROOT
-```
-Electron's main process must set `CTRX_DATA_DIR` to `app.getPath('userData')` before spawning the Python subprocess. `uploads/` and `exports/` are then created inside that dir at startup.
+**根因：**  
+v1.1 的 `ExportPreview.vue` 在单组件内持有完整 `JobPreview`，保存时始终提交五表全量字段（见 `onSave`）。六页后每页天然只编辑局部，但 API 仍是全量语义。
 
-**Warning signs:**
-- Upload returns 200 but no file appears in `uploads/`
-- Export says "exported" but download returns 404
-- Works in `python -m uvicorn` dev mode, breaks in packaged form
+**后果：** 运营在「申赎费率」页点保存后，产品要素/运营费率 xlsx 变空或缺行；难以从 UI 察觉，直到 CRM 导入失败。
 
-**Phase to address:**
-PyInstaller packaging phase; verify with a smoke test that writes and reads a file through the full upload → export pipeline in the packaged binary before touching Electron IPC
+**预防：**
+- **方案 A（推荐）：** 按表拆分 `PATCH /jobs/{id}/preview/{table}`，服务端只 merge 对应 `list_key` / `product_elements` 子集。
+- **方案 B：** 保留全量 PUT，但前端用 **Pinia/父 layout 缓存完整 preview**，子页保存前 merge 再提交；路由离开前 `onBeforeRouteLeave` 拦截 `dirty`。
+- 契约测试：单表 payload 不得改变未提交表的 `extraction_result` 行数。
+
+**预警信号：**
+- 单表保存后 `GET /preview` 其它 `*_rows` 长度变 0
+- 保存成功但某张 xlsx 体积骤降
+- 集成测试只测单表编辑路径
+
+**关联代码：** `preview_edit_service.py` 第 83–107 行；`ExportPreview.vue` 第 76–86 行。
 
 ---
 
-### Pitfall 3: PyInstaller misses hidden imports for FastAPI/uvicorn/pydantic dynamic loading
+### 陷阱 2：误以为 `BackgroundTasks` 或多次 `POST /run` 即「三文件真并行」
 
-**What goes wrong:**
-PyInstaller's static analysis cannot follow dynamic imports. FastAPI uses `anyio` as its async backend (uvicorn[standard] pulls in `uvloop` on Linux and `asyncio` on Windows). Pydantic v2 has a Rust core (`pydantic_core`) and dynamic validator factories. `pydantic_settings` uses importlib entry points. `python-docx` loads `lxml` via optional import. Any of these missing produces `ModuleNotFoundError` that only appears at runtime inside the packaged binary, not during the build.
+**会出现什么问题：**  
+当前 `run_job` 仅 `background_tasks.add_task(run_pipeline, job_id)`（`jobs.py`）。`run_pipeline` 为 **同步 CPU 密集**（`parse_file_id` → `persist_extract` → `persist_export`）。在 **单 worker Uvicorn** 下：
+- 同一请求内多个 `add_task` 在 Starlette 中 **顺序执行**；
+- 多请求并发时虽可能进入线程池，但默认池大小、GIL、单进程 SQLite 写入仍易形成 **实际串行或长时间 `database is locked`**。
 
-**Why it happens:**
-`pyinstaller --onedir backend/app/main.py` only traces static `import` statements. Dynamic imports via `importlib`, `__import__`, or plugin systems are invisible to the analysis phase.
+**根因：**  
+`parse_service.parse_file_id` 在独立 `SessionLocal` 中短事务提交后做 `parse_docx`（CPU），但 extract/export/validation 仍长时间占线程并频繁写库；未设计 **显式并发上限（3）与队列**。
 
-**How to avoid:**
-Maintain an explicit `hiddenimports` list in `ctrx.spec`:
-```python
-hiddenimports = [
-    # uvicorn / anyio
-    "uvicorn.lifespan.on",
-    "uvicorn.protocols.http.auto",
-    "uvicorn.protocols.websockets.auto",
-    "anyio._backends._asyncio",
-    # pydantic
-    "pydantic.deprecated.class_validators",
-    "pydantic_core",
-    "pydantic_settings",
-    # SQLAlchemy dialects
-    "sqlalchemy.dialects.sqlite",
-    "sqlalchemy.dialects.sqlite.pysqlite",
-    # docx / lxml
-    "lxml.etree",
-    "lxml._elementpath",
-    "docx",
-    # openpyxl
-    "openpyxl.cell._writer",
-    # httpx
-    "httpx._transports.default",
-    "h11",
-    # encoding
-    "encodings.utf_8",
-    "encodings.idna",
-]
-```
-After every dependency upgrade, run the packaged binary against all five export paths and the LLM path, not just the health endpoint.
+**后果：** 上传页显示 3 个「处理中」，实际逐个完成；或间歇 500/`OperationalError: database is locked`；Electron 单 Python 子进程 CPU 打满导致 UI 卡顿。
 
-**Warning signs:**
-- `ModuleNotFoundError: No module named 'anyio._backends._asyncio'` on first launch
-- Health check passes but `/api/v1/upload` hangs with no error (async backend not loaded)
-- Works on dev machine (Python env present), fails on clean test VM
+**预防：**
+- 引入 **`asyncio.Semaphore(3)` 或 `ThreadPoolExecutor(max_workers=3)`** 的 `job_runner`，`POST /run` 只入队；拒绝第 4 个活跃 pipeline（409 + 明确文案）。
+- 保持 **每 job 独立 `file_id` 目录**（已满足），避免共享写路径。
+- 压测：`test_db_wal.py` 仅覆盖短 INSERT；需加 **3× 完整 pipeline** 集成测试（可 mock LLM）。
+- 文档写明：v1.3 并行上限是 **业务约束 + 资源约束**，不是「无限扩展」。
 
-**Phase to address:**
-PyInstaller packaging phase; add a CI job that runs packaged binary on a clean Windows VM (no Python installed)
+**预警信号：**
+- 3 份合同总耗时 ≈ 单份 × 3
+- 日志交替出现 `busy_timeout` / `database is locked`
+- 任务状态长期停在 `parsing` 仅一份在前进
+
+**关联代码：** `jobs.py` `run_job`；`pipeline_service.run_pipeline`；`session.py` WAL pragma。
 
 ---
 
-### Pitfall 4: SQLite `ALTER TABLE ADD COLUMN` works but `ALTER TABLE DROP COLUMN` and type changes do not
+### 陷阱 3：`useJobPoll` 单实例模型无法支撑上传页 3 job 进度
 
-**What goes wrong:**
-Alembic's `downgrade()` functions call `op.drop_column(...)`. SQLite does not support `ALTER TABLE DROP COLUMN` in versions before 3.35 (released 2021). Windows ships SQLite 3.31 in many system installs. PyInstaller bundles its own Python, which ships a specific SQLite version. The `pysqlite` dialect silently ignores unsupported ALTER statements in some SQLAlchemy versions, causing the schema to diverge from what Alembic's version table says. The next upgrade migration then fails with a "table already has column X" error.
+**会出现什么问题：**  
+`useJobPoll(jobId, status, onUpdate)` 每个实例 **一个 `setInterval`（2s）**。`UploadView` 仅维护 `activeJobId` + 单一 `status`（`UploadView.vue`）。v1.3 需同时展示 ≤3 份进度时：
+- 若只 poll 最后一个 jobId → 前两份状态冻结在 `parsing`；
+- 若复制 3 份 composable → 6s 内 6 次 `GET /jobs/{id}`，且 `status` ref 与列表项易错位；
+- 子路由再挂载 poll → **重复轮询同一 job**。
 
-**Why it happens:**
-The seven existing Alembic migrations were written for PostgreSQL, which supports full ALTER TABLE. The `downgrade()` paths have never been exercised against SQLite.
+**根因：**  
+轮询与终端状态判断（`TERMINAL`、`PIPELINE_POLL`）绑定在 composable 内，无 **jobId → 订阅者** 注册表；`onUpdate` 写单个 `detail` ref。
 
-**How to avoid:**
-For the SQLite version of migrations, use the `batch_alter_table` context manager for ALL column modifications, including drops:
-```python
-with op.batch_alter_table("contract_files") as batch_op:
-    batch_op.drop_column("old_column")
-```
-`batch_alter_table` works by creating a new table, copying data, dropping old, renaming — compatible with all SQLite versions. Set `render_as_batch=True` in `alembic/env.py` when the dialect is SQLite.
+**后果：** 用户以为某份已完成仍显示「处理中」；或完成后未刷新列表；离开上传页后后台 job 无人 poll（若未在列表页补 poll）。
 
-**Warning signs:**
-- `OperationalError: near "DROP": syntax error` during Alembic downgrade
-- Schema version table says "007" but `validation_result` column is missing
-- Alembic `upgrade head` fails on second install with "duplicate column name"
+**预防：**
+- 实现 **`useJobPollRegistry`**（Map<jobId, Set<listener>>，单定时器 tick 批量 `getJob`）或在上传页用 **一个** `setInterval` + `Promise.all` 拉取活跃 id 列表。
+- 规则：**每个 jobId 全局最多一条 poll 链**；Hub/子页通过 store 读缓存，不各自 `setInterval`。
+- `activate()` 在批量 `POST /run` 后对 **每个** id 调用一次。
 
-**Phase to address:**
-SQLite migration phase; specifically add a test that runs `alembic upgrade head` on a fresh SQLite file AND on a file already at revision 005
+**预警信号：**
+- Network 面板同一 `job_id` 每 2s 出现 2+ 条 GET
+- 多文件卡片状态与进入详情页后不一致
+- `forcePoll` 仅作用于最后一个 id
 
----
-
-### Pitfall 5: Port 18765 (or any fixed port) collision causes silent Python process death
-
-**What goes wrong:**
-Electron spawns the Python subprocess with `uvicorn --port 18765`. If that port is in use (previous crashed instance, another app, Windows reserved port range), uvicorn raises `OSError: [Errno 98] Address already in use` and exits with code 1. Electron's main process typically checks `process.exitCode` only in the `close` event handler, which fires asynchronously. The renderer has already loaded `index.html` and started polling `/api/v1/health`. It gets `ERR_CONNECTION_REFUSED` for 30 seconds before showing an error. The user sees a white screen with network errors, not a helpful message.
-
-**Why it happens:**
-Fixed port + fire-and-forget subprocess spawning + async event handling. The standard pattern for spawning subprocesses in Electron does not include synchronous "wait for port to be open" logic.
-
-**How to avoid:**
-Use port discovery: before spawning, find a free port with a short Node.js snippet (`net.createServer().listen(0)`), pass it to the Python subprocess as `--port`, and store it in a module-level variable for use in all renderer `fetch()` calls. Implement a startup health-check loop in main.js that polls `http://127.0.0.1:{port}/api/v1/health` every 300ms for up to 15 seconds before showing the main window (`mainWindow.show()` deferred until health check passes). If health check times out, show an error dialog, not a blank screen.
-
-**Warning signs:**
-- App opens to white/blank screen on second launch after crash
-- `EADDRINUSE` in Electron stderr but no user-visible error
-- Works in dev (Vite dev server avoids the port), breaks in packaged form
-
-**Phase to address:**
-Electron process management phase; test specifically with a mock process holding port 18765
+**关联代码：** `useJobPoll.ts`；`UploadView.vue`；`JobDetail.vue` watch + poll。
 
 ---
 
-### Pitfall 6: Windows Defender / antivirus flags PyInstaller one-file binaries
+### 陷阱 4：六页路由拆分后「未保存编辑」在 Hub ↔ 子页导航间丢失
 
-**What goes wrong:**
-PyInstaller `--onefile` mode creates a self-extracting archive that drops files to `%TEMP%\_MEIxxxxxx` and executes them. This is identical behavior to many malware packers. Windows Defender and third-party AV products quarantine or block execution. The `.exe` silently disappears from the user's Downloads folder or the installer fails with "access denied" during extraction. This is a known, documented PyInstaller issue with no complete fix — only mitigations.
+**会出现什么问题：**  
+`ExportPreview` 用组件内 `dirty` + `watch(jobId, status)` 重新 `loadPreview()`（会 **丢弃本地编辑**）。拆成 6 个 route 后，每次 `router.push` 卸载组件 → 未点「保存」的表格行丢失。Hub 总览若每表嵌预览，还会 **重复请求** `GET /preview`（payload 大）。
 
-**Why it happens:**
-`--onefile` uses the same executable-packing technique as common malware. The heuristic is triggered by the self-extraction to temp dir + execution pattern, not by the actual code.
+**根因：**  
+状态在叶子组件，不在 **job 级 store**；无 `beforeRouteLeave` / `onBeforeUnmount` 守卫；v1.3 需求要求每页可编辑 + 摘录核对，编辑会话长于单页停留时间。
 
-**How to avoid:**
-Use `--onedir` mode (not `--onefile`). `--onedir` produces a directory of files, not a self-extracting single binary. Electron Builder then wraps the entire directory, so the user never sees it. This eliminates the temp-dir extraction entirely. Additionally: obtain a code-signing certificate (EV cert for strongest SmartScreen signal) before distributing. Add an NSIS or Squirrel installer wrapper (Electron Builder handles this) so the installer is signed, not just the executable. Do NOT use `--onefile` for this project.
+**后果：** 运营在多表间核对时反复丢改；对「保存并重新生成 Excel」信任下降。
 
-**Warning signs:**
-- Test on a fresh Windows machine, not the dev machine (Defender exclusions may be in place)
-- `This app can't run on your PC` dialog
-- Installer completes but `.exe` is absent from install directory
+**预防：**
+- `stores/jobPreview.ts`：`previewByJobId[jobId]` + `dirtyTables: Set<TableKind>`。
+- 子页只读写自己表切片；保存仍走全量或 PATCH（见陷阱 1）。
+- Hub 仅展示 **摘要**（行数、校验 fail 数、`JobDetail` 已有字段），点击进入子页再加载全量。
+- 统一「离开未保存」对话框（与 Electron 关闭窗口无关，但 hash 路由内同样必要）。
 
-**Phase to address:**
-Windows build pipeline phase; test on a clean Windows VM with default Defender settings before declaring the build ready
+**预警信号：**
+- 切换侧栏菜单后表格恢复为服务端旧值
+- Hub 打开即触发 5 次相同 preview 请求
+- E2E 无「编辑→切换路由→再回来」用例
 
----
-
-### Pitfall 7: `asar` packaging swallows the Vue `dist/` or the Python binary directory
-
-**What goes wrong:**
-Electron Builder by default packs all files under `resources/` into an `app.asar` archive. Files inside `asar` are read-only and cannot be executed as child processes. If `electron-builder.yml` places the PyInstaller output directory inside the default asar scope, the `child_process.spawn()` call in main.js fails with `ENOENT` or `EACCES` because the path resolves into the asar virtual filesystem, not a real disk path.
-
-**Why it happens:**
-`electron-builder` uses `asar: true` by default. The developer adds the PyInstaller dist directory to `extraResources` or `files` without realizing it falls inside the asar scope. The error message references a real-looking path that happens to be inside `app.asar`.
-
-**How to avoid:**
-In `electron-builder.yml`, explicitly mark the Python binary directory as `asarUnpack`:
-```yaml
-asarUnpack:
-  - "resources/python-backend/**/*"
-```
-Or place the PyInstaller output outside the asar entirely using `extraResources` with a `filter`. The spawned process path must resolve to a real filesystem path — test with `fs.existsSync(backendExePath)` before calling `spawn()`.
-
-**Warning signs:**
-- `spawn ENOENT` error in Electron main process for the Python executable path
-- Path looks correct when logged but `fs.existsSync` returns false
-- Works in `electron .` dev mode (no asar), breaks in packaged build
-
-**Phase to address:**
-Electron Builder / packaging phase; add a startup assertion that checks the backend binary exists on disk before spawning
+**关联代码：** `ExportPreview.vue` `dirty`/`loadPreview`；`JobDetail.vue` 单页聚合 `ValidationPanel`/`PathBPanel`。
 
 ---
 
-### Pitfall 8: Alembic runs at startup against a read-only or wrong SQLite path
+### 陷阱 5：三 pipeline 并行触发 LLM 校验风暴（配额、耗时、失败语义）
 
-**What goes wrong:**
-The app calls `alembic upgrade head` (or equivalent) on startup to ensure the schema is current. If called before `CTRX_DATA_DIR` is set, Alembic uses the fallback `database_url` from `Settings` which points to `postgresql+psycopg2://...`. On a user machine with no PostgreSQL, this raises `OperationalError` or hangs indefinitely trying to connect. Alternatively, if the SQLite path is constructed from `PROJECT_ROOT` (which is inside the bundle), the DB file is created in a read-only location and every write raises `sqlite3.OperationalError: attempt to write a readonly database`.
+**会出现什么问题：**  
+`persist_extract` 内同步调用 `persist_validation`（`extract_service.py`）。三份合同同时 extract → **3 路 `run_llm_validation_sync`**。桌面端共用 Settings 中单一 API Key；易触发 **429/超时**，且某一 job `validation_result` 为 skipped/failed 而其它成功，UI 若只在总览显示 aggregate 易误判。
 
-**Why it happens:**
-Migration logic was written assuming the database URL comes from `.env` which is not present in packaged builds. The Settings class uses `lru_cache`, so the wrong URL is cached for the entire process lifetime.
+**根因：**  
+校验与抽取绑在同一事务路径，无 **全局限流**；v1.2 单 job 场景未暴露问题。
 
-**How to avoid:**
-At packaged startup:
-1. Electron sets `CTRX_DATA_DIR` env var BEFORE spawning Python
-2. Python startup script (not `main.py` directly) reads `CTRX_DATA_DIR`, constructs `sqlite:////<data_dir>/ctrx.db`, and sets `DATABASE_URL` env var
-3. Call `Settings.model_validate(...)` freshly (or clear `lru_cache`) so the new URL is picked up
-4. Run `alembic upgrade head` programmatically using the correct engine
-5. Only then start uvicorn
+**后果：** 并行名义上成功但校验全跳过；运营以为「已校验」实则 `validation_available: false`。
 
-**Warning signs:**
-- `psycopg2.OperationalError: could not connect to server` in packaged app logs (should never see postgres errors)
-- DB file created inside `_MEIPASS` temp dir
-- App works on first launch, breaks after reboot (temp dir cleaned, DB gone)
+**预防：**
+- 全局 **`LLMValidationSemaphore(1)`** 或串行队列（并行只针对 parse/extract/export，校验排队）。
+- 或 v1.3 将校验改为 **显式按钮**（Hub 上「运行校验」），与 pipeline 解耦。
+- Job 卡片展示 **校验状态**（skipped/fail/ok），不只显示 `exported`。
 
-**Phase to address:**
-SQLite migration phase (correct URL construction) + Electron process management phase (env var handoff ordering)
+**预警信号：**
+- 三 job 同时 exported 但 `validation_available` 均为 false
+- 后端日志集中 burst 后长时间无 LLM 日志
+- 单 job 重试校验成功、并行时失败
 
 ---
 
-### Pitfall 9: `updated_at` auto-update via `onupdate=func.now()` silently does nothing in SQLite
+## 中等陷阱
 
-**What goes wrong:**
-`ContractFile.updated_at` uses `onupdate=func.now()`. In PostgreSQL, `func.now()` is a server-side function. In SQLite, SQLAlchemy translates `func.now()` to the CURRENT_TIMESTAMP SQL function for the `server_default`, but `onupdate` is a Python-side ORM event — it sets the column value when SQLAlchemy issues an UPDATE. However, if the column is not explicitly included in the UPDATE statement (e.g., bulk updates via `session.execute(update(ContractFile)...)`), `onupdate` is silently skipped. Status transitions in `pipeline_service.py` that set `record.status = "exporting"` and then `session.commit()` may leave `updated_at` stale.
+### 陷阱 6：子路由与 Electron `createWebHashHistory` 的菜单高亮、深链接
 
-**Why it happens:**
-`onupdate` in SQLAlchemy ORM works only for ORM-style updates (object attribute mutation + commit), not for Core-style `UPDATE` statements. The inconsistency is documented but easy to miss.
+**会出现什么问题：**  
+当前仅 `/jobs/:id` 单路由（`router/index.ts`）。拆为 `/jobs/:id`、`/jobs/:id/product`、…、`/jobs/:id/path-b` 后，侧栏 `router-link` 的 `active-class` 对子路径匹配不当；刷新深链接时 **Hub 未加载** `jobId` 元数据。
 
-**How to avoid:**
-Replace `onupdate=func.now()` with a SQLAlchemy `@event.listens_for(ContractFile, "before_update")` hook, or use a `__init_subclass__` pattern that sets `updated_at = datetime.utcnow()` before each commit. Alternatively, accept that `updated_at` is best-effort and add a SQL trigger in the SQLite migration:
-```sql
-CREATE TRIGGER update_contract_files_updated_at
-AFTER UPDATE ON contract_files
-BEGIN
-    UPDATE contract_files SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
-END;
-```
-
-**Warning signs:**
-- `updated_at` always equals `created_at` in SQLite
-- Pipeline status transitions visible in `status` column but `updated_at` frozen
-
-**Phase to address:**
-SQLite migration phase; add a unit test that verifies `updated_at` changes on status transition
+**预防：**  
+嵌套路由 + `meta: { jobSection: 'product' }`；父 `JobLayout.vue` 负责 `loadDetail` **一次** + 提供 `jobId`；`redirect: '' → hub`。
 
 ---
 
-### Pitfall 10: First-run startup latency perceived as crash
+### 陷阱 7：并行上传接口仍按「单文件 `UploadFile`」设计
 
-**What goes wrong:**
-The PyInstaller `--onedir` binary must load Python's stdlib, all site packages, FastAPI, SQLAlchemy, pydantic, lxml, openpyxl, and run Alembic migrations before uvicorn begins accepting connections. On a cold HDD this takes 8–20 seconds. Electron shows the main window immediately (or after a 2-second splash), the renderer starts polling `/api/v1/health`, gets 15 consecutive `ERR_CONNECTION_REFUSED` errors, and React/Vue error handlers display a red error state. The user clicks the icon again, spawning a second Python process. Port conflict (Pitfall 5) then kills the first. The user files a bug: "app crashes on startup."
+**会出现什么问题：**  
+`upload.py` 仅 `file: UploadFile = File(...)`。前端若用 `el-upload` `multiple` 却循环 3 次 POST，需 **客户端限制 ≤3**、去重、失败部分回滚；否则第 4 个文件应 400。缺少 **batch 响应**（`job_ids[]`）时上传页状态机复杂。
 
-**Why it happens:**
-Web apps (FastAPI) start in milliseconds in development because Python is already loaded. The PyInstaller cold-start cost is invisible during development. Electron developers often assume the backend is "instant."
-
-**How to avoid:**
-Show a persistent loading state ("正在启动…") from the moment Electron opens until the health check succeeds. Do NOT show the main UI until health check passes. Set a generous timeout (20 seconds for first launch, 10 seconds for subsequent). Show a progress indicator, not a spinner-with-timeout. If startup exceeds 25 seconds, show a diagnostic dialog with the Python process stdout/stderr (pipe it through IPC). Add a `--preload` flag to the PyInstaller entry point that imports all heavy modules at startup time (rather than lazily), so the first request does not trigger an additional cold import.
-
-**Warning signs:**
-- Testers report "app crashes immediately" on a machine they've never used it on before
-- Works fine after being left open for 30 seconds (Python process eventually ready)
-- Electron `webContents.openDevTools()` shows 15+ failed fetch calls on startup
-
-**Phase to address:**
-Electron process management phase; specifically test on a cold Windows system with a spinning HDD, not an SSD dev machine
+**预防：**  
+`POST /upload/batch`（最多 3 files）返回 `{ jobs: [{ job_id, filename, status }] }`；或保留单文件 API 但文档化 **串行 upload + 并行 run** 的契约。
 
 ---
 
-### Pitfall 11: `storage_path` stored as relative path breaks when data dir changes between launches
+### 陷阱 8：`parse_service` 失败回滚与并行交叉
 
-**What goes wrong:**
-`upload_service.py` stores `storage_path = str(dest_file.relative_to(PROJECT_ROOT)).replace("\\", "/")` — a path like `"uploads/abc-123/contract.docx"`. This is relative to `PROJECT_ROOT`. In the packaged app, `PROJECT_ROOT` changes between PyInstaller versions (temp dir hash changes). If the user upgrades the app and the bundle extracts to a new `_MEIPASS` path, all existing DB records have invalid `storage_path` values. `parse_service.py` reconstructs the path as `PROJECT_ROOT / record.storage_path` which now points nowhere.
+**会出现什么问题：**  
+`parse_file_id` 在 `except` 中 `rollback` 后重新 `get` 行写 `failed`（`parse_service.py` 37–44）。高并发下若同一 `file_id` 被重复 `POST /run`（双击），可能出现 **状态竞态**（一个线程写 `parsed` 另一个写 `failed`）。
 
-**Why it happens:**
-Relative paths assume a stable base. `_MEIPASS` is intentionally ephemeral. The user data directory (`CTRX_DATA_DIR`) is stable across upgrades; the bundle directory is not.
-
-**How to avoid:**
-Store `storage_path` as relative to `CTRX_DATA_DIR`, not `PROJECT_ROOT`. When reading back: `get_user_data_dir() / record.storage_path`. On migration day, run a one-time DB migration that rewrites all existing paths (from relative-to-PROJECT_ROOT to relative-to-data-dir). Alternatively store absolute paths, but relative-to-data-dir is portable across installs.
-
-**Warning signs:**
-- After upgrading the app, all previously uploaded files return 404 on download
-- `FileNotFoundError` in logs references a path under `_MEIPASS` or old bundle dir
-
-**Phase to address:**
-SQLite migration phase (data dir path design) + PyInstaller packaging phase (smoke test upgrade scenario)
+**预防：**  
+`run_pipeline` 入口用 **乐观锁**：`UPDATE ... WHERE status IN (...)` 行数=1；或 `assert_can_run` 后立即将状态置为 `parsing` 并 commit（占坑）。
 
 ---
 
-## Technical Debt Patterns
+### 陷阱 9：单表下载与「保存后 regenerate」顺序
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Keep `postgresql.JSONB` in model, cast manually at read/write | Avoids model rewrite | JSON columns silently return strings; every caller needs `.json.loads()` defensively | Never — replace with `sa.JSON()` |
-| Use `--onefile` PyInstaller to ship single `.exe` | Simpler distribution | Antivirus quarantine; slow startup; no asar path clarity | Never for this project |
-| Skip Alembic for SQLite; call `Base.metadata.create_all()` instead | No migration complexity | Cannot upgrade existing installations without data loss | Only acceptable if this is a fresh-install-only product with no upgrade path (it is not) |
-| Hard-code port 18765 without fallback | Simpler IPC | Port conflicts cause silent failures; crashes on second launch | Acceptable only if port detection is added as a follow-up in the same phase |
-| Skip code signing for Windows | Saves $300-$500/year on EV cert | SmartScreen blocks all users; enterprise deployments fail | Acceptable for internal-only distribution to known machines; never for general release |
-| Store LLM API key in `app.json` in app data dir unencrypted | Simple config | Key exposed to any process running as same user | Acceptable for v1.2 (single-user desktop app); revisit if app runs as a service |
+**会出现什么问题：**  
+六页各带「单表下载」，若用户 **未保存** 编辑即下载，拿到旧 xlsx。v1.1 在 tab 内尚有上下文；分页后更易误解。
+
+**预防：**  
+下载前检查 `dirtyTables`；或下载 API 支持 `?from=preview` 从内存生成（复杂）；至少 UI 禁用 dirty 时下载并提示先保存。
 
 ---
 
-## Integration Gotchas
+## 轻微陷阱
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Electron → Python subprocess | Spawning with `exec()` instead of `spawn()` | Use `spawn()` with `stdio: ['pipe', 'pipe', 'pipe']` to capture stdout/stderr for diagnostics; `exec()` buffers all output and gives no signal until exit |
-| Electron → Python subprocess | Not handling `process.on('exit')` | Always attach exit handler; restart or show error dialog; without it the app silently loses its backend |
-| Electron renderer → FastAPI | Using `nodeIntegration: true` to call `fetch()` | Keep `contextIsolation: true`, `nodeIntegration: false`; use `fetch()` directly in renderer (it is available in Chromium) or expose specific IPC via `contextBridge` |
-| Electron → Python env vars | Setting env vars after `spawn()` call | Env vars must be passed as `{ env: { ...process.env, CTRX_DATA_DIR: ... } }` in the `spawn()` options object; cannot be set after process starts |
-| SQLAlchemy → SQLite | `pool_pre_ping=True` on SQLite | Remove `pool_pre_ping` or set to False for SQLite; it issues a `SELECT 1` which works but adds latency; SQLite connections don't need keepalive |
-| Alembic → SQLite | Missing `render_as_batch=True` in `env.py` | Set `context.configure(..., render_as_batch=True)` when dialect is SQLite; required for all column alterations |
-| openpyxl → PyInstaller | Template `.xlsx` files not found | Template files must be in `datas` in the `.spec` file: `datas=[("templates/*.xlsx", "templates")]`; they are NOT auto-included |
-| python-docx → PyInstaller | `docx` package data (default styles XML) not bundled | Add `datas=[("path/to/docx/templates", "docx/templates")]` to spec; missing causes `PackageNotFoundError` on first parse |
+### 陷阱 10：删除进行中 job 的 409 与并行列表
 
----
+`JobDeleteBusyError` 在 pipeline 中途删除返回 409。并行列表需 **禁用删除按钮** 与 `isInProgress` 同步，避免一份失败阻塞 UI。
 
-## Performance Traps
+### 陷阱 11：SQLite 文件体积与三份大 docx
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Running Alembic `upgrade head` on every startup | 200–500ms added to every launch | Run migration only when DB file is new or version mismatch detected; check `alembic_version` table first | Immediately noticeable on every cold start; worsens as migrations grow |
-| Loading all `openpyxl` template files at import time | 3–8 second startup penalty | Lazy-load templates at first export call, not at module import | Any time openpyxl is imported at top level in a module imported by `main.py` |
-| SQLite WAL mode not enabled | Write contention if Electron ever opens a second window or future multi-tab scenario | `PRAGMA journal_mode=WAL` on first connection | Under concurrent read+write; for single-user desktop this is low risk but worth setting |
-| `lru_cache` on `get_settings()` after env var injection | Stale settings read (postgres URL cached before SQLite URL set) | Clear cache before startup: `get_settings.cache_clear()` after env vars are set | Always, on first launch; cached wrong value persists for process lifetime |
+`parse_json` + `extraction_result` 三份同时膨胀，`CTRX_DATA_DIR/ctrx.sqlite` 快速增长；无清理 UI（ARCHITECTURE 已提示 v1.3 可考虑）。
+
+### 陷阱 12：Hub「六页摘要」与 `GET /jobs/{id}` 字段不足
+
+`JobDetailResponse` 无 per-table 行数/校验摘要；Hub 要么 N+1 调 preview，要么扩展 schema（注意 JSON 体积）。
 
 ---
 
-## Security Mistakes
+## 分阶段预警
 
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| `nodeIntegration: true` in BrowserWindow | Any XSS in renderer can call `require('child_process')` and execute arbitrary code | Keep default: `nodeIntegration: false`, `contextIsolation: true`; use `contextBridge.exposeInMainWorld()` for approved IPC only |
-| Accepting arbitrary file paths from renderer via IPC | Path traversal: renderer sends `../../.ssh/id_rsa` as upload target | Validate all paths in main process; never pass user-provided paths directly to `fs` operations |
-| LLM API key in plain `app.json` | Key visible to any process reading user's AppData | Acceptable for v1.2 (single-user, no remote access); for v2 use OS keychain (`keytar` package) |
-| CORS `allow_origins: "*"` in packaged app | Any web page can call the local FastAPI server | Set `cors_origins` to `app://` (Electron's custom protocol) or `null` for file:// loaded pages; never wildcard for a local server |
-| Electron `webSecurity: false` | Disables same-origin policy; enables CORS bypass | Never disable; load Vue from `http://127.0.0.1:{port}` (served by FastAPI static) or use Electron's custom protocol |
-
----
-
-## UX Pitfalls
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| No visible feedback during 8–20 second cold start | User assumes crash; double-clicks icon again; two processes conflict | Show OS-level splash (Electron `BrowserWindow` with splash HTML) immediately, defer main window until health check passes |
-| "Server error" shown when LLM key is not configured | First-run user has no context for what "server error" means | First-run wizard gates LLM configuration before any extraction is possible; extraction UI grays out if LLM not configured |
-| Download links pointing to `exports/` using absolute paths from packaged binary | Works on dev machine, 404 on user machine | All download endpoints must return paths relative to `CTRX_DATA_DIR`; Electron's `shell.openPath()` or IPC-mediated download is more reliable than HTTP file serving |
-| No way to see Python process logs | Crashes are invisible; users can't diagnose | Pipe Python stdout/stderr to a log file in `CTRX_DATA_DIR/logs/`; expose a "View Logs" button in the Settings page |
-| Settings page saves but requires restart to take effect | LLM key updated, extraction still fails with old key | `lru_cache` on `get_settings()` means new env values are ignored; either restart Python subprocess on settings save, or clear cache and reinitialize `LlmClient` via an endpoint |
+| 阶段主题 | 高发陷阱 | 缓解措施 |
+|----------|----------|----------|
+| 多文件上传 + 并行 run | #2 #7 #8 | 显式 worker 池 + batch API + 占坑状态 |
+| 上传页 3 路进度 UI | #3 #5 | Poll 注册表 + LLM 限流 |
+| 六页路由 + 侧栏 | #4 #6 #9 | Job layout store + 嵌套路由 |
+| 每页编辑/摘录/下载 | #1 #9 | PATCH 或全量 merge + dirty 守卫 |
+| Hub 总览 | #4 #12 | 扩展 detail 或轻量 summary endpoint |
 
 ---
 
-## "Looks Done But Isn't" Checklist
+## 来源
 
-- [ ] **SQLite migration:** Verify `extraction_result` column reads back as `dict`, not `str` — run `type(record.extraction_result)` assertion in a test
-- [ ] **PyInstaller binary:** Run packaged binary on a clean Windows VM with no Python installed; do not test only on the dev machine
-- [ ] **File writes:** After upload → extract → export cycle in packaged mode, confirm files exist on disk in `CTRX_DATA_DIR`, not inside `_MEIPASS`
-- [ ] **Port fallback:** Hold port 18765 with a test server, launch the app, verify it uses a different port and starts successfully
-- [ ] **Alembic on upgrade:** Install v1.2, create a job, upgrade to v1.3 schema, confirm the job row survives migration
-- [ ] **Settings persistence:** Save new LLM API key via Settings page, kill and relaunch app, confirm new key is used
-- [ ] **Linux AppImage:** Test on Ubuntu 22.04 and Debian 11 (glibc version matters); the PyInstaller binary links against the build machine's glibc
-- [ ] **asar unpack:** Confirm `fs.existsSync(backendExePath)` returns true in packaged build before spawn
-- [ ] **Antivirus:** Run packaged installer on a fresh Windows 11 VM with default Defender settings; confirm no quarantine dialog
-- [ ] **Offline launch:** Disconnect network, launch app, confirm it starts (should work; LLM features degrade gracefully, not crash)
-
----
-
-## Recovery Strategies
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| `postgresql.JSONB` in SQLite migration breaks | HIGH — schema corrupt, data may be unreadable | Drop and recreate DB (acceptable for desktop app with single user); write a data repair script that reads TEXT columns and re-inserts as proper JSON |
-| Wrong `storage_path` base after upgrade | MEDIUM | Write a one-time migration that re-anchors paths: find all rows where `storage_path` starts with old bundle prefix, rewrite to relative path |
-| PyInstaller hidden import missing | LOW — rebuild required | Add to `hiddenimports` in `.spec`, rebuild, redistribute; no data impact |
-| Port collision on startup | LOW | Kill lingering Python process (show PID in error dialog); app restarts cleanly |
-| Antivirus quarantine | MEDIUM | Sign binary (requires cert); rebuild with `--onedir`; submit to AV vendor for whitelisting |
-| `lru_cache` caching wrong settings | LOW | `get_settings.cache_clear()` + subprocess restart; document as known issue with workaround |
+| 来源 | 用途 | 置信度 |
+|------|------|--------|
+| `contract_info/.planning/PROJECT.md` v1.3 范围 | 需求边界（≤3、六页、Hub） | HIGH |
+| `backend/app/services/parse_service.py` | 解析事务与失败写回 | HIGH |
+| `backend/app/services/preview_edit_service.py` | 全量 PUT 清空风险 | HIGH |
+| `backend/app/services/pipeline_service.py` / `jobs.py` | BackgroundTasks 并行语义 | HIGH |
+| `frontend/src/composables/useJobPoll.ts` | 单 job 轮询模型 | HIGH |
+| `frontend/src/views/UploadView.vue` | 单 activeJobId | HIGH |
+| `backend/tests/test_db_wal.py` | WAL 仅验证短写，非 pipeline | HIGH |
+| Starlette BackgroundTasks 行为 | 同请求任务顺序执行 | MEDIUM（需实现时再验证线程池路径） |
 
 ---
 
-## Pitfall-to-Phase Mapping
+## v1.2 历史陷阱（已交付，勿在 v1.3 重复踩坑）
 
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| `postgresql.JSONB`/UUID dialect types | SQLite migration | Unit test: `type(record.extraction_result) == dict` after round-trip |
-| `PROJECT_ROOT` writable path assumption | SQLite migration + PyInstaller packaging | Integration test: full upload→export on packaged binary writing to temp data dir |
-| PyInstaller hidden imports | PyInstaller packaging | Clean VM smoke test: all 5 export paths exercised |
-| SQLite `batch_alter_table` for schema changes | SQLite migration | Test: `alembic upgrade head` on fresh file AND on file at revision 005 |
-| Port collision | Electron process management | Test: hold port, launch app, verify graceful fallback |
-| AV false positive on PyInstaller binary | Windows build pipeline | Clean Windows 11 VM with default Defender, no exclusions |
-| `asar` swallowing Python binary | Electron Builder / packaging | `fs.existsSync(backendExePath)` assertion before spawn |
-| Alembic running against wrong DB URL | SQLite migration + Electron process mgmt | Verify first line of Python startup log shows `sqlite://` not `postgresql://` |
-| `updated_at` silent staleness | SQLite migration | Unit test: status transition changes `updated_at` timestamp |
-| Cold-start perceived crash | Electron process management | Test on cold HDD machine; measure time from launch to health-check pass |
-| `storage_path` relative to wrong base | SQLite migration | After upgrade test: previously uploaded files still downloadable |
-
----
-
-## Sources
-
-- Direct codebase inspection: `backend/app/models/contract_file.py` (seven JSONB columns, postgresql.UUID PK), `alembic/versions/001–007` (all use `postgresql.JSONB` directly), `backend/app/config.py` (`PROJECT_ROOT = Path(__file__).resolve().parents[2]`), `backend/app/services/upload_service.py` (relative path storage)
-- SQLAlchemy 2.x documentation: `sa.JSON` generic type behavior on SQLite (TEXT + serialize/deserialize), `batch_alter_table` for SQLite ALTER TABLE compatibility, `render_as_batch` in Alembic env
-- PyInstaller documentation: `hiddenimports`, `datas`, `--onedir` vs `--onefile`, `sys.frozen`, `sys._MEIPASS`
-- Electron Security documentation: `contextIsolation`, `nodeIntegration`, `contextBridge`, BrowserWindow `webSecurity`
-- Electron Builder documentation: `asarUnpack`, `extraResources`, AppImage vs deb packaging
-- Known PyInstaller issue: AV false positives on self-extracting binaries (GitHub issues #4629, #6912 and numerous community reports)
-- pydantic-settings known PyInstaller behavior: entry-point based settings sources require explicit `hiddenimports`
-- SQLite version compatibility: `ALTER TABLE DROP COLUMN` added in SQLite 3.35.0 (2021-03-12); Python 3.11 ships SQLite 3.39+ but end-user Windows may have older system SQLite loaded by non-bundled builds
-
----
-*Pitfalls research for: Electron + PyInstaller + SQLite desktop packaging of CTRX FastAPI app*
-*Researched: 2026-05-28*
+PostgreSQL 方言、PyInstaller 路径、`CTRX_DATA_DIR`、端口 18765、Electron 子进程重试等见 `.planning/milestones/v1.2-*` 与旧版 `PITFALLS.md` 归档。v1.3 默认在 **SQLite + 已打包桌面** 基线上演进。

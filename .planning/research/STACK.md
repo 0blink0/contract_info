@@ -1,194 +1,156 @@
-# Stack Research
+# 技术栈研究 — CTRX v1.3 新能力
 
-**Domain:** Electron desktop packaging — FastAPI+Vue app with embedded Python backend
-**Researched:** 2026-05-28
-**Confidence:** HIGH (Electron/electron-builder verified via Context7; PyInstaller version via PyPI; SQLAlchemy SQLite dialect verified via Context7)
-
----
-
-## Context: What Already Exists (Do Not Re-research)
-
-- **FastAPI 0.136+** — Python 3.11, Uvicorn, pydantic-settings
-- **Vue 3.5 + Element Plus + Vite 6** — frontend, TypeScript, vue-router 4
-- **SQLAlchemy 2.0.50 + Alembic 1.18** — ORM + migrations
-- **psycopg2-binary 2.9** — PostgreSQL driver (to be REPLACED)
-- **Docker + docker-compose** — server deployment (to be SUPPLEMENTED, not removed)
+**项目:** 合同要素抽取（CTRX）v1.3 — 多文件并行与详情页重构  
+**领域:** Electron 桌面端 · FastAPI + Vue 3 + SQLite（既有栈不变）  
+**调研日期:** 2026-05-29  
+**置信度:** HIGH（栈增补基于仓库现状 + FastAPI 官方讨论/社区共识；页码能力为 MEDIUM，需实现期验证）
 
 ---
 
-## New Stack Additions for v1.2 Desktop
+## 既有栈（不重复调研）
 
-### Core Technologies
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Electron | 42.x (latest stable) | Desktop shell — wraps Vue frontend, manages Python subprocess | Industry standard for desktop-from-web-app; ships Chromium+Node in one binary; well-supported on Windows+Linux |
-| electron-builder | 26.x (latest stable) | Builds .exe (NSIS) installer for Windows, AppImage/deb for Linux | De-facto standard packager; native NSIS and AppImage targets built-in; handles code signing, extraResources bundling |
-| PyInstaller | 6.20 (latest stable) | Packages Python 3.11 + FastAPI backend into single-dir bundle | Only mature solution for packaging Python with native extensions (lxml, psycopg2 removed, etc.); Python 3.11 fully supported |
-| aiosqlite | 0.22.1 | SQLite async driver for SQLAlchemy | Required for `sqlite+aiosqlite://` URL if async sessions are used; synchronous `sqlite:///` works with existing sync session setup |
-| electron-store | 11.x (latest stable) | Persist LLM config (API key, base URL, model) in Electron userData | Purpose-built for Electron config persistence; stores JSON in OS-appropriate location (%APPDATA% on Windows); schema validation built-in |
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| vite-plugin-electron | 0.29.x | Integrates Electron main/preload scripts into Vite dev build | Use during development so `npm run dev` starts both Vite dev server and Electron together |
-| wait-on | ~8.x | Electron main process waits for Python backend HTTP port before loading URL | Essential — Python subprocess takes 1-3s to start; without this, `loadURL` hits a blank error page |
-| cross-env | ~7.x | Cross-platform env var injection in npm scripts | Needed for Windows-compatible `NODE_ENV=production` in build scripts |
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| electron-builder (CLI) | `npx electron-builder --win --linux` | Run on Windows to produce both targets; Linux AppImage can be cross-compiled from Windows via wine or CI |
-| PyInstaller spec file | `backend.spec` — controls what gets bundled | Required to include `dicts/`, `templates/`, `contract_keywords.txt`; use `--add-data` directives |
-| Alembic (existing) | SQLite schema migrations at first run | Re-use existing migration chain; replace `postgresql.UUID` and `postgresql.JSONB` types in migration files |
+| 层 | 技术 | v1.3 角色 |
+|----|------|-----------|
+| 后端 | FastAPI 0.110+、Uvicorn、SQLAlchemy 2.0、Alembic、openpyxl、python-docx、python-multipart | 扩展 API/服务，不替换 |
+| 前端 | Vue 3.5、vue-router 4.6、Element Plus 2.9、Vite 6、TypeScript 5.7 | 嵌套路由 + 多任务 UI |
+| 数据 | SQLite（WAL，`CTRX_DATA_DIR`） | 每文件一行 `contract_files`，并行写需沿用 WAL |
+| 桌面 | Electron 42、electron-builder 26、PyInstaller 6 | 无变更；≤3 并行在单机线程池内完成 |
 
 ---
 
-## Installation
+## v1.3 推荐栈增补与变更
+
+### 核心变更（无新运行时依赖）
+
+| 变更点 | 实现方式 | 用途 | 推荐理由 |
+|--------|----------|------|----------|
+| 并行流水线调度 | **stdlib** `concurrent.futures.ThreadPoolExecutor(max_workers=3)`，模块级单例，在 `pipeline_service` 提交 `run_pipeline` | 最多 3 份 docx 同时解析/抽取/导出 | 现有每 job 一次 `BackgroundTasks.add_task(run_pipeline)`；FastAPI **按注册顺序串行**执行多个 BackgroundTask（[Discussion #13724](https://github.com/fastapi/fastapi/discussions/13724)）。桌面场景 ≤3 路、CPU/IO 混合，线程池足够，无需 Celery/ARQ |
+| 批量上传 API | FastAPI `files: list[UploadFile] = File(...)` + 现有 `persist_upload` 循环 | 一次请求上传 ≤3 个 docx，返回 `job_id[]` | `python-multipart` 已在 `requirements.txt`；与单文件校验逻辑复用 |
+| 批量启动解析 | `POST /jobs/batch-run` 或复用多次 `POST /jobs/{id}/run` + 线程池提交 | 上传后一键并行 run | 前端 `Promise.all` 调 3 次 run 亦可；后端集中提交便于统一并发上限 |
+| 详情嵌套路由 | **vue-router** `children`：`/jobs/:id` → hub + `/jobs/:id/tables/:tableKey` + `/jobs/:id/field-b` | 六页工作流 + Hub 总览 | 已在 v1.1 用 hash/history 双模式；子路由共享 `jobId`，无需新路由库 |
+| 详情侧栏子导航 | **Element Plus** `el-sub-menu` / `el-menu-item`（`router` 模式）嵌在 `JobDetailLayout` | 五表 + 字段 B 可折叠子菜单 | 与 `AppLayout` 全局 `el-menu` 一致；`el-menu-item-group` 可作「导入表 / 路径 B」分组 |
+| 多 job 进度轮询 | 前端 composable **`useJobsPoll`**（扩展 `useJobPoll`：`Map<jobId, interval>` 或单 interval + `Promise.all(getJob)`） | 上传页同时显示 ≤3 条进度 | 不引入 Pinia；上传页状态局部即可 |
+| 人工核对表 UI | **Element Plus** `el-table` + `el-input`（可编辑列）+ 现有 `ExportPreview` 拆分 | 字段 / 值 / 页码 / 摘录 | `ValidationPanel`、`PathBPanel` 已用同模式；v1.3 按表拆组件即可 |
+
+### 后端 API / 数据形状（库不变，契约扩展）
+
+| 能力 | 建议端点 / 模型 | 依赖 |
+|------|-----------------|------|
+| 单表核对行 | `GET /jobs/{id}/verification/{table_key}` → `VerificationRow[]`（field, value, source_page, excerpt, source） | 从已有 `extraction_result` JSON + `preview_service` 列映射聚合；**Pydantic v2** 新 schema，无新 pip 包 |
+| 单表 preview 局部读写 | `GET/PATCH /jobs/{id}/preview/{table_key}`（或 query `?table=fee`） | 减轻六页各自拉全量 preview；仍用 openpyxl 重导出 |
+| 字段 B 摘录 + 页码 | 扩展 `PathBSnippetRow`：`page: int \| null`、`anchor_id: str \| null` | 见下文「页码」 |
+| 并发上限 | 应用层常量 `MAX_PARALLEL_JOBS = 3` + 上传/ run 时计数 `IN_PROGRESS` | SQLite WAL 已在 `test_db_wal.py` 用 3 worker 验证 |
+
+### 页码与摘录（栈层面的唯一「能力缺口」）
+
+当前 `parse` 层无物理页码，仅有 `anchor_id` / 段落索引；`PathBSnippetRow` 亦无 `page` 字段。
+
+| 方案 | 新增依赖 | 推荐 |
+|------|----------|------|
+| **A. python-docx 页分隔符计数** | 无 | **推荐 v1.3**：遍历 `document.element.body` 中 `w:br[@w:type='page']` + 段落映射，为 snippet 填 `estimated_page`；UI 标注「约第 N 页」 |
+| B. 段落序号代替页码 | 无 | 降级：列名为「段落位置」，避免虚假精确页码 |
+| C. docx→PDF + 页映射 | `docx2pdf` / LibreOffice 子进程 | **不推荐 v1.3**：Electron 已捆绑 Python，再加 Office/PDF 链路过重，与「内部工具」约束冲突 |
+
+**结论：** v1.3 **不新增** PDF/排版引擎；在 **python-docx** 上扩展页码估算服务即可。
+
+### 明确不引入（Anti-stack）
+
+| 避免 | 原因 | 替代 |
+|------|------|------|
+| Celery / ARQ / Dramatiq | 桌面单机、≤3 任务、无 Redis | `ThreadPoolExecutor(3)` |
+| 多个 `background_tasks.add_task(run_pipeline)` 指望并行 | Starlette 顺序执行 | 一次提交到线程池 |
+| Pinia / Vuex | 仅 job 详情子树共享 `jobId` + detail | `provide/inject` 或父 layout `props` + `useJobPoll` |
+| `@vueuse/core` | 非必需；poll/防抖可 30 行 composable | 手写 `useJobsPoll` |
+| 新表格组件（AG Grid、handsontable） | 运营表列数有限，Element Plus 够用 | `el-table` + 列级 `el-input` |
+| 新 Excel 库 | 已用 openpyxl 读写模板 | 保持 |
+| aiosqlite / 全 async ORM | 流水线为 sync + 线程；v1.2 已选 sync SQLite | 保持 sync `SessionLocal` per thread |
+
+---
+
+## 前端结构建议（实现约束，非新包）
+
+```
+/jobs/:id                    → JobDetailHubView（摘要 + 进入各表）
+/jobs/:id/tables/:tableKey   → TableDetailView（product|fee|lock|share|subscription）
+/jobs/:id/field-b            → FieldBDetailView
+```
+
+- **`JobDetailLayout.vue`**：左侧 `el-menu` 子导航 + `<router-view>`；`activeMenu` 用 `route.path`。
+- **上传页**：`el-upload` 增加 `multiple`、`:limit="3"`、`:on-exceed`；`file-list` 展示 3 个待处理项。
+- **Composable 契约**：`useJobsPoll(jobIds: Ref<string[]>)` 在任一 job 进入 `PIPELINE_POLL` 时轮询，全部 `TERMINAL` 后停止（复用 `useJobPoll.ts` 常量）。
+
+---
+
+## 后端并发与 SQLite（沿用 v1.2）
+
+| Concern | v1.3 做法 |
+|---------|-----------|
+| 并行 parse | 每线程独立 `SessionLocal()`（`run_pipeline` 已如此） |
+| 写冲突 | 保持 WAL；避免跨 job 单事务写多行 |
+| LLM 限流 | 线程池 3 + 现有 `asyncio` 校验批处理；若 API 限流，可在 `pipeline_service` 加 `threading.Semaphore(2)` 仅限制 extract 阶段（**可选**，仍 stdlib） |
+
+---
+
+## 与现有组件的映射
+
+| v1.3 页面 | 复用 / 拆分 |
+|-----------|-------------|
+| 可编辑 preview | `ExportPreview.vue` → 按 `tableKey` 拆为 `TablePreviewEditor.vue` |
+| LLM 校验 | `ValidationPanel.vue` 可保留在 Hub 或并入各表核对区 |
+| 字段 B | `PathBPanel.vue` → `FieldBDetailView` + 扩展页码列 |
+| 单表下载 | 现有 `downloadBlob(kind)` 路由已分表，子页直接调用 |
+| 核对 Excel | 现有 `review-report` 下载；页内表为 **live API**，非新库 |
+
+---
+
+## 安装 / 依赖变更摘要
 
 ```bash
-# Electron shell (add to frontend/ or new electron/ package)
-npm install electron electron-builder vite-plugin-electron electron-store
+# v1.3 预期：requirements.txt 与 frontend/package.json 无 mandatory 新包
 
-# Dev utilities
-npm install -D cross-env wait-on
+# 若采用批量上传单端点，仅需确认已有：
+#   python-multipart>=0.0.9
+#   fastapi File/UploadFile list 模式
 
-# Python additions (add to requirements.txt)
-# Remove: psycopg2-binary
-# Add:
-pip install aiosqlite
-# PyInstaller is a build-time tool, not a runtime dep:
-pip install pyinstaller==6.20.0
+# PyInstaller hiddenimports：无新增第三方模块时不必改 spec
 ```
 
----
-
-## Critical Migration: PostgreSQL-Specific Types → SQLite-Compatible
-
-The existing model uses PostgreSQL-only types that **must** be replaced:
-
-| Current (PostgreSQL-only) | Replace With | Notes |
-|---------------------------|-------------|-------|
-| `sqlalchemy.dialects.postgresql.JSONB` | `sqlalchemy.types.JSON` | SQLite stores as TEXT; SQLAlchemy 2.x `JSON` type handles serialize/deserialize transparently |
-| `sqlalchemy.dialects.postgresql.UUID(as_uuid=True)` | `sqlalchemy.types.Uuid` (SA 2.0) or `CHAR(36)` TypeDecorator | SQLAlchemy 2.0 ships `sqlalchemy.types.Uuid` — dialect-agnostic UUID; stores as `CHAR(36)` on SQLite, native UUID on PostgreSQL |
-| `server_default=sa.text("now()")` in Alembic migrations | `server_default=sa.text("(datetime('now'))")` | SQLite uses `datetime('now')` not `now()` — or use Python-side `default=datetime.utcnow` to avoid dialect split |
-
-**Alembic migration files** (001–007) all import from `sqlalchemy.dialects.postgresql` — these need a SQLite-compat variant. The recommended approach: write a new `008_sqlite_compat.py` migration that is a no-op when schema already matches, and update the model file to use dialect-agnostic types.
-
-**`pool_pre_ping=True`** in `session.py` is safe with SQLite — no change needed. SQLite connection URL: `sqlite:///path/to/ctrx.db`.
+**可选（仅当产品坚持「印刷页码」且启发式不足时，post-v1.3 再评估）：**  
+`docx2pdf` + Windows 上依赖 Word — 与 Electron 打包目标冲突，**不列入 v1.3**。
 
 ---
 
-## Config Architecture: LLM Settings Storage
+## 备选方案
 
-Use **electron-store** (Node.js side, main process) to store:
-```json
-{
-  "llm": {
-    "apiBase": "https://api.openai.com/v1",
-    "apiKey": "sk-...",
-    "model": "gpt-4o-mini"
-  },
-  "setupComplete": true
-}
-```
-
-On app start, main process reads store and passes LLM config to Python subprocess via environment variables (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL`). Renderer reads/writes settings via IPC (`ipcRenderer.invoke` → `ipcMain.handle`). **Do not** store the API key inside the Python `.env` file on disk — pass at process spawn time only.
+| 推荐 | 备选 | 不选原因 |
+|------|------|----------|
+| ThreadPoolExecutor(3) | 每 job 独立 `multiprocessing.Process` | 内存 ×3、PyInstaller 子进程复杂 |
+| vue-router children | 单页 `?tab=` query | 深链接、侧栏高亮、六页状态不清晰 |
+| 扩展 extraction JSON + API | 每表独立 SQLite 表 | 过度建模；JSON 已存 `extraction_result` |
+| el-sub-menu 详情导航 | 右侧 `el-tabs` | 需求明确要求左侧子菜单 |
 
 ---
 
-## Electron Process Architecture
+## 置信度说明
 
-```
-Electron Main Process (Node.js)
-  ├── Spawns: python_backend/ (PyInstaller exe) as child_process
-  │     └── Passes env: OPENAI_API_KEY, DB_PATH, UPLOADS_DIR
-  ├── Manages: app lifecycle (ready, window-all-closed, will-quit)
-  ├── IPC handlers: get/set LLM config, get backend port/status
-  ├── Preload script: contextBridge.exposeInMainWorld('electronAPI', {...})
-  └── BrowserWindow: loadFile(dist/index.html) after backend ready
-
-Renderer Process (Vue 3 app, Vite-built static files)
-  └── Calls http://127.0.0.1:8000/api/v1/* (same as before — no change needed)
-```
-
-**Key constraint:** Use `contextIsolation: true` (Electron default since v12) + preload script. Never set `nodeIntegration: true`.
+| 领域 | 级别 | 说明 |
+|------|------|------|
+| 并行调度 | HIGH | FastAPI BackgroundTasks 串行行为有官方讨论；仓库已用单 task |
+| 前端路由/EP 组件 | HIGH | 与 v1.1/v1.2 栈一致，代码已存在 `useJobPoll`、`el-menu` |
+| 核对 API 形状 | MEDIUM | 需从 `extraction_result` 设计 `table_key` 映射，无新库 |
+| 物理页码 | MEDIUM | docx 无内置页码；启发式需合同样本验证 |
 
 ---
 
-## Alternatives Considered
+## 来源
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| electron-builder | Electron Forge | Forge is opinionated scaffolding; builder is more flexible for adding pre-built Python binary as extraResource; better NSIS/AppImage control |
-| electron-builder | Tauri | Tauri requires Rust; backend must be Rust or sidecar; Python-as-sidecar support is experimental and adds complexity |
-| PyInstaller | cx_Freeze | PyInstaller has better hook ecosystem (`pyinstaller-hooks-contrib`) covering FastAPI, SQLAlchemy, lxml, pydantic automatically |
-| PyInstaller | Nuitka | Nuitka compiles to C; faster startup but requires C compiler on build host and has edge cases with dynamic imports heavy in FastAPI |
-| electron-store | node-keytar | keytar is for OS credential vault (better for secrets); electron-store is simpler and sufficient for LLM base URL + model; consider keytar only if compliance requires it |
-| SQLite (aiosqlite) | Keep PostgreSQL | PostgreSQL requires a running server — incompatible with desktop single-install requirement; SQLAlchemy 2.x makes SQLite migration straightforward |
+- 仓库：`contract_info/backend/app/api/routes/jobs.py`（`BackgroundTasks` + `run_pipeline`）
+- 仓库：`contract_info/frontend/src/composables/useJobPoll.ts`、`router/index.ts`、`UploadView.vue`
+- 仓库：`contract_info/backend/tests/test_db_wal.py`（3 并发写）
+- FastAPI GitHub Discussions [#13724](https://github.com/fastapi/fastapi/discussions/13724)、[#10682](https://github.com/fastapi/fastapi/discussions/10682) — BackgroundTasks 并发限制
+- Element Plus Upload 多文件：`limit` / `multiple`（项目已依赖 EP 2.9）
+- vue-router 4 嵌套路由：[官方 guide - Nested Routes](https://router.vuejs.org/guide/essentials/nested-routes.html)
 
 ---
 
-## What NOT to Use
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `nodeIntegration: true` in BrowserWindow | Exposes full Node.js to renderer — XSS = RCE; Electron security docs mark this insecure | `contextIsolation: true` + preload script with `contextBridge` |
-| `psycopg2-binary` in desktop build | Requires PostgreSQL server; binary is platform-specific and large; PyInstaller hooks are fragile for it | Remove from requirements; SQLite with built-in Python `sqlite3` module |
-| `postgresql.JSONB` / `postgresql.UUID` in models | These are PostgreSQL dialect-specific; will raise `CompileError` against SQLite | `sqlalchemy.types.JSON` and `sqlalchemy.types.Uuid` (SA 2.0+) |
-| Alembic `autogenerate` against SQLite for migration 001-007 | Alembic migrations import `postgresql` dialect directly — will fail | Write adapter migration 008 or rewrite model imports to be dialect-agnostic |
-| Bundling Vue dev server in production | `vite dev` is not for production; adds ~200MB Node.js overhead | `vite build` → static `dist/` → `win.loadFile('dist/index.html')` |
-| `server_default=sa.text("now()")` in new SQLite migrations | PostgreSQL SQL function; SQLite uses `(datetime('now'))` | Python-side `default=datetime.utcnow` in SQLAlchemy model, no server_default needed |
-
----
-
-## Version Compatibility
-
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| electron@42.x | Node.js 22.x (bundled) | Electron ships its own Node — host Node version irrelevant for runtime |
-| electron-builder@26.x | electron@42.x | Builder 26.x explicitly supports Electron 42; check `electronVersion` config field |
-| PyInstaller@6.20 | Python 3.11, 3.12 | 3.11 fully supported; `pyinstaller-hooks-contrib` auto-installed as dependency, covers SQLAlchemy, FastAPI, pydantic |
-| SQLAlchemy@2.0.50 | SQLite (stdlib sqlite3), aiosqlite@0.22 | Sync `sqlite:///` works without aiosqlite; only needed if adding async sessions |
-| vite@6.x + vite-plugin-electron@0.29 | Vue 3.5, TypeScript 5.7 | Plugin wraps Vite config; no additional Vite version constraint |
-| electron-store@11.x | ESM only | Requires `"type": "module"` in electron package.json, or use dynamic `import()` from CommonJS main process |
-
-**electron-store v11 ESM caveat:** If the Electron main process uses CommonJS (`require()`), pin electron-store to `^10.0.0` which supports both CJS and ESM. electron-store v11+ is ESM-only.
-
----
-
-## Stack Patterns by Variant
-
-**If building on Windows only (CI = Windows runner):**
-- NSIS `.exe` installer builds natively
-- Linux AppImage requires either a Linux runner in CI or Docker-based cross-compile via electron-builder's `--linux` with wine
-- Recommended: GitHub Actions with two jobs — `build-win` (windows-latest) and `build-linux` (ubuntu-latest)
-
-**If PyInstaller bundle is too large (>300 MB):**
-- Use `--exclude-module` to drop unused stdlib modules (`tkinter`, `test`, `unittest`)
-- Use `UPX` compression (PyInstaller `--upx-dir` flag) for ~30% size reduction on Windows
-- Do NOT exclude `_ssl` — httpx (used for LLM calls) requires TLS
-
-**If SQLite concurrency becomes a problem (multiple windows):**
-- SQLite with WAL mode (`PRAGMA journal_mode=WAL`) handles concurrent readers + one writer
-- Add `engine = create_engine("sqlite:///...", connect_args={"check_same_thread": False})` since Uvicorn's thread pool may access from non-creator threads
-
----
-
-## Sources
-
-- Context7 `/electron/electron` — `app.getPath`, `isPackaged`, IPC (`ipcMain.handle`, `contextBridge`), `BrowserWindow.loadFile`, subprocess spawn
-- Context7 `/electron-userland/electron-builder` — Windows NSIS target, Linux AppImage target, `extraResources`, auto-update targets
-- Context7 `/sindresorhus/electron-store` — `store.get`, `store.set`, schema, ESM note
-- Context7 `/websites/sqlalchemy_en_20` — `sqlalchemy.types.JSON` SQLite support, `GUID` TypeDecorator pattern, `sqlite+aiosqlite` dialect
-- PyPI `pip index versions pyinstaller` — confirmed 6.20.0 is latest
-- `npm show electron version` — confirmed 42.3.0 is latest stable
-- `npm show electron-builder version` — confirmed 26.8.1 is latest stable
-- `npm show electron-store version` — confirmed 11.0.2 is latest (ESM-only)
-- `npm show vite-plugin-electron version` — confirmed 0.29.1
-
----
-*Stack research for: Electron desktop packaging of FastAPI+Vue app (CTRX v1.2)*
-*Researched: 2026-05-28*
+*v1.3 STACK 增补调研 — 仅覆盖多文件并行、详情子路由、增强核对 UI；不重研 Electron/SQLite/PyInstaller 基座。*

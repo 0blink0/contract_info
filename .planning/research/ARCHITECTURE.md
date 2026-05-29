@@ -1,663 +1,366 @@
-# Architecture Research
+# Architecture Research — CTRX v1.3
 
-**Domain:** Electron desktop shell wrapping FastAPI + Vue SPA (v1.2 desktop migration)
-**Researched:** 2026-05-28
-**Confidence:** HIGH (training-based; all libraries at well-documented stable versions)
+**Domain:** Electron 桌面壳 + FastAPI + Vue 3 SPA（单用户、SQLite、每 docx 一 job）  
+**Researched:** 2026-05-29  
+**Confidence:** HIGH（基于 `PROJECT.md`、现有 `jobs`/`upload` 路由与前端实现直接推导）
 
----
+**v1.3 目标（摘自 PROJECT.md）：** 一次最多上传 3 份 docx 并行解析；文件详情拆为 Hub 总览 + 左侧六页工作流（五张导入表 + 字段 B）；每页可编辑、摘录核对、单表下载。
 
-## Standard Architecture
-
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Electron Main Process (Node.js)                                     │
-│                                                                      │
-│  ┌──────────────────┐   ┌──────────────────┐  ┌──────────────────┐  │
-│  │  subprocess.ts   │   │  ipcMain handlers│  │  app lifecycle   │  │
-│  │  (spawn/monitor) │   │  (port, settings)│  │  (ready/quit)    │  │
-│  └────────┬─────────┘   └────────┬─────────┘  └────────┬─────────┘  │
-│           │                      │                     │            │
-│           │ child_process.spawn  │ ipcMain.handle      │            │
-│           ▼                      ▼                     ▼            │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │  PyInstaller binary  (ctrx-backend.exe / ctrx-backend)      │    │
-│  │  FastAPI + Uvicorn, port 18765, SQLite, uploads/ exports/   │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                            ▲  stdout/stderr                         │
-│                            │  HTTP health poll                      │
-├────────────────────────────┼────────────────────────────────────────┤
-│  Electron Renderer (Chromium)                                        │
-│                                                                      │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │  Vue 3 SPA  (loadFile dist/index.html or loadURL dev server) │   │
-│  │  API calls → http://127.0.0.1:18765/api/v1/...               │   │
-│  │  ipcRenderer.invoke('get-port') on startup                   │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
-
-                  ┌──────────────────────────────────────┐
-                  │  User Data Directory (OS-managed)     │
-                  │  Windows: %APPDATA%\CTRX              │
-                  │  Linux:   ~/.config/CTRX              │
-                  │                                       │
-                  │  ctrx.sqlite       ← database         │
-                  │  uploads/          ← docx files       │
-                  │  exports/          ← xlsx outputs     │
-                  │  settings.json     ← LLM config       │
-                  └──────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | New vs Existing |
-|-----------|----------------|-----------------|
-| `electron/main.ts` | App entry, spawn backend, window creation, IPC | **NEW** |
-| `electron/subprocess.ts` | Python process lifecycle: spawn, health-poll, kill | **NEW** |
-| `electron/ipc.ts` | IPC handlers: port forwarding, settings read/write | **NEW** |
-| `electron/preload.ts` | Context bridge exposing safe APIs to renderer | **NEW** |
-| `backend/app/main.py` | FastAPI application — unchanged | EXISTING |
-| `backend/app/config.py` | Settings — needs SQLite URL + user-data path support | **MODIFY** |
-| `backend/app/db/session.py` | SQLAlchemy engine — dialect swap only | **MODIFY** |
-| `backend/app/models/contract_file.py` | ORM model — JSONB→JSON, UUID type swap | **MODIFY** |
-| `alembic/versions/` | All migrations — dialect-specific types to be replaced | **MODIFY** |
-| `alembic/env.py` | DB URL injection — unchanged (already from Settings) | EXISTING |
-| `frontend/src/api/client.ts` | API_BASE constant — switch to dynamic port | **MODIFY** |
-| `frontend/src/main.ts` | Boot — wait for port IPC before first API call | **MODIFY** |
-| `ctrx.spec` | PyInstaller spec file | **NEW** |
-| `electron-builder.yml` | electron-builder packaging config | **NEW** |
-| `package.json` (root) | Electron + build tooling | **NEW** |
+**v1.2 基座不变：** Electron 主进程 → PyInstaller `ctrx-backend` → `http://127.0.0.1:{port}/api/v1/*`；数据目录 `CTRX_DATA_DIR`（SQLite + uploads/exports）。本文件只描述 v1.3 增量架构。
 
 ---
 
-## Data Flow: App Start to API Ready
+## 现状 vs 目标
 
-```
-[User double-clicks installer / app icon]
-         │
-         ▼
-[Electron main process starts]  (Node.js)
-         │
-         ├─ app.getPath('userData')  →  resolve DATA_DIR
-         ├─ resolve BINARY_PATH:
-         │    dev:  python -m uvicorn ...
-         │    prod: path.join(process.resourcesPath, 'ctrx-backend[.exe]')
-         │
-         ▼
-[subprocess.spawn(binary, ['--port','18765','--data-dir', DATA_DIR])]
-         │
-         ├─ stdout piped → scan for "Application startup complete"
-         │    OR
-         ├─ poll  GET http://127.0.0.1:18765/api/v1/health  every 300 ms
-         │         with 30 s timeout / 100 retries
-         │
-         ▼  (health returns 200)
-[ipcMain emits 'backend-ready', stores port]
-         │
-         ▼
-[BrowserWindow created]
-         │  loadFile('frontend/dist/index.html')   ← prod
-         │  loadURL('http://localhost:5173')        ← dev
-         │
-         ▼
-[Renderer Vue SPA boots]
-         │
-         ├─ preload.contextBridge.exposeInMainWorld('electron', {
-         │      getPort: () => ipcRenderer.invoke('get-port'),
-         │      getSettings: () => ipcRenderer.invoke('get-settings'),
-         │      saveSettings: (s) => ipcRenderer.invoke('save-settings', s)
-         │  })
-         │
-         ├─ App.vue onMounted → window.electron.getPort()
-         │      → sets import.meta.env.VITE_API_BASE or reactive apiBase
-         │
-         ▼
-[Vue SPA makes API calls to http://127.0.0.1:18765/api/v1/...]
-```
-
-### Backend Startup Sequence (Python side)
-
-```
-[ctrx-backend binary invoked by Electron]
-         │
-         ├─ parse CLI args: --port 18765  --data-dir <path>
-         │
-         ├─ configure Settings:
-         │    database_url = sqlite:///<data_dir>/ctrx.sqlite
-         │    uploads_dir  = <data_dir>/uploads/
-         │    exports_dir  = <data_dir>/exports/
-         │    reads settings.json for LLM keys (if exists)
-         │
-         ├─ alembic upgrade head  (run programmatically at startup)
-         │
-         ├─ uvicorn.run(app, host='127.0.0.1', port=18765)
-         │
-         └─ writes "Application startup complete" to stdout
-                ↑ Electron subprocess.ts scans for this string
-```
+| 维度 | v1.2（当前） | v1.3（目标） |
+|------|-------------|-------------|
+| 上传 | `POST /upload` 单文件；`UploadView` 一次一个 | 同 API 可并行调用 ≤3 次；上传页展示多 job 进度 |
+| 详情路由 | `/jobs/:id` 单页 `JobDetail.vue` 堆叠所有面板 | `/jobs/:id` Hub + `/jobs/:id/{section}` 六子页 |
+| 侧栏 | `AppLayout` 仅三项：上传 / 列表 / 设置 | 进入 job 上下文时显示**可折叠**「文件详情」子菜单（6 项） |
+| 预览编辑 | `ExportPreview` 内 `el-tabs` 五表合一 | 每表独立路由页：编辑区 + 摘录列 + 单表下载 |
+| 字段 B | `PathBPanel` 嵌在详情页底部 | 独立路由 `/jobs/:id/path-b`，强化摘录与页码 |
+| 校验 | `ValidationPanel` 在详情页 | 保留在 **Hub**（全 job 级，不按表拆） |
 
 ---
 
-## Subprocess Lifecycle: Start / Stop / Crash
+## 系统结构（Mermaid）
 
-### Normal lifecycle
+```mermaid
+flowchart TB
+  subgraph Electron["Electron 桌面"]
+    Main[main / subprocess]
+    Renderer[Vue 3 SPA + Hash Router]
+    Main -->|spawn + health| API
+    Renderer -->|fetch api/v1| API
+  end
 
+  subgraph API["FastAPI /api/v1"]
+    Upload["POST /upload"]
+    Jobs["/jobs/*"]
+    Pipeline[BackgroundTasks run_pipeline]
+    Upload --> Jobs
+    Jobs --> Pipeline
+  end
+
+  subgraph Store["CTRX_DATA_DIR"]
+    DB[(ctrx.sqlite)]
+    Files[uploads/ exports/]
+  end
+
+  API --> DB
+  Pipeline --> DB
+  Pipeline --> Files
+
+  subgraph UI["v1.3 前端信息架构"]
+    UploadPage["/upload 多 slot ≤3"]
+    List["/jobs 列表"]
+    Hub["/jobs/:id Hub"]
+    T1["/jobs/:id/product-elements"]
+    T2["/jobs/:id/fee-rates"]
+    T3["... 其余三表"]
+    TB["/jobs/:id/path-b"]
+    SubNav["AppLayout 上下文子菜单"]
+    UploadPage --> List
+    List --> Hub
+    Hub --> T1 & T2 & T3 & TB
+    SubNav -.-> Hub & T1 & T2 & T3 & TB
+  end
+
+  Renderer --> UI
 ```
-Electron main:ready
-  → spawn()
-  → health poll loop (max 30s)
-  → BrowserWindow.show()
 
-app.on('before-quit')
-  → pythonProcess.kill('SIGTERM')   // Windows: taskkill /PID
-  → wait up to 5s for exit
-  → if still alive: .kill('SIGKILL')
-  → app.quit()
+### 详情区布局（嵌套路由）
+
+```mermaid
+flowchart LR
+  subgraph AppLayout["AppLayout.vue"]
+    GlobalNav["全局菜单: 上传 | 列表 | 设置"]
+    JobSub["JobDetailSubNav 仅当 route.params.id"]
+    MainRV["router-view"]
+  end
+
+  subgraph JobLayout["JobDetailLayout.vue /jobs/:id/*"]
+    Header["文件名 / 状态 / 步骤条 / 返回列表"]
+    HubOrChild["router-view: Hub | Table | PathB"]
+  end
+
+  GlobalNav --> MainRV
+  JobSub --> MainRV
+  MainRV --> JobLayout
 ```
 
-### Crash recovery
-
-```
-pythonProcess.on('exit', (code, signal) => {
-  if (appIsQuitting) return           // intentional shutdown, ignore
-  if (restartAttempts < 3) {
-    restartAttempts++
-    respawnBackend()                  // re-run spawn + health poll
-  } else {
-    dialog.showErrorBox(
-      'Backend crashed',
-      'ctrx-backend exited unexpectedly 3 times. Check logs.'
-    )
-    app.quit()
-  }
-})
-```
-
-### Key signals
-
-| Event | Electron action | Python action |
-|-------|-----------------|---------------|
-| Window X button (macOS) | `win.on('close')` — keep running | n/a |
-| app.quit() | kill python → quit | receives SIGTERM → uvicorn shutdown |
-| Python crash (code ≠ 0) | dialog + optional restart | process exit |
-| Health poll timeout | dialog + quit | kill stale process |
+**推荐：** `JobDetailLayout` 作为 `/jobs/:id` 的 **parent route**（`children`），子路由渲染在右侧主区；**子菜单挂在 `AppLayout` 侧栏**（与 v1.1 全局导航同级），通过 `route.params.id` 动态生成链接，避免双栏侧栏。
 
 ---
 
-## PostgreSQL → SQLite Migration
+## 路由结构
 
-### What changes
+### 全局路由（`frontend/src/router/index.ts`）
 
-| Item | PostgreSQL | SQLite replacement |
-|------|------------|-------------------|
-| `database_url` | `postgresql+psycopg2://...` | `sqlite:///path/to/ctrx.sqlite` |
-| driver | `psycopg2-binary` | built-in `sqlite3` (no extra dep) |
-| `JSONB` columns (model) | `sqlalchemy.dialects.postgresql.JSONB` | `sqlalchemy.types.JSON` |
-| `UUID` column type (model) | `sqlalchemy.dialects.postgresql.UUID` | `sqlalchemy.types.String(36)` + `str(uuid4())` |
-| `func.now()` server_default | works natively | works in SQLAlchemy (uses `CURRENT_TIMESTAMP`) |
-| pool settings | `pool_pre_ping=True` | remove / no-op (SQLite is in-process) |
-| alembic migrations | use `postgresql.JSONB`, `postgresql.UUID` | rewrite to use `sa.JSON`, `sa.String(36)` |
+| 路径 | name | 组件 | 说明 |
+|------|------|------|------|
+| `/upload` | upload | `UploadView` | 多文件上传区（≤3） |
+| `/jobs` | jobs | `FileListView` | 历史任务 |
+| `/jobs/:id` | job-hub | `JobHubView` | **Hub**：摘要卡片 + 进入详情 |
+| `/jobs/:id/product-elements` | job-product | `JobTableView` | 产品要素 |
+| `/jobs/:id/fee-rates` | job-fee | `JobTableView` | 运营费率 |
+| `/jobs/:id/lock-periods` | job-lock | `JobTableView` | 份额锁定期 |
+| `/jobs/:id/share-classes` | job-share | `JobTableView` | 分级份额 |
+| `/jobs/:id/subscription-fee-rates` | job-subscription | `JobTableView` | 申赎费率 |
+| `/jobs/:id/path-b` | job-path-b | `JobPathBView` | 字段 B |
+| `/settings` | settings | `SettingsView` | 不变 |
 
-### Model change pattern
-
-```python
-# BEFORE (contract_file.py)
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-
-class ContractFile(Base):
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ...)
-    parse_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-
-# AFTER (contract_file.py)
-import uuid as _uuid
-from sqlalchemy import JSON, String
-
-class ContractFile(Base):
-    # Store UUID as 36-char string; Python layer still uses uuid.UUID
-    id: Mapped[str] = mapped_column(String(36), primary_key=True,
-                                    default=lambda: str(_uuid.uuid4()))
-    parse_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-```
-
-### Session change
-
-```python
-# AFTER (db/session.py)
-engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False},  # required for SQLite + threading
-)
-```
-
-### Alembic migration rewrite
-
-All 7 existing migration files import `from sqlalchemy.dialects import postgresql`. These must be rewritten to use `sa.JSON` and `sa.String(36)`. The cleanest approach for desktop:
-
-**Option A (recommended):** Replace all migrations with a single `001_init_sqlite.py` that creates the final schema directly. Alembic is still used for future upgrades. The old PostgreSQL migrations are archived but not deleted.
-
-**Option B:** Keep incremental history, rewrite each file to remove PostgreSQL dialect types. More work, same result.
-
-Option A is recommended because the SQLite desktop database starts fresh on first install — there is no production PostgreSQL data to migrate in place.
-
-### Alembic env.py
-
-No changes needed — it already reads `database_url` from `Settings`, which will be the SQLite URL in desktop mode.
-
----
-
-## Config: Settings Resolution for Desktop vs Docker
-
-```python
-# backend/app/config.py additions
-
-import os
-from pathlib import Path
-
-def _resolve_data_dir() -> Path:
-    """
-    CLI arg takes precedence; fallback to env; fallback to project root (dev).
-    PyInstaller binary receives --data-dir from Electron subprocess.ts.
-    """
-    cli_val = os.environ.get("CTRX_DATA_DIR")
-    if cli_val:
-        return Path(cli_val)
-    # dev / Docker default
-    return Path(__file__).resolve().parents[2]
-
-class Settings(BaseSettings):
-    # NEW: SQLite default for desktop; Docker override via DATABASE_URL env
-    database_url: str = Field(
-        default_factory=lambda: f"sqlite:///{_resolve_data_dir() / 'ctrx.sqlite'}"
-    )
-    data_dir: str = Field(default_factory=lambda: str(_resolve_data_dir()))
-    ...
-```
-
-Electron passes `CTRX_DATA_DIR` as an environment variable to the child process (easier than CLI arg parsing in PyInstaller entry point):
+`section` 与现有 **download kind** 对齐，减少心智负担：
 
 ```typescript
-// electron/subprocess.ts
-const proc = spawn(binaryPath, [], {
-  env: {
-    ...process.env,
-    CTRX_DATA_DIR: app.getPath('userData'),
-    CTRX_PORT: String(PORT),
-  }
-})
+// constants/jobSections.ts
+export const JOB_SECTIONS = [
+  { key: 'product-elements', label: '产品要素', previewKey: 'product' },
+  { key: 'fee-rates', label: '运营费率', previewKey: 'fee' },
+  { key: 'lock-periods', label: '份额锁定期', previewKey: 'lock' },
+  { key: 'share-classes', label: '分级份额', previewKey: 'share' },
+  { key: 'subscription-fee-rates', label: '申赎费率', previewKey: 'subscription' },
+  { key: 'path-b', label: '字段 B', previewKey: null },
+] as const
 ```
 
----
-
-## Vue SPA: Dynamic API Base URL
-
-Current `API_BASE = '/api/v1'` is a relative path, relying on nginx reverse proxy. In the Electron renderer there is no nginx, so calls must be absolute to localhost.
+### 路由配置示意
 
 ```typescript
-// frontend/src/api/client.ts  — MODIFY
-let API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1'
-
-// Called once at Vue app mount from App.vue
-export async function initApiBase(): Promise<void> {
-  if (window.electron) {
-    const port = await window.electron.getPort()
-    API_BASE = `http://127.0.0.1:${port}/api/v1`
-  }
+{
+  path: '/jobs/:id',
+  component: () => import('@/layouts/JobDetailLayout.vue'),
+  props: true,
+  children: [
+    { path: '', name: 'job-hub', component: () => import('@/views/JobHubView.vue') },
+    { path: 'product-elements', name: 'job-product', component: () => import('@/views/JobTableView.vue'), props: { section: 'product-elements' } },
+    // ... 其余四表同 JobTableView + section prop
+    { path: 'path-b', name: 'job-path-b', component: () => import('@/views/JobPathBView.vue') },
+  ],
 }
 ```
 
-`window.electron` is undefined in the Docker/browser environment, so existing Docker deployment continues working without changes.
+**重定向：** 旧书签 `/jobs/:id` 仍有效（默认 child = Hub）。从列表点「详情」→ `job-hub`。
+
+**`activeMenu`（AppLayout）：**  
+- `/jobs` 与 `/jobs/:id/*` 均高亮「文件列表」父项；  
+- 子菜单 `default-active` = 当前完整 path（如 `/jobs/uuid/fee-rates`）。
 
 ---
 
-## PyInstaller Spec File Structure
+## Hub vs 详情页职责
+
+### Hub（`JobHubView`）
+
+| 区块 | 数据来源 | 行为 |
+|------|----------|------|
+| 任务元信息 | `GET /jobs/{id}` | 文件名、状态、`ProcessStepper`、错误信息 |
+| 操作 | 同上 + `POST .../run` | 开始/重试、删除（沿用 `JobDetail` 头部逻辑） |
+| 五表摘要卡 | `GET /jobs/{id}/preview` 或 **分片 API**（见下） | 行数、关键字段抽样、校验 fail 数（按表可选） |
+| 字段 B 摘要 | `GET /jobs/{id}/path-b` | 业绩报酬/开放日一句摘要 +「进入字段 B」 |
+| 校验总览 | `GET /jobs/{id}/validation` | 折叠 `ValidationPanel`（全 job，不拆页） |
+| 警告列表 | `JobDetail.extraction_warnings` | `WarningsList` |
+
+Hub **不放**可编辑大表格，避免与六页重复；仅摘要 + `router-link` 到子路由。
+
+### 表详情页（`JobTableView`）
+
+| 区块 | 说明 |
+|------|------|
+| 可编辑网格 | 从 `ExportPreview` 拆出的单 tab 逻辑（`product` / `fee` / …） |
+| 摘录核对表 | 列含「字段/值/页码/摘录原文」— 产品要素用 `product_rows`；列表表用 `摘录原文` 列（已有 `SNIPPET_DISPLAY`） |
+| 保存 | `PUT` 分表或全量 preview（见 API） |
+| 下载 | 现有 `downloadBlob(jobId, kind, filename)`，kind 与路由 section 一致 |
+
+### 字段 B 页（`JobPathBView`）
+
+- 数据：`GET /jobs/{id}/path-b`（不变）  
+- UI：自 `PathBPanel` 抽出；表格列：**标签 / 建议值 / 页码（若 raw_sections 或 snippet meta 有）/ 原文摘录**  
+- 无 xlsx 下载（手录 CRM）；可选保留「下载核对报告」链到 Hub。
+
+---
+
+## API 变更
+
+### 保持不变（直接复用）
+
+| 方法 | 路径 | 用途 |
+|------|------|------|
+| POST | `/upload` | 每文件一次，创建 `pending` job |
+| GET | `/jobs` | 列表 |
+| GET | `/jobs/{id}` | Hub / 轮询状态 |
+| POST | `/jobs/{id}/run` | 后台 `run_pipeline` |
+| DELETE | `/jobs/{id}` | 删除 |
+| GET | `/jobs/{id}/download/{kind}` | 五表单文件下载（kind 已存在） |
+| GET | `/jobs/{id}/path-b` | 字段 B |
+| GET | `/jobs/{id}/validation` | LLM 校验 |
+| GET | `/jobs/{id}/download/review-report` | 核对报告 |
+
+### 建议新增（v1.3）
+
+| 方法 | 路径 | 目的 | 优先级 |
+|------|------|------|--------|
+| GET | `/jobs/{id}/preview/{section}` | `section` ∈ `product-elements` \| `fee-rates` \| …；只返回该表 JSON | **推荐** — 减小六页重复拉全量 preview |
+| PUT | `/jobs/{id}/preview/{section}` | 分表保存；服务端 merge 进 `extraction_result` 再 `persist_export` | **推荐** — 避免并行编辑互相覆盖 |
+| GET | `/jobs/concurrency` 或在 list 响应加字段 | `{ active: n, max: 3 }` 供上传页禁用第 4 个文件 | **推荐** |
+| POST | `/upload/batch` | multipart 最多 3 文件，返回 `job_ids[]` | 可选 — 客户端 3×POST 亦可 |
+
+**`section` 与 `preview_edit_service` 映射：**
+
+| section URL | PUT body 字段 | extraction 键 |
+|-------------|---------------|----------------|
+| `product-elements` | `product_rows` | `product_elements` |
+| `fee-rates` | `fee_columns`, `fee_rows` | `fee_rates` |
+| `lock-periods` | `lock_*` | `lock_periods` |
+| `share-classes` | `share_*` | `share_classes` |
+| `subscription-fee-rates` | `subscription_*` | `subscription_fee_rates` |
+
+实现：在 `preview_service.build_job_preview` 上增加 `slice_preview(data, section)`；`apply_preview_edits` 增加 `sections: list[str] | None`，仅 merge 指定块。
+
+### 并行上传与 pipeline（后端约束）
+
+**模型：** 每 docx = 一条 `ContractFile` + 独立 `BackgroundTasks.run_pipeline(job_id)`（已满足「每文件独立 job」）。
+
+**新增守门（`pipeline_service` 或 `upload_service`）：**
 
 ```python
-# ctrx.spec  (schematic)
-block_cipher = None
+MAX_CONCURRENT_PIPELINES = 3
+IN_PROGRESS = frozenset({"parsing", "extracting", "exporting"})
 
-a = Analysis(
-    ['backend/__main__.py'],
-    pathex=['.'],
-    binaries=[],
-    datas=[
-        ('templates/', 'templates/'),   # xlsx templates
-        # alembic migrations needed at runtime
-        ('alembic/', 'alembic/'),
-        ('alembic.ini', '.'),
-    ],
-    hiddenimports=[
-        'uvicorn.logging',
-        'uvicorn.loops',
-        'uvicorn.loops.auto',
-        'uvicorn.protocols',
-        'uvicorn.protocols.http',
-        'uvicorn.protocols.http.auto',
-        'uvicorn.protocols.websockets',
-        'uvicorn.protocols.websockets.auto',
-        'uvicorn.lifespan',
-        'uvicorn.lifespan.on',
-        'sqlalchemy.dialects.sqlite',
-        'pydantic_settings',
-        'httpx',
-        # LLM dependency (if bundled local model, add here)
-    ],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=['psycopg2', 'psycopg2-binary', 'pytest'],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
-)
-
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-
-exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name='ctrx-backend',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=True,   # keep True: Electron reads stdout for startup signal
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='ctrx-backend',
-)
+def count_in_progress() -> int:
+    # SELECT COUNT(*) WHERE status IN IN_PROGRESS
 ```
 
-### Resource path in packaged binary
+- `POST /jobs/{id}/run`：若 `count_in_progress() >= 3` 且本 job 非已在跑 → **409** `Too many jobs in progress (max 3)`  
+- 可选：`POST /upload` 在 `pending` 且未 run 时不计入；仅 **in-progress** 计入，与 PROJECT「并行解析」一致  
 
-FastAPI config must resolve template paths relative to `sys._MEIPASS` (PyInstaller temp dir) when bundled:
+**SQLite：** 保持 WAL + `check_same_thread=False`；三 job 并行主要为 CPU/LLM IO，非连接池扩展问题。
 
-```python
-# backend/app/config.py
-import sys
+**LLM 校验：** 仍 job 级；三 job 同时 extract 时校验可能排队 — v1.3 可接受，v2 再考虑队列。
 
-def _bundle_root() -> Path:
-    if getattr(sys, 'frozen', False):
-        return Path(sys._MEIPASS)   # type: ignore[attr-defined]
-    return Path(__file__).resolve().parents[2]
+### 无需改的 API
 
-def templates_dir() -> Path:
-    return _bundle_root() / "templates"
-```
-
-`uploads/` and `exports/` are user data, NOT inside the bundle — they go to `_resolve_data_dir()`.
+- 不必为每表新增 download 路径（已有五类 `download/*`）  
+- Path B 不必 PUT（只读摘录 + 手录）
 
 ---
 
-## Recommended Project Structure (new layout)
+## 前端组件边界
+
+| 组件 | 职责 | 新建/改 |
+|------|------|---------|
+| `AppLayout.vue` | 全局侧栏 + **条件渲染** `JobDetailSubMenu` | 修改 |
+| `JobDetailSubMenu.vue` | `el-sub-menu` 六链接，`index`=`/jobs/${id}/${section}` | 新建 |
+| `JobDetailLayout.vue` | 公共头（poll、`useJobPoll`、删除）+ `<router-view>` | 新建 |
+| `JobHubView.vue` | 摘要卡片 + ValidationPanel + WarningsList | 新建 |
+| `JobTableView.vue` | 单表编辑+摘录+保存+下载；props: `section` | 新建 |
+| `JobPathBView.vue` | 字段 B 全文摘录 UI | 新建 |
+| `ExportPreview.vue` | 拆逻辑后 **废弃或仅 dev** | 弃用/薄封装 |
+| `JobDetail.vue` | 逻辑上移至 Layout + Hub + Table | 逐步删除 |
+| `UploadView.vue` | `el-upload` `limit=3`、多 job 卡片、批量 run | 修改 |
+| `useJobPoll.ts` | 支持 `jobIds: Ref<string[]>` 或每卡独立 composable | 修改 |
+
+**轮询：** Hub 与 Layout 各 poll 同一 `jobId` 时，用 **provide/inject** 或 layout 内单一 poll 下发 `detail`，避免六页 6 路重复请求。
+
+---
+
+## 数据流：多文件上传 → 并行解析
 
 ```
-contract_info/
-├── backend/                        # existing — Python FastAPI
-│   ├── app/
-│   │   ├── config.py               # MODIFY: SQLite URL, data-dir, bundle path
-│   │   ├── db/session.py           # MODIFY: check_same_thread, no pool_pre_ping
-│   │   ├── models/contract_file.py # MODIFY: JSON, String(36) instead of JSONB/UUID
-│   │   └── ...                     # unchanged
-│   └── desktop_main.py             # NEW: uvicorn entry point with CLI arg parsing
-│
-├── alembic/
-│   ├── env.py                      # unchanged
-│   └── versions/
-│       ├── 001–007_*.py            # archive (PostgreSQL)
-│       └── 001_init_sqlite.py      # NEW: single-file SQLite init migration
-│
-├── frontend/                       # existing Vue 3 SPA
-│   └── src/
-│       ├── api/client.ts           # MODIFY: dynamic API_BASE
-│       ├── main.ts                 # MODIFY: call initApiBase() before mount
-│       └── views/SettingsView.vue  # NEW: LLM settings page
-│
-├── electron/                       # NEW directory
-│   ├── main.ts                     # Electron main entry
-│   ├── subprocess.ts               # Python binary spawn + health poll
-│   ├── ipc.ts                      # ipcMain handlers
-│   ├── preload.ts                  # contextBridge for renderer
-│   └── settings-store.ts           # read/write settings.json in userData
-│
-├── ctrx.spec                       # NEW: PyInstaller spec
-├── electron-builder.yml            # NEW: packaging config
-├── package.json                    # NEW: Electron + build scripts
-├── tsconfig.electron.json          # NEW: TS config for electron/ (target: node18)
-│
-├── docker-compose.yml              # unchanged (Docker path still works)
-├── requirements.txt                # MODIFY: remove psycopg2-binary; add nothing (sqlite3 built-in)
-└── requirements-prod.txt           # same
+用户选 1–3 个 docx
+  → 并行 POST /upload (×n)
+  → 得到 job_ids[]
+  → 对每个 id: POST /jobs/{id}/run（若未满 3 路 in-progress）
+  → UploadView 每卡 useJobPoll / 共享 poll registry
+  → 完成 → 跳转 /jobs/{id} Hub 或留在上传页批量「查看」
+```
+
+```
+用户从列表进入 /jobs/{id}
+  → JobDetailLayout GET /jobs/{id} + poll
+  → Hub 拉 preview 摘要 + path-b 摘要 + validation
+  → 用户点子菜单 /jobs/{id}/fee-rates
+  → JobTableView GET /jobs/{id}/preview/fee-rates
+  → 编辑 → PUT .../preview/fee-rates → persist_export（仅该表相关 xlsx）
+  → 下载 → GET .../download/fee-rates
 ```
 
 ---
 
-## Architectural Patterns
+## 反模式（v1.3 规避）
 
-### Pattern 1: Health-Poll Gate (Backend Ready Check)
-
-**What:** Main process polls `GET /api/v1/health` on a timer before showing the window. The window is created but hidden until the API responds 200.
-
-**When to use:** Always for Python subprocess — startup time is 2–8 s depending on bundle size.
-
-**Trade-offs:** Simple and reliable. No stdout-parsing fragility. A 30 s timeout covers cold starts on slow machines. Show a loading screen in a splash window while polling.
-
-```typescript
-// electron/subprocess.ts
-export async function waitForBackend(port: number, timeoutMs = 30_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/api/v1/health`)
-      if (res.ok) return
-    } catch { /* not ready yet */ }
-    await new Promise(r => setTimeout(r, 300))
-  }
-  throw new Error(`Backend did not start within ${timeoutMs / 1000}s`)
-}
-```
-
-### Pattern 2: Fixed Port with Conflict Guard
-
-**What:** Use a fixed port (18765) but check availability before spawning. If occupied, increment by 1 and retry (up to 3 times).
-
-**When to use:** Single-user desktop app. Avoids random port IPC complexity. Random port is only necessary for multi-instance apps.
-
-**Trade-offs:** Fixed port is simpler for debugging. Rare conflict on ephemeral port range is unlikely; guard handles it.
-
-### Pattern 3: userData Isolation
-
-**What:** All mutable data (SQLite file, uploads, exports, settings.json) goes to `app.getPath('userData')` — an OS-managed per-user directory (`%APPDATA%\CTRX` / `~/.config/CTRX`). The app bundle is read-only after install.
-
-**When to use:** Always for desktop apps. Separates install-time files from runtime data.
-
-**Trade-offs:** Makes uninstall clean. Survives app upgrades. Requires alembic to run at startup for schema migrations.
-
-### Pattern 4: Alembic Programmatic Startup Migration
-
-**What:** Instead of running `alembic upgrade head` as a subprocess, call it programmatically inside `desktop_main.py` before uvicorn starts.
-
-```python
-# backend/desktop_main.py
-from alembic.config import Config
-from alembic import command
-
-def run_migrations(db_url: str) -> None:
-    cfg = Config()
-    cfg.set_main_option("script_location", str(_bundle_root() / "alembic"))
-    cfg.set_main_option("sqlalchemy.url", db_url)
-    command.upgrade(cfg, "head")
-```
-
-**When to use:** Always for bundled desktop app — avoids subprocess-in-subprocess complexity.
+| 反模式 | 后果 | 做法 |
+|--------|------|------|
+| 六页各 `PUT` 全量 preview | 后写覆盖先写 | 分表 PUT + 服务端 merge |
+| 子菜单放在 JobDetailLayout 内第二栏 | 与全局侧栏重复、窄屏更挤 | 子菜单只在 AppLayout |
+| Hub 嵌入完整 ExportPreview | 与 v1.3「总览仅入口」冲突 | Hub 仅卡片摘要 |
+| 第四路 pipeline 无守门 | SQLite/LLM 打满、机器卡顿 | `MAX_CONCURRENT=3` 409 |
+| 每子页独立 poll `getJob` | 6× 轮询流量 | Layout 单 poll provide |
 
 ---
 
-## Integration Points
+## 构建顺序（推荐 5 步）
 
-### New vs Existing Component Interface
+实施顺序按**依赖从底到顶**排列，便于每步可测：
 
-| Boundary | Communication | Contract |
-|----------|---------------|---------|
-| Electron main ↔ Python backend | HTTP (localhost) + stdout scan | `/api/v1/health` returns `{"status": "ok"}` |
-| Electron main ↔ Renderer | Electron IPC (`ipcMain` / `ipcRenderer`) | `get-port` → number; `get-settings` → object; `save-settings` → void |
-| Renderer Vue ↔ Python backend | HTTP fetch to `http://127.0.0.1:{PORT}/api/v1/` | No change to existing REST contracts |
-| Python ↔ SQLite | SQLAlchemy engine (same ORM) | URL changes; no model query changes |
-| Python ↔ LLM API | httpx to external HTTPS | No change; configured via settings.json read at startup |
-| PyInstaller bundle ↔ filesystem | `sys._MEIPASS` for read-only assets | `templates/` bundled; `uploads/` `exports/` in userData |
+1. **后端并行守门 + 分表 Preview API**  
+   - `count_in_progress` + `run` 409；`GET/PUT /jobs/{id}/preview/{section}`；pytest 覆盖 merge 与并发上限。  
+   - *验收：* 第四路 run 被拒；分表 PUT 只改一张表。
 
-### External Services
+2. **路由骨架与 JobDetailLayout**  
+   - 嵌套 `children`、Hub 占位、`JobDetailSubMenu` 静态链接；从列表/上传跳转 Hub。  
+   - *验收：* `/jobs/:id` 与 `/jobs/:id/fee-rates` 可导航，头部状态一致。
 
-| Service | Integration | Notes |
-|---------|-------------|-------|
-| LLM API (OpenAI-compat) | httpx outbound HTTPS | Key stored in settings.json (userData), not bundled |
-| Windows NSIS installer | electron-builder | Code-signing optional for internal use |
-| Linux AppImage | electron-builder | No installer needed; self-contained |
+3. **单表详情页（JobTableView）**  
+   - 从 `ExportPreview` 抽出五表；接分表 GET/PUT；单表下载按钮。  
+   - *验收：* 编辑费率保存后仅 fee xlsx 更新，其他表不变。
 
----
+4. **Hub 摘要 + 字段 B 页**  
+   - `JobHubView` 卡片 + ValidationPanel；`JobPathBView` 摘录/页码表。  
+   - *验收：* Hub 无大表格；Path B 与旧 Panel 信息等价。
 
-## Build Pipeline
+5. **上传页多文件（≤3）+ 并行 run/轮询**  
+   - `UploadView` 多 slot、并发 upload/run、进度卡；对接 concurrency API。  
+   - *验收：* 三份合同同时解析，第四份上传或 run 被 UI/API 拒绝。
 
-```
-[Source]
-    │
-    ├─ Step 1: Build Python binary
-    │    cd contract_info/
-    │    pip install pyinstaller
-    │    pyinstaller ctrx.spec --distpath electron/resources/
-    │    → electron/resources/ctrx-backend/ctrx-backend[.exe]
-    │
-    ├─ Step 2: Build Vue SPA
-    │    cd frontend/
-    │    npm run build
-    │    → frontend/dist/   (static files)
-    │
-    ├─ Step 3: Compile Electron TypeScript
-    │    cd contract_info/
-    │    tsc -p tsconfig.electron.json
-    │    → electron/dist/   (compiled .js)
-    │
-    └─ Step 4: Package with electron-builder
-         npm run dist
-         → release/
-              Windows:  CTRX-Setup-1.2.0.exe   (NSIS)
-              Linux:    CTRX-1.2.0.AppImage
-                        CTRX-1.2.0.deb
-```
-
-### electron-builder.yml (schematic)
-
-```yaml
-appId: com.ctrx.contract-extraction
-productName: CTRX
-directories:
-  output: release/
-
-files:
-  - electron/dist/**
-  - frontend/dist/**
-  - "!node_modules/**"
-
-extraResources:
-  - from: electron/resources/ctrx-backend/
-    to: ctrx-backend/
-    filter: ["**/*"]
-
-win:
-  target: nsis
-  icon: assets/icon.ico
-
-linux:
-  target:
-    - AppImage
-    - deb
-  icon: assets/icon.png
-
-nsis:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
-```
+*可选第 6 步（收尾）：* 删除单体 `JobDetail.vue` / `ExportPreview` 死代码；更新 UAT 与 `FIELD_SPEC` 运营说明。
 
 ---
 
-## Anti-Patterns
+## 与路线图阶段映射（建议）
 
-### Anti-Pattern 1: Keeping PostgreSQL JSONB/UUID Types in SQLite Migration
-
-**What people do:** Copy-paste existing alembic migrations, only change the URL. The `postgresql.JSONB` and `postgresql.UUID` types are no-ops or raise errors under SQLite.
-
-**Why it's wrong:** `postgresql.JSONB` compiles to unsupported DDL under SQLite. `postgresql.UUID(as_uuid=True)` stores as bytes, breaking string comparisons. Silent data corruption in UUID primary keys.
-
-**Do this instead:** Write a single `001_init_sqlite.py` using only `sa.JSON`, `sa.String(36)`, `sa.Text`, `sa.DateTime`. Keep old PostgreSQL migrations in a `versions/postgres_archive/` subdirectory.
-
-### Anti-Pattern 2: Storing Uploads/Exports Inside PyInstaller Bundle
-
-**What people do:** Bundle `uploads/` and `exports/` inside the `datas` list of the spec file.
-
-**Why it's wrong:** The MEIPASS temp dir is read-only and recreated on every run. Files written to it are lost on exit.
-
-**Do this instead:** Resolve mutable data dirs from `CTRX_DATA_DIR` env var (app.getPath('userData') in Electron). Read-only assets (templates/) go in datas; mutable directories go in userData.
-
-### Anti-Pattern 3: Blocking Main Process on Backend Startup
-
-**What people do:** Use synchronous `spawnSync` or `execSync` to wait for the Python process to be ready before creating the BrowserWindow.
-
-**Why it's wrong:** Blocks the Electron main process event loop. The app appears frozen. macOS/Windows will prompt "app not responding".
-
-**Do this instead:** Show a splash window immediately, spawn asynchronously, poll health in a `setInterval`, then `splashWindow.close(); mainWindow.show()` when ready.
-
-### Anti-Pattern 4: Hardcoding `process.resourcesPath` in renderer code
-
-**What people do:** Access `process.resourcesPath` directly from renderer Vue components.
-
-**Why it's wrong:** `process` is not available in renderer when `nodeIntegration: false` (which is the secure default). Also breaks in browser/Docker mode.
-
-**Do this instead:** Expose only the port number and settings via `contextBridge`. The renderer never needs to know it's in Electron — it only needs the API base URL.
-
-### Anti-Pattern 5: Leaving `pool_pre_ping=True` for SQLite
-
-**What people do:** Copy `create_engine(url, pool_pre_ping=True)` verbatim.
-
-**Why it's wrong:** SQLite does not support connection pool health checks. Causes `NotImplementedError` or silent failures under some SQLAlchemy versions.
-
-**Do this instead:** Use `connect_args={"check_same_thread": False}` for SQLite. Remove `pool_pre_ping`.
+| Phase 主题 | 构建步 |
+|------------|--------|
+| 并行上传 ≤3 | 步 1 + 步 5 |
+| Hub + 侧栏子菜单 | 步 2 + 步 4 |
+| 五表独立页 | 步 3 |
+| 字段 B 页 | 步 4 |
 
 ---
 
-## Scaling Considerations
+## 置信度与缺口
 
-This is a single-user desktop application. Traditional scaling does not apply.
+| 项 | 置信度 | 说明 |
+|----|--------|------|
+| 路由与 download kind 对齐 | HIGH | 代码已存在五类 download |
+| 分表 preview API | MEDIUM | 推荐但非强制；全量 GET/PUT 亦可 MVP，有覆盖风险 |
+| 并发计数仅 in-progress | MEDIUM | 需与产品确认 pending 是否占槽 |
+| 页码列来源 | MEDIUM | 需核对 `extraction_result` 是否含 page；若无则 v1.3 仅摘录文本 |
 
-| Concern | Desktop Reality |
-|---------|----------------|
-| Concurrency | One user, one SQLite file. `check_same_thread=False` + SQLAlchemy session-per-request is sufficient. |
-| DB file growth | Each job stores full docx bytes + JSON blobs. 1000 contracts ≈ 500 MB. Add periodic cleanup UI in v1.3. |
-| LLM latency | 30–120s per validation call (already handled by async background tasks). No change. |
-| Memory | PyInstaller bundle + ML deps can be 200–500 MB resident. Test on 8 GB RAM machines. |
+**Phase 级深研标记：** 若 `extraction` 无统一 page 字段，字段 B/产品表「页码」列需 Phase 规划补抽取元数据。
 
 ---
 
 ## Sources
 
-- Electron documentation (contextBridge, ipcMain, child_process, app.getPath) — HIGH confidence, well-established patterns since Electron 12+
-- PyInstaller documentation (spec file, sys._MEIPASS, hiddenimports) — HIGH confidence, stable API
-- SQLAlchemy documentation (SQLite dialect, check_same_thread, JSON type) — HIGH confidence, documented behavior
-- Alembic documentation (programmatic usage via `command.upgrade`) — HIGH confidence
-- electron-builder documentation (extraResources, nsis, AppImage) — HIGH confidence
-- Existing codebase analysis: `backend/app/config.py`, `backend/app/db/session.py`, `backend/app/models/contract_file.py`, `alembic/versions/001–007_*.py`, `frontend/src/api/client.ts` — direct inspection
+- `contract_info/.planning/PROJECT.md` — v1.3 milestone 目标  
+- `contract_info/frontend/src/router/index.ts` — 当前路由  
+- `contract_info/frontend/src/layouts/AppLayout.vue` — 侧栏结构  
+- `contract_info/frontend/src/components/JobDetail.vue`, `ExportPreview.vue` — 待拆分 UI  
+- `contract_info/backend/app/api/routes/jobs.py`, `upload.py` — 现有 API  
+- `contract_info/backend/app/services/pipeline_service.py`, `preview_edit_service.py` — pipeline 与编辑 merge  
+- `contract_info/.planning/v1.1-FRONTEND-NAV.md` — v1.1 导航先例  
 
 ---
-*Architecture research for: CTRX v1.2 Electron desktop migration*
-*Researched: 2026-05-28*
+*Architecture research for: CTRX v1.3 — 多文件并行与详情页重构*  
+*Researched: 2026-05-29*
