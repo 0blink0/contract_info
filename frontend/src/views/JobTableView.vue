@@ -1,50 +1,165 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { downloadBlob } from '@/api/client'
 import { useJobDetailInject } from '@/composables/useJobDetailContext'
-import { isValidTableKey, sectionLabel } from '@/constants/jobSections'
-import { statusLabelZh } from '@/constants/status'
+import { useSectionPreview } from '@/composables/useSectionPreview'
+import TablePreviewEditor from '@/components/table/TablePreviewEditor.vue'
+import VerificationExcerptTable from '@/components/table/VerificationExcerptTable.vue'
+import {
+  isValidTableKey,
+  sectionLabel,
+  TABLE_DOWNLOAD_FILES,
+  type TableKey,
+} from '@/constants/jobSections'
 
 const route = useRoute()
-const { detail } = useJobDetailInject()
+const { jobId, status, detail } = useJobDetailInject()
 
-const tableKey = computed(() => {
+const tableKeyParam = computed(() => {
   const k = route.params.tableKey
   return typeof k === 'string' ? k : ''
 })
 
-const label = computed(() => {
-  if (isValidTableKey(tableKey.value)) return sectionLabel(tableKey.value)
-  return tableKey.value
+const tableKey = computed(() =>
+  isValidTableKey(tableKeyParam.value) ? (tableKeyParam.value as TableKey) : null,
+)
+
+const label = computed(() => (tableKey.value ? sectionLabel(tableKey.value) : ''))
+
+const {
+  preview,
+  loading,
+  saving,
+  dirty,
+  canEdit,
+  canShowPreview,
+  markDirty,
+  save,
+} = useSectionPreview(tableKeyParam)
+
+const showDownload = computed(() => detail.value?.status === 'exported')
+
+async function onDownload() {
+  const id = jobId.value
+  const key = tableKey.value
+  if (!id || !key) return
+  try {
+    await downloadBlob(id, key, TABLE_DOWNLOAD_FILES[key])
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '下载失败')
+  }
+}
+
+onBeforeRouteLeave(async () => {
+  if (!dirty.value) return true
+  try {
+    await ElMessageBox.confirm(
+      '有未保存的修改，确定离开当前页面？',
+      '未保存的修改',
+      {
+        type: 'warning',
+        confirmButtonText: '离开',
+        cancelButtonText: '留在此页',
+      },
+    )
+    return true
+  } catch {
+    return false
+  }
 })
 </script>
 
 <template>
-  <div class="table-view">
-    <h3 class="section-title">{{ label }}</h3>
-    <p v-if="detail" class="status-hint">
-      任务状态：{{ statusLabelZh(detail.status) }}
-    </p>
+  <div v-if="tableKey && jobId" class="table-view">
+    <div class="table-toolbar">
+      <h3 class="section-title">{{ label }}</h3>
+      <div class="toolbar-actions">
+        <el-button
+          v-if="canEdit"
+          type="primary"
+          size="small"
+          :loading="saving"
+          :disabled="!dirty || !preview"
+          @click="save"
+        >
+          保存修改
+        </el-button>
+        <el-button
+          v-if="showDownload"
+          type="success"
+          size="small"
+          @click="onDownload"
+        >
+          下载{{ label }}
+        </el-button>
+      </div>
+    </div>
+
     <el-alert
+      v-if="!canShowPreview"
       type="info"
       :closable="false"
       show-icon
-      title="本页编辑与摘录核对功能将在下一阶段开放"
-      description="当前为导航骨架；保存、核对表与单表下载将在 Phase 17 接入。"
+      title="抽取完成后可在此编辑并核对"
+      description="请先开始处理并等待任务进入 extracted 或 exported 状态。"
+      class="status-alert"
     />
+
+    <template v-else>
+      <el-text type="info" size="small" class="source-hint">
+        修改后请点击「保存修改」写入数据库并更新 Excel；下载按钮将导出最新文件。
+      </el-text>
+
+      <TablePreviewEditor
+        :table-key="tableKey"
+        :preview="preview"
+        :can-edit="canEdit"
+        :loading="loading"
+        @dirty="markDirty"
+      />
+
+      <VerificationExcerptTable
+        :job-id="jobId"
+        :table-key="tableKey"
+        :status="status"
+      />
+    </template>
   </div>
 </template>
 
 <style scoped>
+.table-view {
+  min-height: 120px;
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .section-title {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
 }
 
-.status-hint {
-  margin: 0 0 16px;
-  font-size: 13px;
-  color: #64748b;
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-alert {
+  margin-bottom: 16px;
+}
+
+.source-hint {
+  display: block;
+  margin-bottom: 12px;
 }
 </style>

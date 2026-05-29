@@ -48,3 +48,9 @@ test('child views use job detail inject', () => {
   assert.match(tableCode, /useJobDetailInject/)
   assert.match(fieldBCode, /useJobDetailInject/)
 })
+
+test('JobTableView uses sectional preview not job poll', () => {
+  assert.match(tableCode, /useSectionPreview/)
+  assert.doesNotMatch(tableCode, /useJobPoll/)
+  assert.match(tableCode, /onBeforeRouteLeave/)
+})

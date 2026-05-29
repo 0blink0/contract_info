@@ -48,7 +48,7 @@
 
 - [x] **Phase 15: 后端并行与分表 API** - ThreadPool 真并行、run 409 守门、分表 preview 与核对端点
 - [x] **Phase 16: 详情路由与子菜单骨架** - JobDetailLayout 嵌套路由、左侧六链、Hub 占位与统一轮询
-- [ ] **Phase 17: 五表独立工作页** - 每表可编辑 preview、摘录核对表、单表下载与 dirty 守卫
+- [x] **Phase 17: 五表独立工作页** - 每表可编辑 preview、摘录核对表、单表下载与 dirty 守卫
 - [ ] **Phase 18: Hub 摘要与字段 B 专页** - Hub 摘要卡与校验入口、字段 B 摘录与 JSON 导出
 - [ ] **Phase 19: 多文件上传与并行进度 UI** - ≤3 docx 选择与批量处理、上传页多任务进度轮询
 
@@ -128,15 +128,15 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 17-01-PLAN.md — 分表 preview/verification API 客户端 + useSectionPreview（TBL-02）
+- [x] 17-01-PLAN.md — 分表 preview/verification API 客户端 + useSectionPreview（TBL-02）
 
 **Wave 2**
 
-- [ ] 17-02-PLAN.md — TablePreviewEditor + VerificationExcerptTable（TBL-01, TBL-03）
+- [x] 17-02-PLAN.md — TablePreviewEditor + VerificationExcerptTable（TBL-01, TBL-03）
 
 **Wave 3**
 
-- [ ] 17-03-PLAN.md — JobTableView 编排、dirty 守卫、单表下载、测试（TBL-01~05）
+- [x] 17-03-PLAN.md — JobTableView 编排、dirty 守卫、单表下载、测试（TBL-01~05）
 
 **UI hint**: yes
 

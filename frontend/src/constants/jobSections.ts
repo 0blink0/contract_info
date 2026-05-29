@@ -1,3 +1,9 @@
+import type {
+  JobPreviewSectionResponse,
+  PreviewSection,
+  ProductPreviewItem,
+} from '@/api/types'
+
 export const JOB_TABLE_SECTIONS = [
   { key: 'product-elements', label: '产品要素' },
   { key: 'fee-rates', label: '运营费率' },
@@ -26,11 +32,95 @@ export function sectionLabel(key: TableKey): string {
   return row?.label ?? key
 }
 
-/** Download filename per table section (exported xlsx). */
 export const TABLE_DOWNLOAD_FILES: Record<TableKey, string> = {
   'product-elements': 'product_elements.xlsx',
   'fee-rates': 'fee_rates.xlsx',
   'lock-periods': 'lock_periods.xlsx',
   'share-classes': 'share_classes.xlsx',
   'subscription-fee-rates': 'subscription_fee_rates.xlsx',
+}
+
+export type SectionKind = 'product' | 'list'
+
+export function sectionKind(key: TableKey): SectionKind {
+  return key === 'product-elements' ? 'product' : 'list'
+}
+
+const LIST_SECTION_FIELDS: Record<
+  Exclude<TableKey, 'product-elements'>,
+  { columns: 'fee_columns' | 'lock_columns' | 'share_columns' | 'subscription_columns'; rows: 'fee_rows' | 'lock_rows' | 'share_rows' | 'subscription_rows' }
+> = {
+  'fee-rates': { columns: 'fee_columns', rows: 'fee_rows' },
+  'lock-periods': { columns: 'lock_columns', rows: 'lock_rows' },
+  'share-classes': { columns: 'share_columns', rows: 'share_rows' },
+  'subscription-fee-rates': { columns: 'subscription_columns', rows: 'subscription_rows' },
+}
+
+export function buildSectionSaveBody(
+  key: TableKey,
+  preview: JobPreviewSectionResponse,
+): Record<string, unknown> {
+  if (key === 'product-elements') {
+    return { product_rows: preview.product_rows ?? [] }
+  }
+  const fields = LIST_SECTION_FIELDS[key]
+  return {
+    [fields.columns]: preview[fields.columns] ?? [],
+    [fields.rows]: preview[fields.rows] ?? [],
+  }
+}
+
+export function emptySectionPreview(key: TableKey, jobId: string): JobPreviewSectionResponse {
+  const base = { job_id: jobId, section: key as PreviewSection, source: 'extraction' }
+  if (key === 'product-elements') {
+    return { ...base, product_rows: [] }
+  }
+  const fields = LIST_SECTION_FIELDS[key]
+  return {
+    ...base,
+    [fields.columns]: [],
+    [fields.rows]: [],
+  } as JobPreviewSectionResponse
+}
+
+export function normalizeSectionPreview(
+  key: TableKey,
+  response: JobPreviewSectionResponse,
+): JobPreviewSectionResponse {
+  if (key === 'product-elements') {
+    return {
+      ...response,
+      product_rows: response.product_rows ?? [],
+    }
+  }
+  const fields = LIST_SECTION_FIELDS[key]
+  return {
+    ...response,
+    [fields.columns]: response[fields.columns] ?? [],
+    [fields.rows]: response[fields.rows] ?? [],
+  } as JobPreviewSectionResponse
+}
+
+export const SNIPPET_DISPLAY_COLUMN = '摘录原文'
+
+export function listTableEditableColumns(
+  columns: string[],
+  rows: Record<string, string | null>[],
+): string[] {
+  if (columns.length) {
+    return columns.filter((c) => c !== SNIPPET_DISPLAY_COLUMN)
+  }
+  if (!rows.length) return []
+  return Object.keys(rows[0]).filter((c) => c !== SNIPPET_DISPLAY_COLUMN)
+}
+
+export function listSectionData(preview: JobPreviewSectionResponse, key: TableKey) {
+  const fields = LIST_SECTION_FIELDS[key as Exclude<TableKey, 'product-elements'>]
+  const columns = (preview[fields.columns] as string[] | undefined) ?? []
+  const rows = (preview[fields.rows] as Record<string, string | null>[] | undefined) ?? []
+  return { columns, rows }
+}
+
+export function productRows(preview: JobPreviewSectionResponse): ProductPreviewItem[] {
+  return preview.product_rows ?? []
 }

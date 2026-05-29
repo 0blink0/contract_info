@@ -54,6 +54,46 @@ export interface JobPreview {
   subscription_rows: Record<string, string | null>[]
 }
 
+export type PreviewSection =
+  | 'product-elements'
+  | 'fee-rates'
+  | 'lock-periods'
+  | 'share-classes'
+  | 'subscription-fee-rates'
+
+export interface JobPreviewSectionResponse {
+  job_id: string
+  section: PreviewSection
+  source: string
+  product_rows?: ProductPreviewItem[]
+  fee_columns?: string[]
+  fee_rows?: Record<string, string | null>[]
+  lock_columns?: string[]
+  lock_rows?: Record<string, string | null>[]
+  share_columns?: string[]
+  share_rows?: Record<string, string | null>[]
+  subscription_columns?: string[]
+  subscription_rows?: Record<string, string | null>[]
+}
+
+export interface VerificationRow {
+  field: string
+  field_label: string
+  value?: string | null
+  page_no?: number | null
+  page_no_note?: string | null
+  excerpt?: string | null
+  validation_status?: string | null
+  validation_reason?: string | null
+}
+
+export interface TableVerificationResponse {
+  job_id: string
+  table_key: PreviewSection
+  rows: VerificationRow[]
+  page_no_available: boolean
+}
+
 export interface CrmHandoffItem {
   crm_field: string
   suggested_value?: string | null
@@ -103,9 +143,4 @@ export interface UploadResponse {
   filename: string
 }
 
-export type DownloadKind =
-  | 'product-elements'
-  | 'fee-rates'
-  | 'lock-periods'
-  | 'share-classes'
-  | 'subscription-fee-rates'
+export type DownloadKind = PreviewSection

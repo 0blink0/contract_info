@@ -3,12 +3,14 @@ import type {
   JobDetail,
   JobListResponse,
   JobPreview,
+  JobPreviewSectionResponse,
   PathBResponse,
+  PreviewSection,
+  TableVerificationResponse,
   UploadResponse,
   ValidationResponse,
 } from './types'
-
-const API_BASE = '/api/v1'
+import { getApiBase } from '@/stores/appBootstrap'
 
 function apiHeaders(): HeadersInit {
   const headers: HeadersInit = {}
@@ -24,7 +26,7 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
   for (const [k, v] of Object.entries(apiHeaders())) {
     headers.set(k, v as string)
   }
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  const response = await fetch(`${getApiBase()}${path}`, { ...options, headers })
   if (!response.ok) {
     let detail = response.statusText
     try {
@@ -67,6 +69,49 @@ export async function getValidation(jobId: string): Promise<ValidationResponse> 
   return res.json()
 }
 
+export type JobPreviewUpdatePayload = Omit<JobPreview, 'job_id' | 'source'>
+
+export async function saveJobPreview(
+  jobId: string,
+  payload: JobPreviewUpdatePayload,
+): Promise<JobPreview> {
+  const res = await apiFetch(`/jobs/${jobId}/preview`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return res.json()
+}
+
+export async function getJobPreviewSection(
+  jobId: string,
+  section: PreviewSection,
+): Promise<JobPreviewSectionResponse> {
+  const res = await apiFetch(`/jobs/${jobId}/preview/${section}`)
+  return res.json()
+}
+
+export async function saveJobPreviewSection(
+  jobId: string,
+  section: PreviewSection,
+  body: Record<string, unknown>,
+): Promise<JobPreviewSectionResponse> {
+  const res = await apiFetch(`/jobs/${jobId}/preview/${section}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return res.json()
+}
+
+export async function getTableVerification(
+  jobId: string,
+  tableKey: PreviewSection,
+): Promise<TableVerificationResponse> {
+  const res = await apiFetch(`/jobs/${jobId}/verification/${tableKey}`)
+  return res.json()
+}
+
 export async function upload(file: File): Promise<UploadResponse> {
   const form = new FormData()
   form.append('file', file)
@@ -84,7 +129,7 @@ export async function deleteJob(jobId: string): Promise<void> {
 }
 
 export function downloadUrl(jobId: string, kind: DownloadKind): string {
-  return `${API_BASE}/jobs/${jobId}/download/${kind}`
+  return `${getApiBase()}/jobs/${jobId}/download/${kind}`
 }
 
 export async function downloadBlob(
@@ -94,7 +139,7 @@ export async function downloadBlob(
 ): Promise<void> {
   const headers = apiHeaders()
   const url = kind === 'review-report'
-    ? `${API_BASE}/jobs/${jobId}/download/review-report`
+    ? `${getApiBase()}/jobs/${jobId}/download/review-report`
     : downloadUrl(jobId, kind as DownloadKind)
   const res = await fetch(url, { headers })
   if (!res.ok) {

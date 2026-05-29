@@ -33,11 +33,11 @@
 
 ### 五表工作页（TBL）
 
-- [ ] **TBL-01**: 每张导入表有独立页面，展示该表可编辑数据（列与 v1.2 `ExportPreview` 对应 tab 一致）
-- [ ] **TBL-02**: 用户编辑后可通过分表 PUT 保存；保存成功后该表 xlsx 导出反映最新数据
-- [ ] **TBL-03**: 每表页内嵌摘录核对表：字段、字段值、摘录所在页码、原文摘录
-- [ ] **TBL-04**: 每表页提供该表 xlsx 下载按钮（沿用现有 `DownloadKind`）
-- [ ] **TBL-05**: 未保存编辑离开页面时提示确认（`beforeRouteLeave` 或等效 dirty 守卫）
+- [x] **TBL-01**: 每张导入表有独立页面，展示该表可编辑数据（列与 v1.2 `ExportPreview` 对应 tab 一致）
+- [x] **TBL-02**: 用户编辑后可通过分表 PUT 保存；保存成功后该表 xlsx 导出反映最新数据
+- [x] **TBL-03**: 每表页内嵌摘录核对表：字段、字段值、摘录所在页码、原文摘录
+- [x] **TBL-04**: 每表页提供该表 xlsx 下载按钮（沿用现有 `DownloadKind`）
+- [x] **TBL-05**: 未保存编辑离开页面时提示确认（`beforeRouteLeave` 或等效 dirty 守卫）
 
 ### 字段 B（PB）
 
@@ -93,11 +93,11 @@
 | HUB-01 | Phase 18 | Pending |
 | HUB-02 | Phase 18 | Pending |
 | HUB-03 | Phase 18 | Pending |
-| TBL-01 | Phase 17 | Pending |
-| TBL-02 | Phase 17 | Pending |
-| TBL-03 | Phase 17 | Pending |
-| TBL-04 | Phase 17 | Pending |
-| TBL-05 | Phase 17 | Pending |
+| TBL-01 | Phase 17 | Complete |
+| TBL-02 | Phase 17 | Complete |
+| TBL-03 | Phase 17 | Complete |
+| TBL-04 | Phase 17 | Complete |
+| TBL-05 | Phase 17 | Complete |
 | PB-01 | Phase 18 | Pending |
 | PB-02 | Phase 18 | Pending |
 | FE-01 | Phase 19 | Pending |
