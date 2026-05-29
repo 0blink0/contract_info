@@ -1,184 +1,296 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import type { UploadFile } from 'element-plus'
 import { ElMessage } from 'element-plus'
-import { UploadFilled, View } from '@element-plus/icons-vue'
-import { getJob, runJob, upload } from '@/api/client'
-import type { JobDetail } from '@/api/types'
-import ProcessStepper from '@/components/ProcessStepper.vue'
-import { useJobPoll } from '@/composables/useJobPoll'
+import { UploadFilled } from '@element-plus/icons-vue'
+import UploadJobCard from '@/components/upload/UploadJobCard.vue'
+import { createJobsPoll } from '@/composables/useJobsPoll'
 import {
-  canRetry,
-  canStartRun,
-  isPipelineActive,
-  statusLabelZh,
-} from '@/constants/status'
+  getJob,
+  getJobConcurrency,
+  parseApiError,
+  runJob,
+  upload,
+} from '@/api/client'
+import type { JobConcurrencyResponse, JobDetail } from '@/api/types'
+import {
+  MAX_PARALLEL_JOBS,
+  MAX_UPLOAD_FILES,
+  type UploadSessionJob,
+} from '@/constants/upload'
+import { isPipelineActive } from '@/constants/status'
 
 const router = useRouter()
+const jobsPoll = createJobsPoll()
 
+const sessionJobs = ref<UploadSessionJob[]>([])
+const processedUids = ref(new Set<string>())
 const uploading = ref(false)
-const running = ref(false)
-const activeJobId = ref<string | null>(null)
-const detail = ref<JobDetail | null>(null)
-const status = ref('')
+const runningJobId = ref<string | null>(null)
+const batchRunning = ref(false)
+const concurrency = ref<JobConcurrencyResponse>({
+  active: 0,
+  max: MAX_PARALLEL_JOBS,
+})
 
-const PREVIEW_READY = new Set([
-  'extracted',
-  'exporting',
-  'exported',
-  'export_failed',
-])
+let concurrencyTimer: ReturnType<typeof setInterval> | null = null
 
-const showStart = computed(
-  () => detail.value && canStartRun(detail.value.status),
-)
-const showRetry = computed(() => detail.value && canRetry(detail.value.status))
-const showViewResult = computed(
-  () => detail.value && PREVIEW_READY.has(detail.value.status),
-)
-const busy = computed(() =>
-  Boolean(detail.value && isPipelineActive(detail.value.status)),
+const pendingJobs = computed(() =>
+  sessionJobs.value.filter((j) => j.status === 'pending'),
 )
 
-async function onFileChange(file: { raw?: File }) {
-  const raw = file.raw
-  if (!raw) return
-  if (!raw.name.toLowerCase().endsWith('.docx')) {
-    ElMessage.error('仅支持 .docx 文件')
+const slotsFull = computed(
+  () => concurrency.value.active >= concurrency.value.max,
+)
+
+const canBatchStart = computed(
+  () =>
+    pendingJobs.value.length > 0 &&
+    !slotsFull.value &&
+    !batchRunning.value &&
+    !uploading.value,
+)
+
+const uploadDisabled = computed(
+  () => uploading.value || sessionJobs.value.length >= MAX_UPLOAD_FILES,
+)
+
+const anyBusy = computed(() =>
+  sessionJobs.value.some((j) => isPipelineActive(j.status)),
+)
+
+async function refreshConcurrency() {
+  try {
+    concurrency.value = await getJobConcurrency()
+  } catch {
+    /* ignore */
+  }
+}
+
+function syncJobFromPoll(jobId: string, detail: JobDetail) {
+  const idx = sessionJobs.value.findIndex((j) => j.jobId === jobId)
+  if (idx < 0) return
+  const prev = sessionJobs.value[idx].status
+  sessionJobs.value[idx] = {
+    ...sessionJobs.value[idx],
+    detail,
+    status: detail.status,
+    filename: detail.filename,
+  }
+  if (prev && isPipelineActive(prev) && detail.status === 'exported') {
+    ElMessage.success(`${detail.filename} 处理完成`)
+  }
+}
+
+async function uploadOne(file: File, uid: string | number) {
+  const uidKey = String(uid)
+  if (processedUids.value.has(uidKey)) return
+  if (sessionJobs.value.length >= MAX_UPLOAD_FILES) {
+    ElMessage.warning(`最多同时上传 ${MAX_UPLOAD_FILES} 个文件`)
     return
   }
+  processedUids.value.add(uidKey)
   uploading.value = true
   try {
-    const res = await upload(raw)
-    activeJobId.value = res.job_id
-    detail.value = await getJob(res.job_id)
-    status.value = detail.value.status
-    ElMessage.success('上传成功，可开始解析')
+    const res = await upload(file)
+    const detail = await getJob(res.job_id)
+    const entry: UploadSessionJob = {
+      jobId: res.job_id,
+      filename: detail.filename,
+      status: detail.status,
+      detail,
+    }
+    sessionJobs.value.push(entry)
+    jobsPoll.register(res.job_id, detail.status, (d) => syncJobFromPoll(res.job_id, d))
+    ElMessage.success(`已上传：${detail.filename}`)
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '上传失败')
+    ElMessage.error(parseApiError(e))
+    processedUids.value.delete(uidKey)
   } finally {
     uploading.value = false
   }
 }
 
-async function onStartOrRetry() {
-  if (!activeJobId.value || !detail.value) return
-  running.value = true
+async function onFileChange(uploadFile: UploadFile) {
+  const raw = uploadFile.raw
+  if (!raw) return
+  if (!raw.name.toLowerCase().endsWith('.docx')) {
+    ElMessage.error('仅支持 .docx 文件')
+    return
+  }
+  await uploadOne(raw, uploadFile.uid)
+}
+
+function onExceed() {
+  ElMessage.warning(`最多同时上传 ${MAX_UPLOAD_FILES} 个文件`)
+}
+
+async function runOne(jobId: string) {
+  runningJobId.value = jobId
   try {
-    await runJob(activeJobId.value)
-    detail.value = await getJob(activeJobId.value)
-    status.value = detail.value.status
-    poll.activate()
+    await runJob(jobId)
+    const detail = await getJob(jobId)
+    syncJobFromPoll(jobId, detail)
+    jobsPoll.activate(jobId)
     ElMessage.success('已开始处理')
+    await refreshConcurrency()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '启动失败')
+    ElMessage.error(parseApiError(e))
   } finally {
-    running.value = false
+    runningJobId.value = null
   }
 }
 
-function goToDetail() {
-  if (!activeJobId.value) return
-  void router.push({ name: 'job-hub', params: { id: activeJobId.value } })
+async function batchStart() {
+  if (!canBatchStart.value) return
+  batchRunning.value = true
+  let started = 0
+  for (const job of [...pendingJobs.value]) {
+    await refreshConcurrency()
+    if (concurrency.value.active >= concurrency.value.max) {
+      ElMessage.warning('已有 3 个任务正在处理，请稍后再试')
+      break
+    }
+    try {
+      await runJob(job.jobId)
+      const detail = await getJob(job.jobId)
+      syncJobFromPoll(job.jobId, detail)
+      jobsPoll.activate(job.jobId)
+      started += 1
+      await refreshConcurrency()
+    } catch (e) {
+      const msg = parseApiError(e)
+      ElMessage.error(`${job.filename}：${msg}`)
+      if (msg.includes('3') && msg.includes('处理')) break
+    }
+  }
+  if (started > 0) {
+    ElMessage.success(`已启动 ${started} 个任务`)
+  }
+  batchRunning.value = false
 }
 
-const poll = useJobPoll(
-  computed(() => activeJobId.value),
-  status,
-  (d) => {
-    const prev = detail.value?.status
-    detail.value = d
-    if (prev && isPipelineActive(prev) && d.status === 'exported') {
-      ElMessage.success('处理完成，可查看结果')
-    }
-  },
-)
+function goToDetail(jobId: string) {
+  void router.push({ name: 'job-hub', params: { id: jobId } })
+}
+
+function clearSession() {
+  for (const job of sessionJobs.value) {
+    jobsPoll.unregister(job.jobId)
+  }
+  sessionJobs.value = []
+  processedUids.value.clear()
+}
+
+onMounted(() => {
+  void refreshConcurrency()
+  concurrencyTimer = setInterval(() => void refreshConcurrency(), 5000)
+})
+
+onUnmounted(() => {
+  if (concurrencyTimer) clearInterval(concurrencyTimer)
+  jobsPoll.stop()
+  for (const job of sessionJobs.value) {
+    jobsPoll.unregister(job.jobId)
+  }
+})
 </script>
 
 <template>
   <div class="page-shell">
     <h1 class="page-title">文件上传解析</h1>
-    <p class="page-desc">上传私募基金合同 docx，自动完成解析、抽取与 Excel 导出。</p>
+    <p class="page-desc">
+      一次最多上传 {{ MAX_UPLOAD_FILES }} 份 docx，可并行解析与导出（系统同时处理上限
+      {{ MAX_PARALLEL_JOBS }} 个任务）。
+    </p>
+
+    <el-alert
+      v-if="concurrency.active > 0"
+      type="info"
+      :closable="false"
+      show-icon
+      class="concurrency-banner"
+      :title="`系统正在处理 ${concurrency.active} / ${concurrency.max} 个任务`"
+    />
+
+    <el-alert
+      v-if="slotsFull"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="concurrency-banner"
+      title="并行槽位已满"
+      description="请等待当前任务完成后再批量开始处理，或稍后在文件列表中重试。"
+    />
+
+    <div class="toolbar">
+      <el-button
+        type="primary"
+        :disabled="!canBatchStart"
+        :loading="batchRunning"
+        @click="batchStart"
+      >
+        全部开始处理
+        <span v-if="pendingJobs.length">（{{ pendingJobs.length }}）</span>
+      </el-button>
+      <el-button
+        v-if="sessionJobs.length"
+        :disabled="anyBusy || uploading"
+        @click="clearSession"
+      >
+        清空列表
+      </el-button>
+    </div>
 
     <div class="surface-card upload-card">
       <el-upload
         drag
+        multiple
+        :limit="MAX_UPLOAD_FILES"
         :auto-upload="false"
-        :show-file-list="false"
+        :show-file-list="true"
         accept=".docx"
-        :disabled="uploading || busy"
+        :disabled="uploadDisabled"
         class="upload-drop"
         @change="onFileChange"
+        @exceed="onExceed"
       >
         <el-icon class="upload-icon"><UploadFilled /></el-icon>
         <div class="el-upload__text">
-          拖拽或点击上传合同
+          拖拽或点击上传合同（最多 {{ MAX_UPLOAD_FILES }} 个）
           <em>.docx</em>
         </div>
       </el-upload>
     </div>
 
-    <div v-if="detail" class="surface-card progress-card">
-      <div class="progress-header">
-        <div>
-          <div class="progress-label">当前文件</div>
-          <div class="progress-name">{{ detail.filename }}</div>
-        </div>
-        <el-tag :type="busy ? 'warning' : showViewResult ? 'success' : 'info'">
-          {{ statusLabelZh(detail.status) }}
-        </el-tag>
-      </div>
+    <UploadJobCard
+      v-for="job in sessionJobs"
+      :key="job.jobId"
+      :job="job"
+      :running="runningJobId === job.jobId"
+      @start="runOne(job.jobId)"
+      @view-result="goToDetail(job.jobId)"
+    />
 
-      <ProcessStepper :status="detail.status" />
-
-      <el-alert
-        v-if="detail.error_message"
-        type="error"
-        :title="detail.error_message"
-        show-icon
-        :closable="false"
-        class="error-box"
-      />
-
-      <div class="progress-actions">
-        <el-button
-          v-if="showStart"
-          type="primary"
-          :loading="running"
-          @click="onStartOrRetry"
-        >
-          开始处理
-        </el-button>
-        <el-button
-          v-if="showRetry"
-          type="warning"
-          :loading="running"
-          @click="onStartOrRetry"
-        >
-          重试
-        </el-button>
-        <el-button
-          v-if="showViewResult"
-          type="success"
-          :icon="View"
-          @click="goToDetail"
-        >
-          查看结果
-        </el-button>
-      </div>
-
-      <p v-if="showViewResult" class="hint">
-        解析与抽取已完成，可进入详情页查看校验、预览与下载 Excel。
-      </p>
-      <p v-else-if="detail.status === 'pending'" class="hint">
-        上传成功，请点击「开始处理」启动解析流程。
-      </p>
-      <p v-else-if="busy" class="hint">正在处理中，请稍候…</p>
-    </div>
+    <p v-if="!sessionJobs.length" class="empty-hint">
+      上传后每张合同将显示独立进度卡片；处理完成后可进入详情查看与下载。
+    </p>
   </div>
 </template>
 
 <style scoped>
+.concurrency-banner {
+  margin-bottom: 12px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
 .upload-card :deep(.el-upload-dragger) {
   border-radius: 10px;
   padding: 36px 20px;
@@ -196,39 +308,8 @@ const poll = useJobPoll(
   margin-bottom: 8px;
 }
 
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.progress-label {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.progress-name {
-  font-size: 15px;
-  font-weight: 600;
-  margin-top: 4px;
-  word-break: break-all;
-}
-
-.progress-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.error-box {
-  margin-top: 12px;
-}
-
-.hint {
-  margin: 12px 0 0;
+.empty-hint {
+  margin-top: 8px;
   font-size: 13px;
   color: #64748b;
 }

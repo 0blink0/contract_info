@@ -14,6 +14,7 @@ from backend.app.api.schemas import (
     DeleteJobResponse,
     FeeSectionUpdate,
     JobDetailResponse,
+    JobConcurrencyResponse,
     JobListItem,
     JobListResponse,
     JobPreviewResponse,
@@ -148,6 +149,11 @@ def list_jobs(limit: int = Query(50, ge=1, le=200)) -> JobListResponse:
         return JobListResponse(items=items)
     finally:
         session.close()
+
+
+@router.get("/concurrency", response_model=JobConcurrencyResponse)
+def get_job_concurrency() -> JobConcurrencyResponse:
+    return JobConcurrencyResponse(active=count_in_progress(), max=3)
 
 
 @router.get("/{job_id}", response_model=JobDetailResponse)

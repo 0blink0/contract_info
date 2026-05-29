@@ -49,6 +49,11 @@ class JobListResponse(BaseModel):
     items: list[JobListItem]
 
 
+class JobConcurrencyResponse(BaseModel):
+    active: int
+    max: int = 3
+
+
 class ProductPreviewItem(BaseModel):
     field: str
     value: str | None = None

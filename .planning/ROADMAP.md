@@ -50,7 +50,7 @@
 - [x] **Phase 16: 详情路由与子菜单骨架** - JobDetailLayout 嵌套路由、左侧六链、Hub 占位与统一轮询
 - [x] **Phase 17: 五表独立工作页** - 每表可编辑 preview、摘录核对表、单表下载与 dirty 守卫
 - [x] **Phase 18: Hub 摘要与字段 B 专页** - Hub 摘要卡与校验入口、字段 B 摘录与 JSON 导出
-- [ ] **Phase 19: 多文件上传与并行进度 UI** - ≤3 docx 选择与批量处理、上传页多任务进度轮询
+- [x] **Phase 19: 多文件上传与并行进度 UI** - ≤3 docx 选择与批量处理、上传页多任务进度轮询
 
 ## Phase Details
 
@@ -186,15 +186,15 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 19-01-PLAN.md — GET /jobs/concurrency + 前端 client/constants（D-13, D-14）
+- [x] 19-01-PLAN.md — GET /jobs/concurrency + 前端 client/constants（D-13, D-14）
 
 **Wave 2**
 
-- [ ] 19-02-PLAN.md — useJobsPoll + UploadJobCard（FE-01, UP-02）
+- [x] 19-02-PLAN.md — useJobsPoll + UploadJobCard（FE-01, UP-02）
 
 **Wave 3**
 
-- [ ] 19-03-PLAN.md — UploadView 多文件上传/批量 run/测试（UP-01~03）
+- [x] 19-03-PLAN.md — UploadView 多文件上传/批量 run/测试（UP-01~03）
 
 **UI hint**: yes
 

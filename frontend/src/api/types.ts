@@ -16,6 +16,11 @@ export interface JobListResponse {
   items: JobListItem[]
 }
 
+export interface JobConcurrencyResponse {
+  active: number
+  max: number
+}
+
 export interface JobDetail {
   job_id: string
   filename: string

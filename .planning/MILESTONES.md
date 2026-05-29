@@ -87,3 +87,21 @@
 **Tag:** `v1.2`
 
 ---
+
+## v1.3 多文件并行与详情页重构 (Shipped: 2026-05-29)
+
+**Phases completed:** 5 phases (15–19), 15 plans
+
+**Delivered:** 最多 3 路并行 pipeline、分表 preview/verification API、嵌套路由详情区、五表工作页、Hub/字段 B 专页、上传页 ≤3 文件并行进度
+
+**Key accomplishments:**
+
+1. **Phase 15** — JobRunner(3)、全局 run 409、分表 preview PUT、verification API
+2. **Phase 16** — JobDetailLayout、AppLayout 子菜单、单一 job poll inject
+3. **Phase 17** — 五表独立编辑/核对/下载、dirty 路由守卫
+4. **Phase 18** — Hub 摘要卡、warnings/校验入口、PathB 专页
+5. **Phase 19** — 上传页多文件、`useJobsPoll`、`GET /jobs/concurrency`
+
+**Tag:** `v1.3`（规划内交付；归档 ROADMAP/REQUIREMENTS 待 `/gsd:complete-milestone`）
+
+---

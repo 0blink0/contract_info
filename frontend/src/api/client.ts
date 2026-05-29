@@ -1,5 +1,6 @@
 import type {
   DownloadKind,
+  JobConcurrencyResponse,
   JobDetail,
   JobListResponse,
   JobPreview,
@@ -45,6 +46,28 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
 export async function listJobs(limit = 20): Promise<JobListResponse> {
   const res = await apiFetch(`/jobs?limit=${limit}`)
   return res.json()
+}
+
+export async function getJobConcurrency(): Promise<JobConcurrencyResponse> {
+  const res = await apiFetch('/jobs/concurrency')
+  return res.json()
+}
+
+/** Extract human-readable message from API errors (including 409 detail objects). */
+export function parseApiError(e: unknown): string {
+  if (!(e instanceof Error)) return '操作失败'
+  const raw = e.message
+  try {
+    const parsed = JSON.parse(raw) as { detail?: string | { detail?: string } }
+    if (typeof parsed.detail === 'string') return parsed.detail
+    if (parsed.detail && typeof parsed.detail === 'object' && 'detail' in parsed.detail) {
+      const inner = parsed.detail.detail
+      if (typeof inner === 'string') return inner
+    }
+  } catch {
+    /* not JSON */
+  }
+  return raw || '操作失败'
 }
 
 export async function getJob(jobId: string): Promise<JobDetail> {

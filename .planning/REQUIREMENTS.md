@@ -8,9 +8,9 @@
 
 ### 多文件上传与并行（UP）
 
-- [ ] **UP-01**: 用户可在上传页一次选择最多 3 个 docx 文件（超出时前端阻止并提示）
-- [ ] **UP-02**: 每个 docx 创建独立 job；上传页同时展示最多 3 个任务的解析/导出进度（状态、步骤、错误）
-- [ ] **UP-03**: 用户可从上传页对多个 pending job 批量触发「开始处理」，或进入各 job 详情单独重试
+- [x] **UP-01**: 用户可在上传页一次选择最多 3 个 docx 文件（超出时前端阻止并提示）
+- [x] **UP-02**: 每个 docx 创建独立 job；上传页同时展示最多 3 个任务的解析/导出进度（状态、步骤、错误）
+- [x] **UP-03**: 用户可从上传页对多个 pending job 批量触发「开始处理」，或进入各 job 详情单独重试
 - [ ] **UP-04**: 后端限制同时进行 pipeline 的 job 数 ≤3；第 4 路 `POST /run` 返回 409 及可读错误信息
 
 ### 后端契约（API）
@@ -46,7 +46,7 @@
 
 ### 前端基础设施（FE）
 
-- [ ] **FE-01**: `useJobsPoll`（或等效）支持注册多个 jobId 并批量轮询状态，供上传页与多任务进度使用
+- [x] **FE-01**: `useJobsPoll`（或等效）支持注册多个 jobId 并批量轮询状态，供上传页与多任务进度使用
 - [x] **FE-02**: 详情 Layout 层单一 poll + provide/inject，子页不各自重复全量 job 轮询
 
 ## Future Requirements（post-v1.3 / v2）
@@ -80,9 +80,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UP-01 | Phase 19 | Pending |
-| UP-02 | Phase 19 | Pending |
-| UP-03 | Phase 19 | Pending |
+| UP-01 | Phase 19 | Complete |
+| UP-02 | Phase 19 | Complete |
+| UP-03 | Phase 19 | Complete |
 | UP-04 | Phase 15 | Complete |
 | API-01 | Phase 15 | Complete |
 | API-02 | Phase 15 | Complete |
@@ -100,7 +100,7 @@
 | TBL-05 | Phase 17 | Complete |
 | PB-01 | Phase 18 | Complete |
 | PB-02 | Phase 18 | Complete |
-| FE-01 | Phase 19 | Pending |
+| FE-01 | Phase 19 | Complete |
 | FE-02 | Phase 16 | Complete |
 
 *Coverage: 22/22 v1.3 requirements mapped (Phases 15–19). Updated by roadmapper 2026-05-29.*
