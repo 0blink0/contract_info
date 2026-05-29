@@ -27,6 +27,22 @@ const jobId = computed(() => {
   return typeof id === 'string' ? id : null
 })
 
+const isHubRoute = computed(() => route.name === 'job-hub')
+
+const backLabel = computed(() =>
+  isHubRoute.value ? '← 返回文件列表' : '← 返回文件详情',
+)
+
+function onBack() {
+  if (isHubRoute.value) {
+    void router.push({ name: 'jobs' })
+    return
+  }
+  if (jobId.value) {
+    void router.push({ name: 'job-hub', params: { id: jobId.value } })
+  }
+}
+
 const detail = ref<JobDetail | null>(null)
 const loading = ref(false)
 const running = ref(false)
@@ -147,8 +163,8 @@ async function onDownloadReport() {
 
 <template>
   <div class="page-shell detail-layout">
-    <el-button class="back-btn" text @click="router.push({ name: 'jobs' })">
-      ← 返回文件列表
+    <el-button class="back-btn" text @click="onBack">
+      {{ backLabel }}
     </el-button>
 
     <el-empty v-if="!jobId" description="无效的任务链接" />

@@ -36,6 +36,14 @@ test('jobSections exports backend-aligned table keys', () => {
   assert.match(sectionsCode, /isValidTableKey/)
 })
 
+test('JobDetailLayout back button returns to hub on child routes', () => {
+  assert.match(layoutCode, /isHubRoute/)
+  assert.match(layoutCode, /返回文件详情/)
+  assert.match(layoutCode, /返回文件列表/)
+  assert.match(layoutCode, /name:\s*['"]job-hub['"]/)
+  assert.match(layoutCode, /function onBack/)
+})
+
 test('only JobDetailLayout uses useJobPoll among layout and child views', () => {
   assert.match(layoutCode, /useJobPoll/)
   assert.doesNotMatch(hubCode, /useJobPoll/)
