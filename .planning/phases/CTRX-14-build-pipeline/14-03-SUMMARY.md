@@ -65,7 +65,7 @@ completed: "2026-05-29"
 - **Duration:** ~25 min
 - **Started:** 2026-05-29T03:00:00Z
 - **Completed:** 2026-05-29T03:25:00Z (Task 1); Task 2 is human-verify checkpoint
-- **Tasks:** 1/2 automated tasks completed (Task 2 is human-verify checkpoint)
+- **Tasks:** 2/2 complete (Task 1 automated + Task 2 human-approved)
 - **Files modified:** 4
 
 ## Accomplishments
@@ -80,7 +80,7 @@ completed: "2026-05-29"
 
 1. **Task 1: tsc dry-run and Windows build smoke test** - `7019b8d` (feat)
 
-Task 2 is a human-verify checkpoint — no commit expected until human approves.
+2. **Task 2: Human verify Windows installer behavior and Linux build** — Human-approved ✓
 
 ## Files Created/Modified
 
@@ -171,9 +171,8 @@ No new network endpoints, auth paths, or trust-boundary file access patterns int
 
 ## Next Phase Readiness
 
-- Task 2 (human checkpoint) requires: running CTRX-Setup-1.2.0.exe on Windows, verifying extraResources path in installed app, and running Linux build on Ubuntu 22.04.
-- dist/CTRX-Setup-1.2.0.exe is ready for human acceptance testing.
-- Linux build (scripts/build.sh) requires Ubuntu 22.04 host — cannot run on current Windows dev machine.
+- Phase 14 all three BUILD requirements verified. Phase ready for /gsd:verify-work.
+- Linux build (scripts/build.sh) runs on Ubuntu 22.04 — human confirmed acceptance.
 
 ## Self-Check
 
@@ -189,4 +188,4 @@ No new network endpoints, auth paths, or trust-boundary file access patterns int
 
 ---
 *Phase: 14-build-pipeline*
-*Completed: 2026-05-29 (partial — Task 2 awaiting human verification)*
+*Completed: 2026-05-29 — all tasks complete, human verification approved*
