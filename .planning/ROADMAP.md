@@ -8,7 +8,7 @@
 - ✅ **v1.0 MVP** — Phases 1–5（shipped 2026-05-26）→ [archive](milestones/1.0-ROADMAP.md)
 - ✅ **v1.1 抽取质量与导出扩展** — Phases 6–10（shipped 2026-05-26）→ [archive](milestones/v1.1-ROADMAP.md)
 - ✅ **v1.2 桌面化交付** — Phases 11–14（shipped 2026-05-29）→ [archive](milestones/v1.2-ROADMAP.md)
-- 🚧 **v1.3 多文件并行与详情页重构** — Phases 15–19（in progress）
+- ✅ **v1.3 多文件并行与详情页重构** — Phases 15–19（shipped 2026-05-29）→ [Post-ship UX](v1.3-POST-SHIP-UX.md)
 
 ## Phases
 
@@ -44,13 +44,18 @@
 
 </details>
 
-### v1.3 多文件并行与详情页重构 (Phases 15–19)
+<details>
+<summary>✅ v1.3 多文件并行与详情页重构 (Phases 15–19) — SHIPPED 2026-05-29</summary>
 
 - [x] **Phase 15: 后端并行与分表 API** - ThreadPool 真并行、run 409 守门、分表 preview 与核对端点
 - [x] **Phase 16: 详情路由与子菜单骨架** - JobDetailLayout 嵌套路由、左侧六链、Hub 占位与统一轮询
 - [x] **Phase 17: 五表独立工作页** - 每表可编辑 preview、摘录核对表、单表下载与 dirty 守卫
 - [x] **Phase 18: Hub 摘要与字段 B 专页** - Hub 摘要卡与校验入口、字段 B 摘录与 JSON 导出
 - [x] **Phase 19: 多文件上传与并行进度 UI** - ≤3 docx 选择与批量处理、上传页多任务进度轮询
+
+**Post-ship:** [v1.3-POST-SHIP-UX.md](v1.3-POST-SHIP-UX.md)（启动页、摘录右栏、Hub/子页分工、API 回退）
+
+</details>
 
 ## Phase Details
 
@@ -217,10 +222,10 @@ Plans:
 | 13. Electron 壳与 IPC | v1.2 | 2/2 | Complete | 2026-05-29 |
 | 14. 构建流水线 | v1.2 | 3/3 | Complete | 2026-05-29 |
 | 15. 后端并行与分表 API | v1.3 | 3/3 | Complete | 2026-05-29 |
-| 16. 详情路由与子菜单骨架 | v1.3 | 0/? | Not started | — |
-| 17. 五表独立工作页 | v1.3 | 0/? | Not started | — |
-| 18. Hub 摘要与字段 B 专页 | v1.3 | 0/? | Not started | — |
-| 19. 多文件上传与并行进度 UI | v1.3 | 0/? | Not started | — |
+| 16. 详情路由与子菜单骨架 | v1.3 | 3/3 | Complete | 2026-05-29 |
+| 17. 五表独立工作页 | v1.3 | 3/3 | Complete | 2026-05-29 |
+| 18. Hub 摘要与字段 B 专页 | v1.3 | 3/3 | Complete | 2026-05-29 |
+| 19. 多文件上传与并行进度 UI | v1.3 | 3/3 | Complete | 2026-05-29 |
 
 ---
-*Roadmap updated: 2026-05-29 — v1.3 多文件并行与详情页重构：Phases 15–19 已规划*
+*Roadmap updated: 2026-05-29 — v1.3 shipped (Phases 15–19 + post-ship UX in v1.3-POST-SHIP-UX.md)*

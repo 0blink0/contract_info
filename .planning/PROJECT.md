@@ -14,22 +14,16 @@
 
 ## Current State
 
-- **Shipped:** v1.2（2026-05-29）— 桌面化交付完成
+- **Shipped:** v1.3（2026-05-29）— 多文件并行 + 详情六页工作流 + UAT 体验收口
 - **Runtime:** FastAPI + Vue + SQLite + Electron 桌面壳（Windows NSIS + Linux AppImage/deb）
-- **Deliverable:** `scripts/build.ps1 -Version 1.2.0` → `dist/CTRX-Setup-1.2.0.exe` (133MB NSIS installer)
-- **Planning:** v1.3 多文件并行与详情页重构（requirements + roadmap in progress）
+- **Deliverable:** `scripts/build.ps1 -Version 1.2.0` → `dist/CTRX-Setup-1.2.0.exe`（代码更新后需重打 PyInstaller + 前端 build）
+- **Planning:** v1.3 已交付；见 `MILESTONES.md`、`v1.3-POST-SHIP-UX.md`
 
-## Current Milestone: v1.3 多文件并行与详情页重构
+## Shipped Milestone: v1.3 多文件并行与详情页重构
 
-**Goal:** 一次最多上传 3 份 docx 并行解析；将文件详情拆为左侧可导航的六页工作流（五张导入表 + 字段 B），每页可编辑、可摘录核对、可下载；总览页仅作入口。
+**Goal（已达成）：** ≤3 份 docx 并行；Hub + 六页子路由；Hub 集中状态/下载，子页专注编辑与摘录核对。
 
-**Target features:**
-
-- 多文件上传（≤3）与并行解析任务（每文件独立 job + 进度）
-- 左侧「文件详情」可折叠子菜单（五表 + 字段 B）
-- 六张独立详情页：可编辑导出数据 + 人工核对表（字段/值/页码/原文摘录）+ 单表下载
-- 字段 B 页：业绩报酬与开放日建议摘录 + 页码，供人工判断
-- 详情 Hub 总览：五表 + 字段 B 摘要与「进入详情」按钮
+**Post-ship UX（同里程碑）：** `.planning/v1.3-POST-SHIP-UX.md`
 
 ## Requirements
 
@@ -55,12 +49,14 @@
 - ✓ 应用内 Settings 页面（保存后重启事务 + 失败回滚）— ELEC-04 — Phase 13
 - ✓ Windows/Linux 构建流水线（NSIS + AppImage + deb，build.ps1/sh，extraResources）— BUILD-01/02/03 — Phase 14
 
-### Active (v1.3)
+### Validated (v1.3)
 
-- [ ] 多文件上传与并行解析（≤3 份 docx）
-- [ ] 文件详情 Hub + 左侧六页导航（五表 + 字段 B）
-- [ ] 每表独立页：可编辑 preview + 摘录核对表 + 单表下载
-- [ ] 字段 B 建议摘录页（业绩报酬/开放日原文 + 页码）
+- ✓ 多文件上传与并行解析（≤3 份 docx）— UP-01~03, FE-01 — Phase 19
+- ✓ 文件详情 Hub + 左侧六页导航 — NAV-01~03 — Phase 16
+- ✓ 每表独立页：可编辑 preview + 摘录核对 + dirty 守卫 — TBL-01~05, FE-02 — Phase 17
+- ✓ Hub 摘要与字段 B 专页 — HUB-01~03, PB-01~02 — Phase 18
+- ✓ 后端并行与分表 API — API-01~03, UP-04 — Phase 15
+- ✓ Post-ship：摘录右栏、规则原文、Hub/子页分工、启动页、旧后端 API 回退 — `v1.3-POST-SHIP-UX.md`
 
 ### Deferred (post-v1.3)
 
@@ -83,7 +79,7 @@
 
 - 开发黄金样例：`example/产品要素 - 副本(1).xlsx`、`example/产品运营费率导入模板.xlsx`、`example/产品申赎费率导入模板.xlsx`
 - 字段规格：`FIELD_SPEC.md`
-- 归档：`.planning/milestones/` (v1.0, v1.1, v1.2)
+- 归档：`.planning/milestones/` (v1.0, v1.1, v1.2)；v1.3 见 `MILESTONES.md` + `v1.3-POST-SHIP-UX.md`
 - 构建产物：`dist/CTRX-Setup-1.2.0.exe` (Windows), `scripts/build.sh` (Linux)
 
 ## Key Decisions
@@ -100,8 +96,13 @@
 | signAndEditExecutable: false | 跳过 winCodeSign 符号链接提取（代码签名超出 v1.2 范围） | v1.2 采用 ✓ |
 | allowImportingTsExtensions + rewriteRelativeImportExtensions | TypeScript 6 NodeNext emit 模式双标志（TS5097 修复） | v1.2 采用 ✓ |
 | -c.extraMetadata.version=X 语法 | electron-builder 26.x 版本注入（旧 --extraMetadata JSON 语法已弃用） | v1.2 采用 ✓ |
+| Hub 与子页信息分层 | 状态/下载仅在 Hub；子页单表标题 + 编辑 | v1.3 UAT ✓ |
+| 摘录核对右栏 + 规则原文 | 长摘录分段阅读；`source=rule` 展示整段抓取正文 | v1.3 UAT ✓ |
+| 页码列暂缓展示 | docx 解析无 page 元数据 | v1.3 采用 ✓ |
 
 ## Evolution
+
+**Milestone v1.3（2026-05-29）：** 5 阶段（15–19）、15 计划。ThreadPool 真并行 + run 409；嵌套路由六页；分表 preview/verification；多文件上传 `useJobsPoll`。UAT 后同里程碑收口启动页、摘录 UI、导航与旧后端兼容（`v1.3-POST-SHIP-UX.md`）。
 
 **Milestone v1.2（2026-05-29）：** 从 Docker-only 部署转型为 Electron 桌面应用。4 个阶段（11-14）历时 2 天，57 文件改动，10,908 行插入。Phase 14 完成构建流水线（electron-builder 26.x + TypeScript 6 + NodeNext），产出 CTRX-Setup-1.2.0.exe (133MB)；关键修复：TypeScript 6 allowImportingTsExtensions+rewriteRelativeImportExtensions、electron-builder -c.extraMetadata.version 语法、signAndEditExecutable=false。
 
@@ -124,4 +125,4 @@
 
 ---
 
-*Last updated: 2026-05-29 — v1.3 多文件并行与详情页重构 milestone started*
+*Last updated: 2026-05-29 — v1.3 shipped (Phases 15–19 + post-ship UX)*

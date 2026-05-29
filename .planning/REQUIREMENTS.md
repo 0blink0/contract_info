@@ -11,13 +11,13 @@
 - [x] **UP-01**: 用户可在上传页一次选择最多 3 个 docx 文件（超出时前端阻止并提示）
 - [x] **UP-02**: 每个 docx 创建独立 job；上传页同时展示最多 3 个任务的解析/导出进度（状态、步骤、错误）
 - [x] **UP-03**: 用户可从上传页对多个 pending job 批量触发「开始处理」，或进入各 job 详情单独重试
-- [ ] **UP-04**: 后端限制同时进行 pipeline 的 job 数 ≤3；第 4 路 `POST /run` 返回 409 及可读错误信息
+- [x] **UP-04**: 后端限制同时进行 pipeline 的 job 数 ≤3；第 4 路 `POST /run` 返回 409 及可读错误信息
 
 ### 后端契约（API）
 
-- [ ] **API-01**: 提供 `GET /jobs/{id}/preview/{section}` 与 `PUT /jobs/{id}/preview/{section}`，`section` 覆盖五表（`product-elements`、`fee-rates`、`lock-periods`、`share-classes`、`subscription-fee-rates`）；PUT 仅合并对应 section，不得清空其它表 extraction 数据
-- [ ] **API-02**: 提供按表核对数据端点（如 `GET /jobs/{id}/verification/{table_key}`），返回字段名、字段值、摘录页码、原文摘录四列（页码不可用时允许空值并标注）
-- [ ] **API-03**: 流水线并行执行使用有界 worker（如 `ThreadPoolExecutor(max_workers=3)`），每任务独立 DB session；与 SQLite WAL 兼容
+- [x] **API-01**: 提供 `GET /jobs/{id}/preview/{section}` 与 `PUT /jobs/{id}/preview/{section}`，`section` 覆盖五表（`product-elements`、`fee-rates`、`lock-periods`、`share-classes`、`subscription-fee-rates`）；PUT 仅合并对应 section，不得清空其它表 extraction 数据
+- [x] **API-02**: 提供按表核对数据端点（如 `GET /jobs/{id}/verification/{table_key}`），返回字段名、字段值、摘录页码、原文摘录四列（页码不可用时允许空值并标注）
+- [x] **API-03**: 流水线并行执行使用有界 worker（如 `ThreadPoolExecutor(max_workers=3)`），每任务独立 DB session；与 SQLite WAL 兼容
 
 ### 导航与路由（NAV）
 
@@ -48,6 +48,16 @@
 
 - [x] **FE-01**: `useJobsPoll`（或等效）支持注册多个 jobId 并批量轮询状态，供上传页与多任务进度使用
 - [x] **FE-02**: 详情 Layout 层单一 poll + provide/inject，子页不各自重复全量 job 轮询
+
+### Post-ship 体验（同里程碑，非独立 Phase）
+
+见 **`v1.3-POST-SHIP-UX.md`**。摘要：
+
+- [x] **UX-01**: Electron 品牌化启动页（`splash.html`）
+- [x] **UX-02**: 子页返回 Hub / Hub 返回列表；Hub 独占状态、进度、下载、删除
+- [x] **UX-03**: 摘录核对右栏分段阅读；暂隐藏无数据的页码列
+- [x] **UX-04**: 规则抓取字段展示整段原文（`capture_source=rule`）
+- [x] **UX-05**: 旧后端无分表 API 时前端 preview/verification 回退
 
 ## Future Requirements（post-v1.3 / v2）
 
@@ -103,4 +113,6 @@
 | FE-01 | Phase 19 | Complete |
 | FE-02 | Phase 16 | Complete |
 
-*Coverage: 22/22 v1.3 requirements mapped (Phases 15–19). Updated by roadmapper 2026-05-29.*
+| UX-01 … UX-05 | Post-ship | Complete |
+
+*Coverage: 22/22 规划需求 + 5 项 post-ship UX（Phases 15–19 + v1.3-POST-SHIP-UX.md）。Updated 2026-05-29 — v1.3 shipped.*

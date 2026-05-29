@@ -102,6 +102,21 @@
 4. **Phase 18** — Hub 摘要卡、warnings/校验入口、PathB 专页
 5. **Phase 19** — 上传页多文件、`useJobsPoll`、`GET /jobs/concurrency`
 
-**Tag:** `v1.3`（规划内交付；归档 ROADMAP/REQUIREMENTS 待 `/gsd:complete-milestone`）
+**Post-ship 体验收口（同一里程碑，见 `v1.3-POST-SHIP-UX.md`）：**
+
+- Electron 品牌化启动页（`splash.html`）
+- 旧后端兼容：分表 preview / verification 前端回退
+- 摘录核对：右侧分段阅读区、规则抓取整段原文、暂隐藏页码列
+- 详情导航：Hub 独占状态/下载/删除；子页仅本表标题 + 保存
+
+**Known deferred (unchanged):**
+
+- docx 真实页码（解析层无 `page` 字段）
+- PATHB-EX-01/02 枚举映射
+- 桌面包需重打后端以获完整 verification API（前端已回退）
+
+**Tag:** `v1.3`（规划内 Phases 15–19 + Post-ship UX）
+
+**Archive:** 待 `/gsd-complete-milestone` 生成 `milestones/v1.3-ROADMAP.md` / `v1.3-REQUIREMENTS.md`
 
 ---
