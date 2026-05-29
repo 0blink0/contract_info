@@ -74,7 +74,10 @@ Plans:
   2. 干净 Windows VM 烟雾测试：上传合同 → 抽取 → 下载 xlsx 全部可用，`CTRX_DATA_DIR` 正确隔离数据
   3. 二进制产物已放入 `electron/resources/`，electron-builder 可通过 `extraResources` 引用
   4. `lru_cache` 清除机制生效：打包二进制不尝试连接 PostgreSQL
-**Plans**: TBD
+**Plans:** 2/2 plans ready
+Plans:
+- [x] 12-01-PLAN.md — 打包基础：desktop_main 入口加固、单 spec（含 hiddenimports CI gate）、资源落位与 manifest 回滚锚点
+- [x] 12-02-PLAN.md — 验收闭环：Windows clean VM 主链路烟测 + Linux clean 启动证据 + 失败阻断（Linux 验证按用户决定暂时跳过）
 
 ### Phase 13: Electron 壳与 IPC
 **Goal**: 用户双击 `electron .` 启动桌面应用，Python 子进程自动管理，首次启动显示 LLM 配置向导，可通过 Settings 页面随时修改配置
@@ -86,7 +89,10 @@ Plans:
   3. 首次启动（或 llmBaseUrl/llmApiKey 为空）强制显示 3 步向导，向导完成前无法进入主界面
   4. Settings 页面保存新 API Key 后 Python 子进程重启，新配置立即生效（LLM 请求使用新 Key）
   5. `userData/config.json` 正确存储 llmBaseUrl、llmApiKey、llmModel，应用重启后配置持久
-**Plans**: TBD
+**Plans:** 2/2 plans ready
+Plans:
+- [x] 13-01-PLAN.md — 主进程与 IPC 基线：生命周期状态机、三通道窄桥、配置存储校验（ELEC-01/02）
+- [x] 13-02-PLAN.md — 体验层闭环：首启向导强门禁 + Settings 保存后重启回滚（ELEC-03/04）
 **UI hint**: yes
 
 ### Phase 14: 构建流水线
@@ -98,7 +104,11 @@ Plans:
   2. `CTRX-1.2.0.AppImage` 在 Ubuntu 22.04 上运行，应用完整可用
   3. `CTRX-1.2.0.deb` 通过 `dpkg -i` 安装，应用可从系统菜单启动
   4. `.ps1` 和 `.sh` 构建脚本各一份，4 步流程（PyInstaller → Vite → tsc → electron-builder）可无人值守运行
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 14-01-PLAN.md — Wave 0: root package.json (electron-builder inline config), tsconfig.electron.json, npm install, placeholder icons
+- [ ] 14-02-PLAN.md — Wave 1: scripts/build.ps1 + scripts/build.sh (4-step dispatchers, fail-fast, --extraMetadata version injection)
+- [ ] 14-03-PLAN.md — Wave 2: tsc dry-run, Windows build smoke test, human acceptance gate (installer behavior + Linux artifacts)
 
 ## Progress
 
@@ -117,7 +127,7 @@ Plans:
 | 11. SQLite 迁移与路径修复 | v1.2 | 4/4 | Complete   | 2026-05-28 |
 | 12. PyInstaller 打包 | v1.2 | 0/? | Not started | - |
 | 13. Electron 壳与 IPC | v1.2 | 0/? | Not started | - |
-| 14. 构建流水线 | v1.2 | 0/? | Not started | - |
+| 14. 构建流水线 | v1.2 | 0/3 | Planned | - |
 
 ---
-*Roadmap updated: 2026-05-28 — Phase 11 planned (4 plans, 3 waves)*
+*Roadmap updated: 2026-05-29 — Phase 14 planned (3 plans, 3 waves)*
