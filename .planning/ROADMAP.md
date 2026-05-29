@@ -181,7 +181,21 @@ Plans:
   3. 用户可对多个 pending 任务批量触发「开始处理」，或进入某任务详情单独重试
   4. 上传页上各任务进度通过多 job 轮询保持同步更新，不会出现仅最后一个任务刷新的情况
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 19-01-PLAN.md — GET /jobs/concurrency + 前端 client/constants（D-13, D-14）
+
+**Wave 2**
+
+- [ ] 19-02-PLAN.md — useJobsPoll + UploadJobCard（FE-01, UP-02）
+
+**Wave 3**
+
+- [ ] 19-03-PLAN.md — UploadView 多文件上传/批量 run/测试（UP-01~03）
+
 **UI hint**: yes
 
 ## Progress
