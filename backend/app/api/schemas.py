@@ -167,6 +167,7 @@ class VerificationRow(BaseModel):
     page_no: int | None = None
     page_no_note: str | None = None
     excerpt: str | None = None
+    capture_source: str | None = None
     validation_status: str | None = None
     validation_reason: str | None = None
 

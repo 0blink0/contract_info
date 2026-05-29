@@ -88,6 +88,8 @@ export interface VerificationRow {
   page_no?: number | null
   page_no_note?: string | null
   excerpt?: string | null
+  /** rule | snippet | block | value — how excerpt was resolved */
+  capture_source?: string | null
   validation_status?: string | null
   validation_reason?: string | null
 }

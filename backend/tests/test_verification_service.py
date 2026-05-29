@@ -41,6 +41,27 @@ def test_page_no_unavailable():
     assert rows[0]["page_no_note"] == "页码暂未解析"
 
 
+def test_rule_capture_prefers_full_section_body_in_excerpt():
+    body = "1、权益类：股票。2、固定收益类：债券。" * 3
+    record = SimpleNamespace(
+        extraction_result={
+            "product_elements": {
+                "投资范围": {
+                    "value": body,
+                    "snippet": "（三）投资范围",
+                    "source": "rule",
+                }
+            },
+        },
+        parse_json={},
+        validation_result=None,
+    )
+    rows = build_verification_rows(record, "product-elements")
+    scope = next(r for r in rows if r["field"] == "投资范围")
+    assert scope["capture_source"] == "rule"
+    assert body in (scope["excerpt"] or "")
+
+
 def test_verification_falls_back_to_exported_preview_when_extraction_empty():
     record = SimpleNamespace(
         status="exported",

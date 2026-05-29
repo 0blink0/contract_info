@@ -32,6 +32,28 @@ const excerptParagraphs = computed(() =>
   formatExcerptParagraphs(selectedRow.value?.excerpt),
 )
 
+const CAPTURE_LABELS: Record<string, string> = {
+  rule: '规则抓取原文',
+  llm: '模型摘录',
+  snippet: '合同摘录',
+  block: '段落原文',
+  value: '字段对应原文',
+}
+
+const excerptKindLabel = computed(() => {
+  const src = selectedRow.value?.capture_source
+  if (!src) return '合同原文摘录'
+  return CAPTURE_LABELS[src] ?? '合同原文摘录'
+})
+
+function valueSummary(value: string | null | undefined, maxLen = 72): string {
+  const raw = value?.trim()
+  if (!raw) return '—'
+  const oneLine = raw.replace(/\s+/g, ' ')
+  if (oneLine.length <= maxLen) return oneLine
+  return `${oneLine.slice(0, maxLen)}…`
+}
+
 function rowClassName({ row }: { row: VerificationRow }) {
   return row.field === selectedRow.value?.field ? 'row-active' : ''
 }
@@ -94,7 +116,7 @@ watch(
           stripe
           border
           highlight-current-row
-          max-height="420"
+          max-height="560"
           :row-class-name="rowClassName"
           @row-click="selectRow"
         >
@@ -138,10 +160,22 @@ watch(
       <aside class="excerpt-reader" aria-label="原文摘录阅读区">
         <div v-if="selectedRow" class="excerpt-reader-inner">
           <div class="excerpt-reader-head">
-            <h5 class="excerpt-reader-title">{{ selectedRow.field_label }}</h5>
-            <el-text v-if="selectedRow.value" type="info" size="small" class="excerpt-value">
-              字段值：{{ selectedRow.value }}
-            </el-text>
+            <div class="excerpt-reader-head-top">
+              <h5 class="excerpt-reader-title">{{ selectedRow.field_label }}</h5>
+              <el-tag
+                v-if="selectedRow.capture_source === 'rule'"
+                size="small"
+                type="info"
+                effect="plain"
+              >
+                规则抓取
+              </el-tag>
+            </div>
+            <p v-if="selectedRow.value" class="excerpt-value" :title="selectedRow.value">
+              <span class="excerpt-value-label">字段值</span>
+              {{ valueSummary(selectedRow.value) }}
+            </p>
+            <p class="excerpt-body-label">{{ excerptKindLabel }}</p>
           </div>
           <div v-if="excerptParagraphs.length" class="excerpt-body">
             <p
@@ -189,20 +223,19 @@ watch(
 }
 
 .verification-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(440px, 1.25fr);
   gap: 16px;
   align-items: stretch;
-  min-height: 280px;
+  min-height: 420px;
 }
 
 .verification-main {
-  flex: 1;
   min-width: 0;
 }
 
 .excerpt-reader {
-  width: min(380px, 38vw);
-  flex-shrink: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--app-surface, #fff);
@@ -216,8 +249,8 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 280px;
-  max-height: 420px;
+  min-height: 420px;
+  max-height: min(72vh, 640px);
 }
 
 .excerpt-reader-head {
@@ -227,8 +260,16 @@ watch(
   background: #f8fafc;
 }
 
+.excerpt-reader-head-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .excerpt-reader-title {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: #0f172a;
@@ -236,8 +277,22 @@ watch(
 }
 
 .excerpt-value {
-  display: block;
-  line-height: 1.5;
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.excerpt-value-label {
+  color: #94a3b8;
+  margin-right: 6px;
+}
+
+.excerpt-body-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
 }
 
 .excerpt-body {
@@ -279,12 +334,11 @@ watch(
 
 @media (max-width: 960px) {
   .verification-layout {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
-  .excerpt-reader {
-    width: 100%;
-    max-height: 320px;
+  .excerpt-reader-inner {
+    max-height: 480px;
   }
 }
 </style>

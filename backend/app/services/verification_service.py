@@ -10,7 +10,7 @@ from backend.app.export.column_map import (
     template_header_for_subscription_key,
 )
 from backend.app.services.preview_service import PREVIEW_STATUSES, SNIPPET_DISPLAY, build_job_preview
-from backend.app.validate.evidence import resolve_evidence_text
+from backend.app.validate.evidence import _block_text, resolve_evidence_text
 from backend.app.validate.field_labels import label_for_validation_field
 
 PAGE_UNAVAILABLE_NOTE = "页码暂未解析"
@@ -67,6 +67,45 @@ def _overlay_validation(
         row["validation_reason"] = item.get("reason")
 
 
+def _field_source(raw: Any) -> str | None:
+    if not isinstance(raw, dict):
+        return None
+    src = raw.get("source")
+    return str(src).strip() if src else None
+
+
+def _resolve_capture_excerpt(
+    raw: Any,
+    value: str | None,
+    parse_json: dict,
+) -> tuple[str | None, str | None]:
+    """Prefer rule-capture body/snippets for verification reader (not MIN_SNIPPET_LEN gate)."""
+    snippet, block_id = _snippet_and_block(raw if isinstance(raw, dict) else {})
+    source = _field_source(raw) if isinstance(raw, dict) else None
+    val = (value or "").strip() or None
+    snip = (snippet or "").strip() or None
+    block_txt = (_block_text(block_id, parse_json) or "").strip() or None
+
+    rule_like = source == "rule" or (
+        not source and val and snip and len(val) > len(snip) + 40
+    )
+    if rule_like and val:
+        if snip and snip not in val:
+            return f"{snip}\n\n{val}", "rule"
+        return val, "rule"
+
+    if snip:
+        return snip, source or "snippet"
+    if block_txt:
+        return block_txt, "block"
+    if val and len(val) >= 20:
+        return val, "value"
+    resolved = resolve_evidence_text(snippet, block_id, parse_json)
+    if resolved:
+        return resolved, source or "snippet"
+    return None, None
+
+
 def _row_template(
     *,
     field: str,
@@ -74,8 +113,9 @@ def _row_template(
     value: str | None,
     excerpt: str | None,
     page_no: int | None = None,
+    capture_source: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    row: dict[str, Any] = {
         "field": field,
         "field_label": field_label,
         "value": value,
@@ -83,6 +123,9 @@ def _row_template(
         "page_no_note": None if page_no is not None else PAGE_UNAVAILABLE_NOTE,
         "excerpt": excerpt,
     }
+    if capture_source:
+        row["capture_source"] = capture_source
+    return row
 
 
 def _verification_rows_from_preview(
@@ -153,20 +196,25 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                 if not isinstance(raw, dict):
                     val = str(raw).strip() if raw is not None else ""
                     snippet, block_id = None, None
+                    excerpt, capture_source = None, None
                 else:
                     val = str(raw.get("value") or "").strip()
                     snippet, block_id = _snippet_and_block(raw)
-                excerpt = resolve_evidence_text(snippet, block_id, parse_json)
+                excerpt, capture_source = _resolve_capture_excerpt(
+                    raw if isinstance(raw, dict) else {},
+                    val or None,
+                    parse_json,
+                )
                 page_no = _page_for_block(block_id, parse_json)
                 rows.append(
-                    {
-                        "field": field_name,
-                        "field_label": field_name,
-                        "value": val or None,
-                        "page_no": page_no,
-                        "page_no_note": None if page_no is not None else PAGE_UNAVAILABLE_NOTE,
-                        "excerpt": excerpt,
-                    }
+                    _row_template(
+                        field=field_name,
+                        field_label=field_name,
+                        value=val or None,
+                        excerpt=excerpt,
+                        page_no=page_no,
+                        capture_source=capture_source,
+                    )
                 )
     elif table_key == "fee-rates":
         fee_list = extraction.get("fee_rates") or []
@@ -174,89 +222,93 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
             if not isinstance(row, dict):
                 continue
             snippet, block_id = _snippet_and_block(row)
-            excerpt = resolve_evidence_text(snippet, block_id, parse_json)
             page_no = _page_for_block(block_id, parse_json)
             for key, val in row.items():
-                if key in ("snippet", "_snippet", "摘录", "block_id"):
+                if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
+                cell_val = str(val).strip() if val is not None else None
+                excerpt, capture_source = _resolve_capture_excerpt(row, cell_val, parse_json)
                 label = template_header_for_fee_key(key)
                 field_path = f"fee_rates[{i}].{key}"
                 rows.append(
-                    {
-                        "field": field_path,
-                        "field_label": label,
-                        "value": str(val).strip() if val is not None else None,
-                        "page_no": page_no,
-                        "page_no_note": None if page_no is not None else PAGE_UNAVAILABLE_NOTE,
-                        "excerpt": excerpt,
-                    }
+                    _row_template(
+                        field=field_path,
+                        field_label=label,
+                        value=cell_val,
+                        excerpt=excerpt,
+                        page_no=page_no,
+                        capture_source=capture_source,
+                    )
                 )
     elif table_key == "lock-periods":
         lock_list = extraction.get("lock_periods") or []
         for i, row in enumerate(lock_list):
             if not isinstance(row, dict):
                 continue
-            snippet, block_id = _snippet_and_block(row)
-            excerpt = resolve_evidence_text(snippet, block_id, parse_json)
+            _, block_id = _snippet_and_block(row)
             page_no = _page_for_block(block_id, parse_json)
             for key, val in row.items():
-                if key in ("snippet", "_snippet", "摘录", "block_id"):
+                if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
+                cell_val = str(val).strip() if val is not None else None
+                excerpt, capture_source = _resolve_capture_excerpt(row, cell_val, parse_json)
                 field_path = f"lock_periods[{i}].{key}"
                 rows.append(
-                    {
-                        "field": field_path,
-                        "field_label": str(key),
-                        "value": str(val).strip() if val is not None else None,
-                        "page_no": page_no,
-                        "page_no_note": None if page_no is not None else PAGE_UNAVAILABLE_NOTE,
-                        "excerpt": excerpt,
-                    }
+                    _row_template(
+                        field=field_path,
+                        field_label=str(key),
+                        value=cell_val,
+                        excerpt=excerpt,
+                        page_no=page_no,
+                        capture_source=capture_source,
+                    )
                 )
     elif table_key == "share-classes":
         share_list = extraction.get("share_classes") or []
         for i, row in enumerate(share_list):
             if not isinstance(row, dict):
                 continue
-            snippet, block_id = _snippet_and_block(row)
-            excerpt = resolve_evidence_text(snippet, block_id, parse_json)
+            _, block_id = _snippet_and_block(row)
             page_no = _page_for_block(block_id, parse_json)
             for key, val in row.items():
-                if key in ("snippet", "_snippet", "摘录", "block_id"):
+                if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
+                cell_val = str(val).strip() if val is not None else None
+                excerpt, capture_source = _resolve_capture_excerpt(row, cell_val, parse_json)
                 field_path = f"share_classes[{i}].{key}"
                 rows.append(
-                    {
-                        "field": field_path,
-                        "field_label": str(key),
-                        "value": str(val).strip() if val is not None else None,
-                        "page_no": page_no,
-                        "page_no_note": None if page_no is not None else PAGE_UNAVAILABLE_NOTE,
-                        "excerpt": excerpt,
-                    }
+                    _row_template(
+                        field=field_path,
+                        field_label=str(key),
+                        value=cell_val,
+                        excerpt=excerpt,
+                        page_no=page_no,
+                        capture_source=capture_source,
+                    )
                 )
     elif table_key == "subscription-fee-rates":
         sub_list = extraction.get("subscription_fees") or []
         for i, row in enumerate(sub_list):
             if not isinstance(row, dict):
                 continue
-            snippet, block_id = _snippet_and_block(row)
-            excerpt = resolve_evidence_text(snippet, block_id, parse_json)
+            _, block_id = _snippet_and_block(row)
             page_no = _page_for_block(block_id, parse_json)
             for key, val in row.items():
-                if key in ("snippet", "_snippet", "摘录", "block_id"):
+                if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
+                cell_val = str(val).strip() if val is not None else None
+                excerpt, capture_source = _resolve_capture_excerpt(row, cell_val, parse_json)
                 label = template_header_for_subscription_key(key)
                 field_path = f"subscription_fees[{i}].{key}"
                 rows.append(
-                    {
-                        "field": field_path,
-                        "field_label": label,
-                        "value": str(val).strip() if val is not None else None,
-                        "page_no": page_no,
-                        "page_no_note": None if page_no is not None else PAGE_UNAVAILABLE_NOTE,
-                        "excerpt": excerpt,
-                    }
+                    _row_template(
+                        field=field_path,
+                        field_label=label,
+                        value=cell_val,
+                        excerpt=excerpt,
+                        page_no=page_no,
+                        capture_source=capture_source,
+                    )
                 )
 
     if not rows and getattr(record, "status", None) in PREVIEW_STATUSES:
