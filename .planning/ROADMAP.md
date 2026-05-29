@@ -46,7 +46,7 @@
 
 ### v1.3 多文件并行与详情页重构 (Phases 15–19)
 
-- [ ] **Phase 15: 后端并行与分表 API** - ThreadPool 真并行、run 409 守门、分表 preview 与核对端点
+- [x] **Phase 15: 后端并行与分表 API** - ThreadPool 真并行、run 409 守门、分表 preview 与核对端点
 - [ ] **Phase 16: 详情路由与子菜单骨架** - JobDetailLayout 嵌套路由、左侧六链、Hub 占位与统一轮询
 - [ ] **Phase 17: 五表独立工作页** - 每表可编辑 preview、摘录核对表、单表下载与 dirty 守卫
 - [ ] **Phase 18: Hub 摘要与字段 B 专页** - Hub 摘要卡与校验入口、字段 B 摘录与 JSON 导出
@@ -160,7 +160,7 @@ Plans:
 | 12. PyInstaller 打包 | v1.2 | 2/2 | Complete | 2026-05-29 |
 | 13. Electron 壳与 IPC | v1.2 | 2/2 | Complete | 2026-05-29 |
 | 14. 构建流水线 | v1.2 | 3/3 | Complete | 2026-05-29 |
-| 15. 后端并行与分表 API | v1.3 | 0/3 | Not started | — |
+| 15. 后端并行与分表 API | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 16. 详情路由与子菜单骨架 | v1.3 | 0/? | Not started | — |
 | 17. 五表独立工作页 | v1.3 | 0/? | Not started | — |
 | 18. Hub 摘要与字段 B 专页 | v1.3 | 0/? | Not started | — |

@@ -83,10 +83,10 @@
 | UP-01 | Phase 19 | Pending |
 | UP-02 | Phase 19 | Pending |
 | UP-03 | Phase 19 | Pending |
-| UP-04 | Phase 15 | Pending |
-| API-01 | Phase 15 | Pending |
-| API-02 | Phase 15 | Pending |
-| API-03 | Phase 15 | Pending |
+| UP-04 | Phase 15 | Complete |
+| API-01 | Phase 15 | Complete |
+| API-02 | Phase 15 | Complete |
+| API-03 | Phase 15 | Complete |
 | NAV-01 | Phase 16 | Pending |
 | NAV-02 | Phase 16 | Pending |
 | NAV-03 | Phase 16 | Pending |
