@@ -1,3 +1,16 @@
+/** Contract table block in verification excerpt (matches API ExcerptTablePayload). */
+export type ExcerptTableBlock = {
+  rows?: string[][]
+  caption?: string | null
+}
+
+export type ExcerptEvidenceRow = {
+  field: string
+  excerpt?: string | null
+  excerpt_table?: ExcerptTableBlock | null
+  excerpt_tables?: ExcerptTableBlock[] | null
+}
+
 /** Split contract excerpt into readable paragraphs for side-panel display. */
 export function formatExcerptParagraphs(text: string | null | undefined): string[] {
   const raw = text?.trim()
@@ -38,7 +51,7 @@ export function formatExcerptParagraphs(text: string | null | undefined): string
 }
 
 export function excerptTablePreview(
-  table: { rows?: string[][] } | null | undefined,
+  table: ExcerptTableBlock | null | undefined,
 ): string | null {
   const rows = table?.rows?.filter((r) => r?.some((c) => String(c || '').trim()))
   if (!rows?.length) return null
@@ -55,9 +68,9 @@ export function excerptPreview(text: string | null | undefined, maxLen = 36): st
 }
 
 export function allExcerptTables(row: {
-  excerpt_tables?: { rows?: string[][] }[] | null
-  excerpt_table?: { rows?: string[][] } | null
-}): { rows?: string[][] }[] {
+  excerpt_tables?: ExcerptTableBlock[] | null
+  excerpt_table?: ExcerptTableBlock | null
+}): ExcerptTableBlock[] {
   const list = row.excerpt_tables?.filter((t) => t?.rows?.length) ?? []
   if (list.length) return list
   if (row.excerpt_table?.rows?.length) return [row.excerpt_table]
@@ -70,11 +83,7 @@ export function listTableRowKey(field: string): string | null {
   return m ? m[1] : null
 }
 
-export function evidenceFingerprint(row: {
-  excerpt?: string | null
-  excerpt_table?: { rows?: string[][]; caption?: string | null } | null
-  excerpt_tables?: { rows?: string[][]; caption?: string | null }[] | null
-}): string {
+export function evidenceFingerprint(row: Omit<ExcerptEvidenceRow, 'field'>): string {
   const tables = allExcerptTables(row).map((t) => ({
     caption: t.caption ?? '',
     rows: t.rows ?? [],
@@ -94,9 +103,7 @@ export function evidenceGroupKey(
 }
 
 /** Rowspan for excerpt summary column: first row in group gets count, rest 0. */
-export function excerptSummaryRowspans(
-  rows: { field: string; excerpt?: string | null; excerpt_table?: unknown; excerpt_tables?: unknown }[],
-): number[] {
+export function excerptSummaryRowspans(rows: ExcerptEvidenceRow[]): number[] {
   const spans = rows.map(() => 1)
   let i = 0
   while (i < rows.length) {

@@ -10,6 +10,7 @@ import {
   formatExcerptParagraphs,
   listTableRowKey,
   verificationExcerptTeaser,
+  type ExcerptTableBlock,
 } from '@/utils/excerptFormat'
 
 const props = defineProps<{
@@ -42,8 +43,8 @@ const excerptParagraphs = computed(() =>
   formatExcerptParagraphs(selectedRow.value?.excerpt),
 )
 
-const excerptTableBlocks = computed(() =>
-  allExcerptTables(selectedRow.value ?? {}).filter((t) => t.rows?.length),
+const excerptTableBlocks = computed((): ExcerptTableBlock[] =>
+  allExcerptTables(selectedRow.value ?? {}).filter((t) => (t.rows?.length ?? 0) > 0),
 )
 
 const excerptSummarySpans = computed(() =>
