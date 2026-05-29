@@ -542,3 +542,27 @@ def get_job_preview(file_id: uuid.UUID) -> dict[str, Any]:
         session.close()
 
 
+def slice_preview(full: dict[str, Any], section: str) -> dict[str, Any]:
+    base = {
+        "job_id": full["job_id"],
+        "source": full["source"],
+        "section": section,
+    }
+    if section == "product-elements":
+        base["product_rows"] = full.get("product_rows") or []
+    elif section == "fee-rates":
+        base["fee_columns"] = full.get("fee_columns") or []
+        base["fee_rows"] = full.get("fee_rows") or []
+    elif section == "lock-periods":
+        base["lock_columns"] = full.get("lock_columns") or []
+        base["lock_rows"] = full.get("lock_rows") or []
+    elif section == "share-classes":
+        base["share_columns"] = full.get("share_columns") or []
+        base["share_rows"] = full.get("share_rows") or []
+    elif section == "subscription-fee-rates":
+        base["subscription_columns"] = full.get("subscription_columns") or []
+        base["subscription_rows"] = full.get("subscription_rows") or []
+    else:
+        raise ValueError(f"Unknown preview section: {section}")
+    return base
+

@@ -65,9 +65,15 @@ def get_settings() -> Settings:
 
 def cors_origin_list() -> list[str]:
     raw = get_settings().cors_origins.strip()
-    if not raw:
-        return []
-    return [o.strip() for o in raw.split(",") if o.strip()]
+    origins: list[str] = []
+    if raw:
+        origins = [o.strip() for o in raw.split(",") if o.strip()]
+    # Electron loads frontend via file://; browser sends Origin: null on cross-origin fetch.
+    if os.environ.get("CTRX_DATA_DIR"):
+        for extra in ("null", "file://"):
+            if extra not in origins:
+                origins.append(extra)
+    return origins
 
 
 def templates_dir() -> Path:

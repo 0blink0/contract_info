@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
+
+PreviewSection = Literal[
+    "product-elements",
+    "fee-rates",
+    "lock-periods",
+    "share-classes",
+    "subscription-fee-rates",
+]
 
 from pydantic import BaseModel, Field
 
@@ -60,6 +68,59 @@ class JobPreviewResponse(BaseModel):
     subscription_rows: list[dict[str, str | None]] = Field(default_factory=list)
 
 
+class JobPreviewUpdateRequest(BaseModel):
+    """Full preview update. Omitted fields are not modified. Prefer sectional PUT for new clients."""
+
+    product_rows: list[ProductPreviewItem] | None = None
+    fee_columns: list[str] | None = None
+    fee_rows: list[dict[str, str | None]] | None = None
+    lock_columns: list[str] | None = None
+    lock_rows: list[dict[str, str | None]] | None = None
+    share_columns: list[str] | None = None
+    share_rows: list[dict[str, str | None]] | None = None
+    subscription_columns: list[str] | None = None
+    subscription_rows: list[dict[str, str | None]] | None = None
+
+
+class JobPreviewSectionResponse(BaseModel):
+    job_id: uuid.UUID
+    section: PreviewSection
+    source: str
+    product_rows: list[ProductPreviewItem] | None = None
+    fee_columns: list[str] | None = None
+    fee_rows: list[dict[str, str | None]] | None = None
+    lock_columns: list[str] | None = None
+    lock_rows: list[dict[str, str | None]] | None = None
+    share_columns: list[str] | None = None
+    share_rows: list[dict[str, str | None]] | None = None
+    subscription_columns: list[str] | None = None
+    subscription_rows: list[dict[str, str | None]] | None = None
+
+
+class ProductSectionUpdate(BaseModel):
+    product_rows: list[ProductPreviewItem]
+
+
+class FeeSectionUpdate(BaseModel):
+    fee_columns: list[str] | None = None
+    fee_rows: list[dict[str, str | None]]
+
+
+class LockSectionUpdate(BaseModel):
+    lock_columns: list[str] | None = None
+    lock_rows: list[dict[str, str | None]]
+
+
+class ShareSectionUpdate(BaseModel):
+    share_columns: list[str] | None = None
+    share_rows: list[dict[str, str | None]]
+
+
+class SubscriptionSectionUpdate(BaseModel):
+    subscription_columns: list[str] | None = None
+    subscription_rows: list[dict[str, str | None]]
+
+
 class CrmHandoffItem(BaseModel):
     crm_field: str
     suggested_value: str | None = None
@@ -92,6 +153,24 @@ class ValidationItemResponse(BaseModel):
     evidence_text: str | None = None
     reason: str
     suggestion: str | None = None
+
+
+class VerificationRow(BaseModel):
+    field: str
+    field_label: str
+    value: str | None = None
+    page_no: int | None = None
+    page_no_note: str | None = None
+    excerpt: str | None = None
+    validation_status: str | None = None
+    validation_reason: str | None = None
+
+
+class TableVerificationResponse(BaseModel):
+    job_id: uuid.UUID
+    table_key: PreviewSection
+    rows: list[VerificationRow] = Field(default_factory=list)
+    page_no_available: bool = False
 
 
 class ValidationResponse(BaseModel):

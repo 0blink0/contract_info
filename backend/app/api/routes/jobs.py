@@ -3,41 +3,62 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from typing import Any
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 
 from backend.app.api.deps import verify_api_key
 from backend.app.api.schemas import (
     DeleteJobResponse,
+    FeeSectionUpdate,
     JobDetailResponse,
     JobListItem,
     JobListResponse,
     JobPreviewResponse,
+    JobPreviewSectionResponse,
+    JobPreviewUpdateRequest,
+    LockSectionUpdate,
+    PreviewSection,
+    ProductSectionUpdate,
     CrmHandoffItem,
     PathBResponse,
     PathBSnippetRow,
     ProductPreviewItem,
+    ShareSectionUpdate,
+    SubscriptionSectionUpdate,
+    TableVerificationResponse,
     ValidationItemResponse,
     ValidationResponse,
+    VerificationRow,
     RunResponse,
     warnings_from_jsonb,
 )
 from backend.app.services.preview_service import PREVIEW_STATUSES
 from backend.app.services.delete_service import JobDeleteBusyError, delete_job_record
-from backend.app.services.preview_service import get_job_preview
+from backend.app.services.preview_edit_service import (
+    apply_preview_edits,
+    apply_section_preview_edits,
+)
+from backend.app.services.preview_service import get_job_preview, slice_preview
 from backend.app.config import data_dir, exports_dir
 from backend.app.extract.path_b_crm import build_crm_handoff
 from backend.app.export.review_workbook import build_review_workbook
 from backend.app.validate.field_labels import label_for_path_b_snippet
 from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
+from backend.app.services.job_runner_service import get_runner
+from backend.app.services.verification_service import (
+    build_verification_rows,
+    page_no_available,
+)
 from backend.app.services.pipeline_service import (
     PipelineBusyError,
     PipelineCompleteError,
     PipelineNotRunnableError,
     assert_can_run,
-    run_pipeline,
+    count_in_progress,
 )
 
 router = APIRouter(prefix="/jobs", tags=["jobs"], dependencies=[Depends(verify_api_key)])
@@ -143,6 +164,10 @@ def preview_job(job_id: uuid.UUID) -> JobPreviewResponse:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _preview_response_from_data(data)
+
+
+def _preview_response_from_data(data: dict) -> JobPreviewResponse:
     return JobPreviewResponse(
         job_id=data["job_id"],
         source=data["source"],
@@ -158,6 +183,77 @@ def preview_job(job_id: uuid.UUID) -> JobPreviewResponse:
     )
 
 
+def _section_response_from_data(data: dict, section: PreviewSection) -> JobPreviewSectionResponse:
+    sliced = slice_preview(data, section)
+    return JobPreviewSectionResponse(
+        job_id=sliced["job_id"],
+        section=section,
+        source=sliced["source"],
+        product_rows=[ProductPreviewItem.model_validate(r) for r in sliced.get("product_rows") or []]
+        if sliced.get("product_rows") is not None
+        else None,
+        fee_columns=sliced.get("fee_columns"),
+        fee_rows=sliced.get("fee_rows"),
+        lock_columns=sliced.get("lock_columns"),
+        lock_rows=sliced.get("lock_rows"),
+        share_columns=sliced.get("share_columns"),
+        share_rows=sliced.get("share_rows"),
+        subscription_columns=sliced.get("subscription_columns"),
+        subscription_rows=sliced.get("subscription_rows"),
+    )
+
+
+@router.get("/{job_id}/preview/{section}", response_model=JobPreviewSectionResponse)
+def preview_job_section(job_id: uuid.UUID, section: PreviewSection) -> JobPreviewSectionResponse:
+    try:
+        data = get_job_preview(job_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _section_response_from_data(data, section)
+
+
+_SECTION_UPDATE_MODELS: dict[PreviewSection, type] = {
+    "product-elements": ProductSectionUpdate,
+    "fee-rates": FeeSectionUpdate,
+    "lock-periods": LockSectionUpdate,
+    "share-classes": ShareSectionUpdate,
+    "subscription-fee-rates": SubscriptionSectionUpdate,
+}
+
+
+@router.put("/{job_id}/preview/{section}", response_model=JobPreviewSectionResponse)
+def update_job_section_preview(
+    job_id: uuid.UUID,
+    section: PreviewSection,
+    body: dict[str, Any] = Body(...),
+) -> JobPreviewSectionResponse:
+    model_cls = _SECTION_UPDATE_MODELS[section]
+    parsed = model_cls.model_validate(body)
+    try:
+        data = apply_section_preview_edits(job_id, section, parsed.model_dump())
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _section_response_from_data(data, section)
+
+
+@router.put("/{job_id}/preview", response_model=JobPreviewResponse)
+def update_job_preview(
+    job_id: uuid.UUID,
+    body: JobPreviewUpdateRequest,
+) -> JobPreviewResponse:
+    try:
+        data = apply_preview_edits(job_id, body.model_dump(exclude_unset=True))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _preview_response_from_data(data)
+
+
 @router.delete("/{job_id}", response_model=DeleteJobResponse)
 def delete_job(job_id: uuid.UUID) -> DeleteJobResponse:
     try:
@@ -170,10 +266,7 @@ def delete_job(job_id: uuid.UUID) -> DeleteJobResponse:
 
 
 @router.post("/{job_id}/run", response_model=RunResponse, status_code=202)
-def run_job(
-    job_id: uuid.UUID,
-    background_tasks: BackgroundTasks,
-) -> RunResponse:
+def run_job(job_id: uuid.UUID) -> RunResponse:
     record = _get_record(job_id)
     try:
         assert_can_run(record.status)
@@ -184,7 +277,16 @@ def run_job(
     except PipelineNotRunnableError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    background_tasks.add_task(run_pipeline, job_id)
+    if count_in_progress() >= 3:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "已有 3 个任务正在处理，请稍后再试",
+                "active_count": 3,
+            },
+        )
+
+    get_runner().submit(job_id)
     return RunResponse(job_id=job_id, status=record.status)
 
 
@@ -296,6 +398,26 @@ def download_review_report(job_id: uuid.UUID) -> Response:
         content=content,
         media_type=XLSX_MEDIA,
         headers={"Content-Disposition": f'attachment; filename="{safe_name}_核对报告.xlsx"'},
+    )
+
+
+@router.get("/{job_id}/verification/{table_key}", response_model=TableVerificationResponse)
+def get_table_verification(
+    job_id: uuid.UUID, table_key: PreviewSection
+) -> TableVerificationResponse:
+    record = _get_record(job_id)
+    if record.status not in PREVIEW_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail="Job not extracted yet",
+        )
+    raw_rows = build_verification_rows(record, table_key)
+    rows = [VerificationRow.model_validate(r) for r in raw_rows]
+    return TableVerificationResponse(
+        job_id=record.id,
+        table_key=table_key,
+        rows=rows,
+        page_no_available=page_no_available(raw_rows),
     )
 
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import uuid
 
+from sqlalchemy import func, select
+
 from backend.app.services.export_service import persist_export
 from backend.app.services.extract_service import persist_extract
 from backend.app.services.parse_service import parse_file_id
@@ -34,6 +36,25 @@ def can_run(status: str) -> bool:
         "extracted",
         "export_failed",
     }
+
+
+def count_in_progress(session=None) -> int:
+    from backend.app.db.session import SessionLocal
+    from backend.app.models.contract_file import ContractFile
+
+    own_session = session is None
+    if own_session:
+        session = SessionLocal()
+    try:
+        stmt = (
+            select(func.count())
+            .select_from(ContractFile)
+            .where(ContractFile.status.in_(IN_PROGRESS))
+        )
+        return int(session.scalar(stmt) or 0)
+    finally:
+        if own_session:
+            session.close()
 
 
 def assert_can_run(status: str) -> None:

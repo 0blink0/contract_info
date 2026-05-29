@@ -80,3 +80,17 @@ def template_header_for_fee_key(key: str) -> str:
 
 def template_header_for_subscription_key(key: str) -> str:
     return SUBSCRIPTION_EXTRACTION_TO_TEMPLATE.get(key, key)
+
+
+def extraction_key_for_fee_header(header: str) -> str:
+    for key, label in FEE_EXTRACTION_TO_TEMPLATE.items():
+        if label == header:
+            return key
+    return header
+
+
+def extraction_key_for_subscription_header(header: str) -> str:
+    for key, label in SUBSCRIPTION_EXTRACTION_TO_TEMPLATE.items():
+        if label == header:
+            return key
+    return header

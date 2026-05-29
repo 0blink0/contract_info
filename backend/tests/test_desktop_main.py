@@ -1,14 +1,10 @@
-"""
-Wave-0 RED tests for DB-04: desktop_main.run_migrations() programmatic Alembic.
+"""Regression tests for desktop entrypoint behavior in desktop_main.py."""
 
-These tests must FAIL before Plan 11-02/11-04 creates desktop_main.py:
-  - test_migrations_fresh_db:   ImportError — desktop_main.py does not exist
-  - test_migrations_idempotent: ImportError — desktop_main.py does not exist
-
-Imports are done at function scope so collection succeeds even with the file absent.
-"""
-
+import os
 from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
 
 
 def test_migrations_fresh_db(tmp_path):
@@ -60,3 +56,91 @@ def test_migrations_idempotent(tmp_path):
 
     # If we reach here, idempotency is confirmed.
     assert True
+
+
+def test_main_fails_fast_when_required_resources_missing(tmp_path, monkeypatch):
+    """Startup must fail-fast when a required bundle resource directory is absent."""
+    from desktop_main import main  # noqa: PLC0415
+
+    bundle = tmp_path / "bundle"
+    (bundle / "alembic").mkdir(parents=True)
+    (bundle / "dicts").mkdir(parents=True)
+    # templates intentionally missing
+
+    monkeypatch.setattr("desktop_main._get_bundle_base", lambda: bundle)
+    monkeypatch.setenv("CTRX_DATA_DIR", str(tmp_path / "data"))
+
+    with pytest.raises(RuntimeError, match="Missing required resource directory"):
+        main()
+
+
+def test_main_uses_sqlite_then_clears_cache_then_migrates_then_runs_uvicorn(
+    tmp_path, monkeypatch
+):
+    """Startup chain order is deterministic and settings cache is cleared."""
+    from desktop_main import main  # noqa: PLC0415
+
+    bundle = tmp_path / "bundle"
+    (bundle / "alembic").mkdir(parents=True)
+    (bundle / "dicts").mkdir(parents=True)
+    (bundle / "templates").mkdir(parents=True)
+
+    events = []
+    cache_clear = MagicMock(side_effect=lambda: events.append("cache_clear"))
+    get_settings_stub = MagicMock()
+    get_settings_stub.cache_clear = cache_clear
+
+    def _run_migrations(db_url, alembic_dir):
+        events.append(("migrate", db_url, str(alembic_dir)))
+
+    def _run_uvicorn(*args, **kwargs):
+        events.append(("uvicorn", args, kwargs))
+
+    monkeypatch.setattr("desktop_main._get_bundle_base", lambda: bundle)
+    monkeypatch.setattr("desktop_main.run_migrations", _run_migrations)
+    monkeypatch.setenv("CTRX_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CTRX_PORT", "8766")
+    monkeypatch.setattr("backend.app.config.get_settings", get_settings_stub)
+    monkeypatch.setattr("uvicorn.run", _run_uvicorn)
+
+    main()
+
+    expected_db = f"sqlite:///{tmp_path / 'data' / 'ctrx.db'}"
+    assert os.environ["DATABASE_URL"] == expected_db
+    assert events[0] == "cache_clear"
+    assert events[1] == ("migrate", expected_db, str(bundle / "alembic"))
+    assert events[2][0] == "uvicorn"
+    assert events[2][1] == ("backend.app.main:app",)
+    assert events[2][2]["host"] == "127.0.0.1"
+    assert events[2][2]["port"] == 8766
+
+
+def test_main_never_falls_back_to_postgres_url(tmp_path, monkeypatch):
+    """Desktop startup must enforce sqlite URL and reject postgres fallback."""
+    from desktop_main import main  # noqa: PLC0415
+
+    bundle = tmp_path / "bundle"
+    (bundle / "alembic").mkdir(parents=True)
+    (bundle / "dicts").mkdir(parents=True)
+    (bundle / "templates").mkdir(parents=True)
+
+    monkeypatch.setattr("desktop_main._get_bundle_base", lambda: bundle)
+    monkeypatch.setenv("CTRX_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+psycopg2://postgres:bad@localhost:5432/contract_info",
+    )
+
+    captured = {}
+
+    def _run_migrations(db_url, _):
+        captured["db_url"] = db_url
+        assert db_url.startswith("sqlite:///")
+        assert "postgresql" not in db_url
+
+    monkeypatch.setattr("desktop_main.run_migrations", _run_migrations)
+    monkeypatch.setattr("backend.app.config.get_settings", MagicMock(cache_clear=MagicMock()))
+    monkeypatch.setattr("uvicorn.run", lambda *args, **kwargs: None)
+
+    main()
+    assert captured["db_url"].startswith("sqlite:///")

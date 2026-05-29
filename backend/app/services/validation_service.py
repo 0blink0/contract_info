@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import threading
 import uuid
 from typing import Any
+
+_llm_validation_semaphore = threading.Semaphore(2)
 
 from sqlalchemy.orm import Session
 
@@ -86,11 +89,12 @@ def persist_validation(
             return None
 
         try:
-            result = run_llm_validation_sync(
-                record.extraction_result,
-                record.path_b_json,
-                record.parse_json or {},
-            )
+            with _llm_validation_semaphore:
+                result = run_llm_validation_sync(
+                    record.extraction_result,
+                    record.path_b_json,
+                    record.parse_json or {},
+                )
             record.extraction_warnings = _apply_validation_warnings(
                 record.extraction_warnings,
                 result,
