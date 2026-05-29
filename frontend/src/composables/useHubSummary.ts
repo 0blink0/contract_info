@@ -95,7 +95,7 @@ export function useHubSummary() {
         pathBSummary.value = `CRM 已建议 ${filled} / 6 项`
       }
     } catch {
-      pathBSummary.value = '路径 B 摘要加载失败'
+      pathBSummary.value = '开放日与业绩报酬摘要加载失败'
     } finally {
       pathBLoading.value = false
     }

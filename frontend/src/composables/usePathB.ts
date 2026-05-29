@@ -62,7 +62,7 @@ export function usePathB(jobId: Ref<string | null>) {
       data.value = await getPathB(jobId.value)
       loaded.value = true
     } catch (e) {
-      ElMessage.error(e instanceof Error ? e.message : '路径 B 加载失败')
+      ElMessage.error(e instanceof Error ? e.message : '开放日与业绩报酬加载失败')
     } finally {
       loading.value = false
     }

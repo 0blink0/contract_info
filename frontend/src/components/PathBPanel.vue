@@ -31,7 +31,7 @@ async function onExpand(names: string | string[]) {
     <el-collapse v-model="activeNames" @change="onExpand">
       <el-collapse-item name="pathb">
         <template #title>
-          <span class="panel-title">路径 B（需 CRM 手录）</span>
+          <span class="panel-title">开放日与业绩报酬（需 CRM 手录）</span>
           <el-text type="info" size="small" class="panel-hint">
             业绩报酬 / 开放日 — 不进 Excel 导入母版
           </el-text>

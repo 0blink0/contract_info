@@ -82,7 +82,7 @@ function tableSubtitle(rowCount: number | null, loading: boolean): string {
           :subtitle="
             pathBLoading
               ? '加载中…'
-              : pathBSummary ?? (detail?.path_b_available ? '—' : '暂无路径 B')
+              : pathBSummary ?? (detail?.path_b_available ? '—' : '暂无开放日/业绩报酬')
           "
           :loading="pathBLoading"
           :to="{ name: JOB_FIELD_B.routeName, params: { id: jobId } }"

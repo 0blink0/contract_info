@@ -47,7 +47,7 @@ defineExpose({ load, refresh })
       type="info"
       :closable="false"
       show-icon
-      title="字段 B 需 CRM 手录"
+      title="开放日与业绩报酬需 CRM 手录"
       description="业绩报酬与开放日建议摘录供人工判断，不写入 Excel 导入母版。"
       class="top-alert"
     />
@@ -61,7 +61,7 @@ defineExpose({ load, refresh })
       class="page-alert"
     />
 
-    <el-empty v-if="!available" description="暂无路径 B 数据" />
+    <el-empty v-if="!available" description="暂无开放日与业绩报酬数据" />
 
     <template v-else>
       <div class="actions">

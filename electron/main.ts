@@ -262,6 +262,22 @@ function resolveSplashPath(): string {
   return path.join(__dirname, 'splash.html')
 }
 
+function resolveAppIcon(): string | undefined {
+  const names = process.platform === 'win32' ? ['icon.ico', 'icon.png'] : ['icon.png', 'icon.ico']
+  const roots = [
+    path.join(__dirname, '..', '..', 'build'),
+    path.join(app.getAppPath(), 'build'),
+    path.join(process.resourcesPath, 'build'),
+  ]
+  for (const root of roots) {
+    for (const name of names) {
+      const candidate = path.join(root, name)
+      if (fs.existsSync(candidate)) return candidate
+    }
+  }
+  return undefined
+}
+
 function loadSplash(window: BrowserWindow): void {
   const splashPath = resolveSplashPath()
   if (fs.existsSync(splashPath)) {
@@ -277,11 +293,13 @@ function loadSplash(window: BrowserWindow): void {
 }
 
 function createMainWindow(): BrowserWindow {
+  const iconPath = resolveAppIcon()
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
     show: true,
     backgroundColor: '#f4f6fb',
+    ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       contextIsolation: true,
       preload: resolvePreloadPath(),

@@ -19,7 +19,7 @@ export const TABLE_KEYS = JOB_TABLE_SECTIONS.map((s) => s.key)
 export type TableKey = (typeof JOB_TABLE_SECTIONS)[number]['key']
 
 export const JOB_FIELD_B = {
-  label: '字段 B',
+  label: '开放日与业绩报酬',
   routeName: 'job-field-b' as const,
 }
 
