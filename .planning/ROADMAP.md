@@ -131,7 +131,7 @@ Plans:
 | 11. SQLite 迁移与路径修复 | v1.2 | 4/4 | Complete   | 2026-05-28 |
 | 12. PyInstaller 打包 | v1.2 | 2/2 | Complete | 2026-05-29 |
 | 13. Electron 壳与 IPC | v1.2 | 2/2 | Complete | 2026-05-29 |
-| 14. 构建流水线 | v1.2 | 3/3 | Complete   | 2026-05-29 |
+| 14. 构建流水线 | v1.2 | 3/3 | Complete    | 2026-05-29 |
 
 ---
 *Roadmap updated: 2026-05-29 — Phase 14 planned (3 plans, 3 waves)*
