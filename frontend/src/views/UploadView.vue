@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UploadFile } from 'element-plus'
 import { ElMessage } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
 import UploadJobCard from '@/components/upload/UploadJobCard.vue'
 import { createJobsPoll } from '@/composables/useJobsPoll'
 import {
@@ -256,7 +255,14 @@ onUnmounted(() => {
         @change="onFileChange"
         @exceed="onExceed"
       >
-        <el-icon class="upload-icon"><UploadFilled /></el-icon>
+        <svg class="upload-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="40" height="40" rx="14" fill="currentColor" fill-opacity="0.08"/>
+          <path d="M24 31L24 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M17 25L24 18L31 25" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="17" cy="36" r="2.2" fill="currentColor" fill-opacity="0.35"/>
+          <circle cx="24" cy="36" r="2.2" fill="currentColor" fill-opacity="0.35"/>
+          <circle cx="31" cy="36" r="2.2" fill="currentColor" fill-opacity="0.35"/>
+        </svg>
         <div class="el-upload__text">
           拖拽或点击上传合同（最多 {{ MAX_UPLOAD_FILES }} 个）
           <em>.docx</em>
@@ -303,9 +309,10 @@ onUnmounted(() => {
 }
 
 .upload-icon {
-  font-size: 48px;
+  width: 52px;
+  height: 52px;
   color: var(--app-primary);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .empty-hint {
