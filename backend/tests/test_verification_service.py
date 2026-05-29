@@ -128,12 +128,24 @@ def test_fee_verification_includes_excerpt_table():
         },
         validation_result=None,
     )
+    record.parse_json["blocks"].append(
+        {
+            "id": "p-fees",
+            "type": "paragraph",
+            "text": (
+                "1、基金管理费\n本基金的管理费按前一日资产净值年费率1%计提。\n"
+                "2、基金的托管费\n年费率0.05%。"
+            ),
+        }
+    )
+
     rows = build_verification_rows(record, "fee-rates")
     assert rows
-    assert any(r.get("excerpt_table", {}).get("rows") for r in rows)
-    table_row = next(r for r in rows if r.get("excerpt_table"))
-    assert table_row["capture_source"] in ("table", "block", "snippet")
-    assert len(table_row["excerpt_table"]["rows"]) >= 2
+    type_row = next(r for r in rows if r.get("value") == "管理费")
+    tables = type_row.get("excerpt_tables") or []
+    assert tables
+    assert type_row.get("excerpt")
+    assert "基金管理费" in (type_row.get("excerpt") or "")
 
 
 def test_validation_overlay():

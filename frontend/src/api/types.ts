@@ -83,6 +83,7 @@ export interface JobPreviewSectionResponse {
 
 export interface ExcerptTablePayload {
   rows: string[][]
+  caption?: string | null
 }
 
 export interface VerificationRow {
@@ -94,7 +95,8 @@ export interface VerificationRow {
   excerpt?: string | null
   /** Contract table block when field was taken from a docx table */
   excerpt_table?: ExcerptTablePayload | null
-  /** rule | snippet | block | table | value — how excerpt was resolved */
+  excerpt_tables?: ExcerptTablePayload[] | null
+  /** rule | snippet | block | table | table+narrative | narrative | value */
   capture_source?: string | null
   validation_status?: string | null
   validation_reason?: string | null

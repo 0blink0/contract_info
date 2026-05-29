@@ -162,6 +162,7 @@ class ValidationItemResponse(BaseModel):
 
 class ExcerptTablePayload(BaseModel):
     rows: list[list[str]] = Field(default_factory=list)
+    caption: str | None = None
 
 
 class VerificationRow(BaseModel):
@@ -172,6 +173,7 @@ class VerificationRow(BaseModel):
     page_no_note: str | None = None
     excerpt: str | None = None
     excerpt_table: ExcerptTablePayload | None = None
+    excerpt_tables: list[ExcerptTablePayload] | None = None
     capture_source: str | None = None
     validation_status: str | None = None
     validation_reason: str | None = None

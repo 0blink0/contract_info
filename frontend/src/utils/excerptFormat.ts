@@ -54,13 +54,31 @@ export function excerptPreview(text: string | null | undefined, maxLen = 36): st
   return `${oneLine.slice(0, maxLen)}…`
 }
 
+export function allExcerptTables(row: {
+  excerpt_tables?: { rows?: string[][] }[] | null
+  excerpt_table?: { rows?: string[][] } | null
+}): { rows?: string[][] }[] {
+  const list = row.excerpt_tables?.filter((t) => t?.rows?.length) ?? []
+  if (list.length) return list
+  if (row.excerpt_table?.rows?.length) return [row.excerpt_table]
+  return []
+}
+
 export function verificationExcerptTeaser(row: {
   excerpt?: string | null
   excerpt_table?: { rows?: string[][] } | null
+  excerpt_tables?: { rows?: string[][] }[] | null
 }): string {
-  const tableLabel = excerptTablePreview(row.excerpt_table)
+  const tables = allExcerptTables(row)
+  const tableLabels = tables
+    .map((t) => excerptTablePreview(t))
+    .filter((x): x is string => Boolean(x))
+  const tableLabel =
+    tableLabels.length > 1
+      ? `[合同表格×${tableLabels.length}]`
+      : tableLabels[0] ?? null
   const text = excerptPreview(row.excerpt)
-  if (tableLabel && text !== '—') return `${tableLabel} ${text}`
+  if (tableLabel && text !== '—') return `${tableLabel} · ${text}`
   if (tableLabel) return tableLabel
   return text
 }

@@ -5,6 +5,7 @@ import type { TableVerificationResponse, VerificationRow } from '@/api/types'
 import { getTableVerification } from '@/api/client'
 import type { TableKey } from '@/constants/jobSections'
 import {
+  allExcerptTables,
   formatExcerptParagraphs,
   verificationExcerptTeaser,
 } from '@/utils/excerptFormat'
@@ -29,7 +30,9 @@ const selectedRow = computed(() => {
     if (hit) return hit
   }
   return (
-    rows.find((r) => r.excerpt_table?.rows?.length || r.excerpt?.trim()) ?? rows[0]
+    rows.find(
+      (r) => allExcerptTables(r).length > 0 || r.excerpt?.trim(),
+    ) ?? rows[0]
   )
 })
 
@@ -37,29 +40,26 @@ const excerptParagraphs = computed(() =>
   formatExcerptParagraphs(selectedRow.value?.excerpt),
 )
 
-const excerptTableRows = computed(
-  () => selectedRow.value?.excerpt_table?.rows?.filter((r) => r?.length) ?? [],
+const excerptTableBlocks = computed(() =>
+  allExcerptTables(selectedRow.value ?? {}).filter((t) => t.rows?.length),
 )
 
-const excerptTableHeader = computed(() => {
-  const rows = excerptTableRows.value
-  return rows.length > 1 ? rows[0] : null
-})
+function tableColCount(rows: string[][]): number {
+  return Math.max(0, ...rows.map((r) => r.length))
+}
 
-const excerptTableBody = computed(() => {
-  const rows = excerptTableRows.value
+function tableHeader(rows: string[][]): string[] | null {
+  return rows.length > 1 ? rows[0] : null
+}
+
+function tableBody(rows: string[][]): string[][] {
   if (rows.length <= 1) return rows
   return rows.slice(1)
-})
+}
 
-const excerptTableColCount = computed(() =>
-  Math.max(excerptTableHeader.value?.length ?? 0, ...excerptTableBody.value.map((r) => r.length), 0),
-)
-
-function padTableRow(row: string[]): string[] {
-  const n = excerptTableColCount.value
+function padTableRow(row: string[], colCount: number): string[] {
   const out = [...row]
-  while (out.length < n) out.push('')
+  while (out.length < colCount) out.push('')
   return out
 }
 
@@ -69,6 +69,8 @@ const CAPTURE_LABELS: Record<string, string> = {
   snippet: '合同摘录',
   block: '段落原文',
   table: '合同表格原文',
+  narrative: '费用章节叙述',
+  'table+narrative': '表格 + 费用章节',
   value: '字段对应原文',
 }
 
@@ -95,7 +97,9 @@ function selectRow(row: VerificationRow) {
 }
 
 function pickDefaultRow(rows: VerificationRow[]) {
-  const withExcerpt = rows.find((r) => r.excerpt_table?.rows?.length || r.excerpt?.trim())
+  const withExcerpt = rows.find(
+    (r) => allExcerptTables(r).length > 0 || r.excerpt?.trim(),
+  )
   selectedField.value = (withExcerpt ?? rows[0])?.field ?? null
 }
 
@@ -167,7 +171,7 @@ watch(
                 class="excerpt-teaser"
                 :class="{
                   'excerpt-teaser--empty':
-                    !row.excerpt?.trim() && !row.excerpt_table?.rows?.length,
+                    !row.excerpt?.trim() && allExcerptTables(row).length === 0,
                 }"
               >
                 {{ verificationExcerptTeaser(row) }}
@@ -213,16 +217,26 @@ watch(
             <p class="excerpt-body-label">{{ excerptKindLabel }}</p>
           </div>
           <div
-            v-if="excerptTableRows.length || excerptParagraphs.length"
+            v-if="excerptTableBlocks.length || excerptParagraphs.length"
             class="excerpt-body"
           >
-            <div v-if="excerptTableRows.length" class="excerpt-table-block">
+            <div
+              v-for="(block, bi) in excerptTableBlocks"
+              :key="`tbl-${bi}`"
+              class="excerpt-table-block"
+            >
+              <p v-if="block.caption" class="excerpt-table-caption">
+                {{ block.caption }}
+              </p>
               <table class="contract-source-table">
-                <thead v-if="excerptTableHeader">
+                <thead v-if="tableHeader(block.rows!)">
                   <tr>
                     <th
-                      v-for="(cell, ci) in padTableRow(excerptTableHeader)"
-                      :key="`h-${ci}`"
+                      v-for="(cell, ci) in padTableRow(
+                        tableHeader(block.rows!)!,
+                        tableColCount(block.rows!),
+                      )"
+                      :key="`h-${bi}-${ci}`"
                     >
                       {{ cell || ' ' }}
                     </th>
@@ -230,12 +244,15 @@ watch(
                 </thead>
                 <tbody>
                   <tr
-                    v-for="(row, ri) in excerptTableBody"
-                    :key="`r-${ri}`"
+                    v-for="(row, ri) in tableBody(block.rows!)"
+                    :key="`r-${bi}-${ri}`"
                   >
                     <td
-                      v-for="(cell, ci) in padTableRow(row)"
-                      :key="`c-${ri}-${ci}`"
+                      v-for="(cell, ci) in padTableRow(
+                        row,
+                        tableColCount(block.rows!),
+                      )"
+                      :key="`c-${bi}-${ri}-${ci}`"
                     >
                       {{ cell || ' ' }}
                     </td>
@@ -380,8 +397,15 @@ watch(
 }
 
 .excerpt-table-block {
-  margin-bottom: 1em;
+  margin-bottom: 1.25em;
   overflow-x: auto;
+}
+
+.excerpt-table-caption {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
 }
 
 .contract-source-table {
