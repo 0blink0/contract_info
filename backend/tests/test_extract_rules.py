@@ -140,8 +140,12 @@ def test_fee_rules_billing_from_fees_chapter(example_docx_path):
         extract_fee_rates(windows["fees"], name, doc), windows["fees"]
     )
     assert fees
-    assert all(r.计费频率 == "按日" for r in fees)
-    assert all(r.计费基准 == "前一日资产净值" for r in fees)
+    # Zero-rate rows (不收取) should not receive billing attributes from other
+    # fee subsections; only rows with an actual rate are enriched.
+    billed = [r for r in fees if r.rate_annual_pct != "0"]
+    assert billed
+    assert all(r.计费频率 == "按日" for r in billed)
+    assert all(r.计费基准 == "前一日资产净值" for r in billed)
 
 
 def test_fee_rules_per_share_class_when_table_present(example_docx_path):

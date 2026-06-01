@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from backend.app.extract.field_catalog import FIXED_PRODUCT_VALUES
@@ -217,6 +218,47 @@ def _row_primary_value(row: dict[str, Any]) -> str:
     return best
 
 
+_FEE_TYPE_SECTION_LABELS: dict[str, list[str]] = {
+    "管理费": ["基金的管理费", "管理费"],
+    "托管费": ["基金的托管费", "托管费"],
+    "基金服务费": ["基金的运营服务费", "运营服务费", "基金服务费", "外包服务费"],
+    "销售服务费": ["基金的销售服务费", "销售服务费"],
+    "投资顾问费": ["基金的投资顾问费", "投资顾问费"],
+}
+
+
+def _fee_rate_snippet(
+    row: dict[str, Any],
+    fees_window: str,
+    document: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    """Find the specific fee-type subsection in the (二) 费用计提 section."""
+    fee_type = _stringify(row.get("运营费类型") or "")
+    if not fee_type or not fees_window:
+        return None, None
+
+    # Narrow search to the 计提 subsection (二) when present
+    idx = fees_window.find("（二）")
+    search_area = fees_window[idx:] if idx >= 0 else fees_window
+
+    labels = _FEE_TYPE_SECTION_LABELS.get(fee_type, [fee_type])
+    for label in labels:
+        pos = search_area.find(label)
+        if pos < 0:
+            continue
+        tail = search_area[pos:]
+        stop = re.search(r"\n\d+[、.]|\n（[二三四五六七八九十]）", tail[len(label) :])
+        end = len(label) + (stop.start() if stop else min(400, len(tail) - len(label)))
+        chunk = tail[:end].strip()
+        if len(chunk) < 8:
+            continue
+        snip = excerpt_for_display(chunk)
+        bid = find_block_id_for_text(document, chunk[:60])
+        return snip, bid
+
+    return None, None
+
+
 def enrich_list_row(
     row: dict[str, Any],
     table_key: str,
@@ -225,6 +267,20 @@ def enrich_list_row(
 ) -> dict[str, Any]:
     if row.get("snippet") or row.get("_snippet"):
         return row
+
+    # Fee-rate rows: locate the specific fee-type subsection rather than
+    # searching by primary value (which is often the fund name and matches
+    # the chapter preamble instead of the per-fee paragraph).
+    if table_key == "fee_rates":
+        fees_text = windows.get("fees") or ""
+        snip, bid = _fee_rate_snippet(row, fees_text, document)
+        if snip:
+            updated = dict(row)
+            updated["snippet"] = snip
+            if bid and not updated.get("block_id"):
+                updated["block_id"] = bid
+            return updated
+
     value = _row_primary_value(row)
     if not value:
         return row

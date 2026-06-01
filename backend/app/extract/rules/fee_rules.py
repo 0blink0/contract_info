@@ -510,6 +510,11 @@ def enrich_fee_rates_from_fees_chapter(
         {"基金资产净值", "资产净值", "前一自然日基金资产净值", None, ""}
     )
     for row in fee_rates:
+        # Zero-rate means "not charged" — don't apply billing attributes from
+        # other fee subsections (e.g. 托管费 daily-accrual text should not
+        # bleed onto 管理费=0 rows).
+        if row.rate_annual_pct == "0":
+            continue
         if freq and (not row.计费频率 or row.计费频率 in ("按年", "每年")):
             row.计费频率 = freq
         if basis and (not row.计费基准 or row.计费基准 in vague_basis):
