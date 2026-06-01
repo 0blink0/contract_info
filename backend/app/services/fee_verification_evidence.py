@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from backend.app.extract.rules.fee_rules import gather_fee_source_text
 from backend.app.extract.section_windows import build_section_windows
 from backend.app.services.parse_block_tables import (
     _normalize_rows,
@@ -25,19 +24,20 @@ _FEE_TYPE_SHARE_ROW_LABELS: dict[str, tuple[str, ...]] = {
 _FEE_NARRATIVE_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
     "管理费": (
         re.compile(
-            r"(?:^|\n)\s*(?:1[、．.]?\s*)?(?:本基金)?基金管理费[\s\S]*?"
+            r"(?:^|\n)\s*(?:[1一][、．.]?\s*)?(?:本基金)?基金(?:的)?管理费[\s\S]*?"
             r"(?=(?:\n\s*[2-9][、．.]\s*(?:本基金)?)|(?:\n\s*（[一二三四五六七八九十]+）)|\Z)",
             re.MULTILINE,
         ),
-        re.compile(r"基金管理费[^。\n]{0,800}"),
+        re.compile(r"基金(?:的)?管理费[^。\n]{0,800}"),
+        re.compile(r"不收取管理费[^。\n]{0,400}"),
     ),
     "托管费": (
         re.compile(
-            r"(?:^|\n)\s*(?:2[、．.]?\s*)?(?:本基金)?基金的托管费[\s\S]*?"
+            r"(?:^|\n)\s*(?:[2二][、．.]?\s*)?(?:本基金)?基金(?:的)?托管费[\s\S]*?"
             r"(?=(?:\n\s*[3-9][、．.]\s*(?:本基金)?)|(?:\n\s*（[一二三四五六七八九十]+）)|\Z)",
             re.MULTILINE,
         ),
-        re.compile(r"基金的托管费[^。\n]{0,800}"),
+        re.compile(r"基金(?:的)?托管费[^。\n]{0,800}"),
         re.compile(r"(?:^|\n)[^\n]{0,20}托管费[^。\n]{0,800}"),
     ),
     "基金服务费": (
@@ -75,7 +75,12 @@ def _fees_chapter_text(parse_json: dict | None) -> str:
     if not parse_json:
         return ""
     windows, _ = build_section_windows(parse_json)
-    return gather_fee_source_text(windows.get("fees", ""), parse_json)
+    # Use the bounded section window only.  gather_fee_source_text scans the
+    # whole document and appends any block containing "年费率"/"托管费"/etc.,
+    # which pulls in clearing/redemption chapter paragraphs that mention those
+    # terms in passing and causes narrative_excerpt_for_fee_type to return text
+    # from the wrong chapter.
+    return windows.get("fees", "")
 
 
 def narrative_excerpt_for_fee_type(fees_text: str, fee_type: str) -> str | None:
