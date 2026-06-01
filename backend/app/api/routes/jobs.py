@@ -87,6 +87,11 @@ def _validation_counts(record: ContractFile) -> tuple[bool, int, int]:
     raw = getattr(record, "validation_result", None)
     if not raw or not isinstance(raw, dict):
         return False, 0, 0
+    if raw.get("skipped"):
+        return False, 0, 0
+    items = raw.get("items") or []
+    if not items:
+        return False, 0, 0
     summary = raw.get("summary") or {}
     fail_n = int(summary.get("fail") or 0)
     warn_n = int(summary.get("warn") or 0)

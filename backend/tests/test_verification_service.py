@@ -188,3 +188,35 @@ def test_validation_overlay():
     mgr = next(r for r in rows if r["field"] == "管理人")
     assert mgr["validation_status"] == "warn"
     assert mgr["validation_reason"] == "摘录较短"
+
+
+def test_validation_overlay_fee_rate_field_alias():
+    record = SimpleNamespace(
+        extraction_result={
+            "fee_rates": [
+                {
+                    "运营费类型": "管理费",
+                    "费率（%/年）": "1",
+                    "snippet": "基金管理费年费率为1%",
+                    "block_id": "b1",
+                }
+            ],
+        },
+        parse_json={
+            "blocks": [{"id": "b1", "text": "基金管理费年费率为1%，按日计提。"}],
+        },
+        validation_result={
+            "skipped": False,
+            "items": [
+                {
+                    "field": "fee_rates[0].rate_annual_pct",
+                    "status": "pass",
+                    "reason": "一致",
+                }
+            ],
+        },
+    )
+    rows = build_verification_rows(record, "fee-rates")
+    rate_row = next(r for r in rows if r["field"] == "fee_rates[0].费率（%/年）")
+    assert rate_row["validation_status"] == "pass"
+    assert rate_row["validation_reason"] == "一致"

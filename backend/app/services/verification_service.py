@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from backend.app.api.schemas import PreviewSection
 from backend.app.extract.evidence_enrich import enrich_extraction_dict
 from backend.app.export.column_map import (
+    extraction_key_for_fee_header,
+    extraction_key_for_subscription_header,
     template_header_for_fee_key,
     template_header_for_subscription_key,
 )
@@ -51,11 +54,44 @@ def _snippet_and_block(raw: dict) -> tuple[str | None, str | None]:
     )
 
 
+def _list_row_field_aliases(field: str, *, table: str) -> list[str]:
+    """Map verification row field paths to validation item keys (may differ by alias)."""
+    pattern = rf"^({table}\[\d+\])\.(.+)$"
+    m = re.match(pattern, field)
+    if not m:
+        return [field]
+    prefix, key = m.group(1), m.group(2)
+    keys = {field, key}
+    if table == "fee_rates":
+        keys.add(extraction_key_for_fee_header(template_header_for_fee_key(key)))
+        keys.update({"rate_annual_pct", "费率（%/年）", "费率（单位：%/年）", "费率"})
+    elif table == "subscription_fees":
+        keys.add(extraction_key_for_subscription_header(template_header_for_subscription_key(key)))
+        keys.update({"费率", "计费方式", "申赎费类型"})
+    return [f"{prefix}.{k}" for k in keys if k]
+
+
+def _validation_lookup_keys(field: str) -> list[str]:
+    out = [field]
+    for table in ("fee_rates", "subscription_fees", "lock_periods", "share_classes"):
+        out.extend(_list_row_field_aliases(field, table=table))
+    # preserve order, dedupe
+    seen: set[str] = set()
+    unique: list[str] = []
+    for key in out:
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(key)
+    return unique
+
+
 def _overlay_validation(
     rows: list[dict[str, Any]],
     validation_result: dict | None,
 ) -> None:
     if not validation_result or not isinstance(validation_result, dict):
+        return
+    if validation_result.get("skipped"):
         return
     by_field = {
         str(item.get("field") or ""): item
@@ -63,7 +99,12 @@ def _overlay_validation(
         if isinstance(item, dict)
     }
     for row in rows:
-        item = by_field.get(row.get("field") or "")
+        field = str(row.get("field") or "")
+        item = None
+        for key in _validation_lookup_keys(field):
+            item = by_field.get(key)
+            if item:
+                break
         if not item:
             continue
         row["validation_status"] = item.get("status")

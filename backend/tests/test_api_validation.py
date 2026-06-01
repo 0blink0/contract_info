@@ -88,7 +88,10 @@ def test_job_detail_validation_counts(api_client, api_headers):
         path_b_json=None,
         validation_result={
             "summary": {"pass": 2, "warn": 1, "fail": 3},
-            "items": [],
+            "items": [
+                {"field": "管理人", "status": "fail", "reason": "x"},
+                {"field": "托管人", "status": "warn", "reason": "y"},
+            ],
         },
     )
 
@@ -102,3 +105,37 @@ def test_job_detail_validation_counts(api_client, api_headers):
     assert body["validation_available"] is True
     assert body["validation_fail_count"] == 3
     assert body["validation_warn_count"] == 1
+
+
+def test_job_detail_validation_unavailable_when_skipped(api_client, api_headers):
+    job_id = uuid.uuid4()
+    record = SimpleNamespace(
+        id=job_id,
+        status="extracted",
+        filename="a.docx",
+        error_message=None,
+        extraction_warnings=[],
+        outline_preview=None,
+        product_xlsx_path=None,
+        fee_xlsx_path=None,
+        lock_xlsx_path=None,
+        share_xlsx_path=None,
+        subscription_xlsx_path=None,
+        path_b_json=None,
+        validation_result={
+            "skipped": True,
+            "summary": {"pass": 0, "warn": 0, "fail": 0},
+            "items": [],
+        },
+    )
+
+    with patch("backend.app.api.routes.jobs._get_record", return_value=record):
+        response = api_client.get(
+            f"/api/v1/jobs/{job_id}",
+            headers=api_headers,
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["validation_available"] is False
+    assert body["validation_fail_count"] == 0
+    assert body["validation_warn_count"] == 0
