@@ -137,15 +137,14 @@ async def extract_document(
 
     if getattr(client, "available", False):
 
-        for key in LLM_WINDOW_KEYS:
+        active_keys = [k for k in LLM_WINDOW_KEYS if (windows.get(k) or "").strip()]
 
-            text = windows.get(key, "")
+        results = await asyncio.gather(
+            *[extract_chapter_fields(client, k, windows[k]) for k in active_keys],
+            return_exceptions=False,
+        )
 
-            if not text.strip():
-
-                continue
-
-            fields, w = await extract_chapter_fields(client, key, text)
+        for key, (fields, w) in zip(active_keys, results):
 
             llm_fields.update(fields)
 
