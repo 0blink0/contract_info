@@ -19,7 +19,8 @@ test('validateSettings rejects ragTopK outside 1-10', () => {
 })
 
 test('backendChildEnv injects RAG_TOP_K from persisted settings', () => {
-  assert.match(mainCode, /RAG_TOP_K:\s*String\(settings\.ragTopK\)/)
+  assert.match(mainCode, /RAG_TOP_K:\s*String\(ragTopK\)/)
+  assert.match(mainCode, /const ragTopK = Number\.isInteger\(settings\.ragTopK\) \? settings\.ragTopK : 3/)
 })
 
 test('save-settings restart path keeps rollback semantics', () => {

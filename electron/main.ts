@@ -110,6 +110,7 @@ function attachBackendListeners(port: number): void {
 
 function backendChildEnv(port: number): NodeJS.ProcessEnv {
   const settings = loadSettings()
+  const ragTopK = Number.isInteger(settings.ragTopK) ? settings.ragTopK : 3
   return {
     ...process.env,
     CTRX_PORT: String(port),
@@ -117,6 +118,7 @@ function backendChildEnv(port: number): NodeJS.ProcessEnv {
     OPENAI_API_KEY: settings.llmApiKey.trim(),
     OPENAI_BASE_URL: settings.llmBaseUrl.trim(),
     LLM_MODEL: settings.llmModel.trim(),
+    RAG_TOP_K: String(ragTopK),
   }
 }
 
