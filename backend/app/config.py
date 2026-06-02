@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     llm_timeout: int = 120
     llm_max_retries: int = 1
+    rag_top_k: int = 3
 
     api_key: str = ""
     cors_origins: str = "http://localhost:5173"
@@ -82,3 +83,11 @@ def templates_dir() -> Path:
 
 def exports_dir() -> Path:
     return data_dir() / "exports"
+
+
+def models_dir() -> Path | None:
+    """Resolve local model directory configured by CTRX_MODELS_DIR."""
+    raw = os.environ.get("CTRX_MODELS_DIR", "").strip()
+    if raw:
+        return Path(raw)
+    return None

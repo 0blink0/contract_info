@@ -3,11 +3,13 @@ from __future__ import annotations
 
 
 import asyncio
+import logging
 
 from typing import Any, cast
 
 
 
+from backend.app.config import get_settings
 from backend.app.extract.field_catalog import FIXED_PRODUCT_VALUES, LLM_WINDOW_KEYS
 from backend.app.extract.schemas import FieldValue
 
@@ -46,6 +48,8 @@ from backend.app.extract.rules.share_rules import (
     is_graded_contract,
 )
 from backend.app.extract.rules.path_b_rules import extract_path_b_rules
+from backend.app.extract.llm.performance_fee import extract_performance_fee_section_llm
+from backend.app.extract.llm.open_day import extract_open_day_section_llm
 from backend.app.extract.llm.subscription_billing import extract_subscription_billing_llm
 from backend.app.extract.rules.subscription_rules import (
     apply_subscription_billing,
@@ -69,9 +73,8 @@ from backend.app.extract.section_windows import build_section_windows
 from backend.app.extract.validate import validate_enums
 
 from backend.app.llm.client import LlmClient
-
-
-
+from backend.app.services.kb_service import get_kb_service
+logger = logging.getLogger(__name__)
 
 
 def _field_value(product: dict[str, Any], key: str) -> str | None:
@@ -95,6 +98,14 @@ def _field_value(product: dict[str, Any], key: str) -> str | None:
         return None
 
     return str(val).strip()
+
+
+def _build_fees_rag_query(fees_window_text: str) -> str:
+    # D-02: query 仅来源于业绩报酬相关上下文（fees window）。
+    text = (fees_window_text or "").strip()
+    if not text:
+        return ""
+    return f"业绩报酬相关上下文：\n{text}"
 
 
 
@@ -316,11 +327,65 @@ async def extract_document(
 
     warnings.extend(validate_enums(result))
 
+    llm_perf_raw: str | None = None
+    llm_perf_flag: str | None = None
+    llm_open_day_raw: str | None = None
+    if getattr(client, "available", False):
+        fees_win = (windows.get("fees") or "").strip()
+        sub_win = (windows.get("subscription") or "").strip()
+        tasks = []
+        rag_cases: list[dict[str, str]] = []
+        if fees_win:
+            kb_service = get_kb_service()
+            query_text = _build_fees_rag_query(windows["fees"])
+            if kb_service and query_text:
+                rag_top_k = min(max(int(get_settings().rag_top_k), 1), 10)
+                try:
+                    rag_cases = (
+                        await kb_service.search_similar_entries(query_text, rag_top_k)
+                    )[:rag_top_k]
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("KB RAG search failed, degrade to empty cases: %s", exc)
+                    warnings.append(
+                        ExtractionWarning(
+                            field="performance_fee.rag",
+                            code="kb_rag_search_failed",
+                            message=str(exc),
+                            suggestion="已自动降级为无案例注入，不影响提取主流程",
+                        )
+                    )
+            tasks.append(
+                extract_performance_fee_section_llm(
+                    client,
+                    windows["fees"],
+                    rag_cases=rag_cases,
+                )
+            )
+        if sub_win:
+            tasks.append(extract_open_day_section_llm(client, windows["subscription"]))
+        if tasks:
+            results_raw = await asyncio.gather(*tasks)
+            idx = 0
+            if fees_win:
+                llm_perf_raw, llm_perf_flag, w_perf = results_raw[idx]
+                warnings.extend(w_perf)
+                if llm_perf_raw:
+                    chapters_called.append("performance_fee")
+                idx += 1
+            if sub_win:
+                llm_open_day_raw, w_open = results_raw[idx]
+                warnings.extend(w_open)
+                if llm_open_day_raw:
+                    chapters_called.append("open_day")
+
     path_b_dict, path_b_warnings = extract_path_b_rules(
         document,
         windows,
         fund_name=fund_name,
         product_elements=merged_product,
+        llm_perf_raw_section=llm_perf_raw,
+        llm_perf_flag=llm_perf_flag,
+        llm_open_day_raw_section=llm_open_day_raw,
     )
     warnings.extend(path_b_warnings)
 

@@ -84,6 +84,44 @@ class KbService:
         await asyncio.to_thread(self._table.add, rows)
         return ids
 
+    async def search_similar_entries(self, query: str, k: int) -> list[dict[str, str]]:
+        query_text = (query or "").strip()
+        if not query_text:
+            return []
+        top_k = min(max(int(k), 1), 10)
+        if not self.model_available:
+            return []
+
+        try:
+            embedding_text = self._build_embedding_text(
+                field_name="业绩报酬",
+                field_value=query_text,
+                snippet=query_text,
+            )
+            query_vectors = await asyncio.to_thread(
+                self._model.encode,
+                [embedding_text],
+                convert_to_numpy=True,
+                show_progress_bar=False,
+            )
+            query_vector = query_vectors[0].tolist()
+            search_result = self._table.search(query_vector).limit(top_k)
+            rows = await asyncio.to_thread(search_result.to_list)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("KB semantic search unavailable, degrade to empty cases: %s", exc)
+            return []
+
+        items: list[dict[str, str]] = []
+        for row in rows or []:
+            items.append(
+                {
+                    "field_name": str(row.get("field_name", "") or "").strip(),
+                    "field_value": str(row.get("field_value", "") or "").strip(),
+                    "snippet": str(row.get("snippet", "") or "").strip(),
+                }
+            )
+        return items
+
     def list_entries(
         self,
         field_name: str | None = None,
