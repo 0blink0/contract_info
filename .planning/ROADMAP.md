@@ -226,7 +226,21 @@ Plans:
   3. 用户勾选行后点击「存入知识库」，选中行批量提交至 `POST /kb/entries`，成功后界面显示入库条数提示（如「已存入 3 条」）
   4. `GET /kb/entries` 返回全部历史案例（含 id/字段名/字段值/原文摘录/来源合同/入库时间）；`DELETE /kb/entries/{id}` 可删除单条并即时从列表消失
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 20-01-PLAN.md — Wave 0：依赖安装 + 测试骨架（KB-BE-01~05 测试桩）
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 20-02-PLAN.md — 后端核心：kb_service.py + routes/kb.py + main.py lifespan（KB-BE-01~05）
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 20-03-PLAN.md — 前端：api/kb.ts + useKbEntry.ts + PathBDetail.vue KB 录入区（KB-ENTRY-01~05）
+
 **UI hint**: yes
 
 ### Phase 21: 知识库配置页 UI
