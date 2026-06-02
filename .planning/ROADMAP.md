@@ -244,17 +244,6 @@ Plans:
 **Cross-cutting constraints:**
 - bge-m3 软降级（D-06）：三个波次均需遵守；Wave 0 测试桩需覆盖 503 场景
 - kbUnavailable 前端状态（D-07）：Wave 1 返回 503，Wave 2 消费该状态显示 el-alert
-**Wave 1**
-
-- [x] 20-01-PLAN.md — Wave 0：依赖安装 + 测试骨架（KB-BE-01~05 测试桩）
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 20-02-PLAN.md — 后端核心：kb_service.py + routes/kb.py + main.py lifespan（KB-BE-01~05）
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 20-03-PLAN.md — 前端：api/kb.ts + useKbEntry.ts + PathBDetail.vue KB 录入区（KB-ENTRY-01~05）
 
 **UI hint**: yes
 
@@ -323,7 +312,21 @@ Plans:
   2. sentence-transformers 模型权重以离线方式打入 `extraResources`，应用启动时通过 `SENTENCE_TRANSFORMERS_HOME` / `TRANSFORMERS_CACHE` 路径变量指向该目录；无网络环境下 embedding 生成正常运行
   3. 打包产物烟测全链路通过：PathB 录入 → embedding 生成 → LanceDB 持久化 → 语义检索 → RAG prompt 注入，全程无异常日志
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 0**
+
+- [ ] 23-01-PLAN.md — 依赖安装（torch CPU-only + lancedb + sentence-transformers）+ bge-m3 模型下载 + .gitignore（KB-PKG-01, KB-PKG-02）
+
+**Wave 1** *(blocked on Wave 0 completion)*
+
+- [ ] 23-02-PLAN.md — hiddenimports 扩充（windows_hidden）+ changelog 同提交门禁（KB-PKG-01）
+- [ ] 23-03-PLAN.md — Electron backendChildEnv() 模型 env 注入 + extraResources models/** + D-08 guard（KB-PKG-02）
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 23-04-PLAN.md — 烟测清单文档 docs/smoke-test-23.md + 人工执行验收（KB-PKG-03）
 
 ## Progress
 
@@ -351,7 +354,7 @@ Plans:
 | 20. 知识库数据层 + PathB 录入 UI | v1.4 | 3/3 | Complete | 2026-06-02 |
 | 21. 知识库配置页 UI | v1.4 | 3/3 | Complete   | 2026-06-02 |
 | 22. RAG 检索与 LLM 注入 | v1.4 | 3/3 | Complete   | 2026-06-02 |
-| 23. PyInstaller 打包兼容与烟测 | v1.4 | 0/? | Not started | - |
+| 23. PyInstaller 打包兼容与烟测 | v1.4 | 0/4 | Not started | - |
 
 ---
-*Roadmap updated: 2026-06-02 — v1.4 started (业绩报酬知识库与 RAG 增强, Phases 20–23)*
+*Roadmap updated: 2026-06-02 — Phase 23 plans defined (KB 打包兼容与烟测, 4 plans, 3 waves)*
