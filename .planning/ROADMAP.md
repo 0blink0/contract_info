@@ -270,7 +270,20 @@ Plans:
   3. 用户在搜索框输入字段名关键字后，列表即时过滤只显示匹配条目
   4. 用户点击删除某条案例时出现二次确认弹窗；确认后该条从列表消失，取消后列表不变
 
-**Plans**: TBD
+**Plans**: 3 plans
+ 
+Plans:
+**Wave 1**
+ 
+- [ ] 21-01-PLAN.md — 后端 KB 分页/字段名过滤契约与回归测试（KB-UI-02, KB-UI-03）
+ 
+**Wave 2** *(blocked on Wave 1 completion)*
+ 
+- [ ] 21-02-PLAN.md — 前端菜单/路由/配置页实现（分页列表+防抖过滤+删除确认刷新）（KB-UI-01~04）
+ 
+**Wave 3** *(blocked on Wave 2 completion)*
+ 
+- [ ] 21-03-PLAN.md — 前端导航与交互回归测试门禁（KB-UI-01~04）
 **UI hint**: yes
 
 ### Phase 22: RAG 检索与 LLM 注入
