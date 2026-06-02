@@ -6,8 +6,10 @@ import path from 'node:path'
 const root = path.resolve(import.meta.dirname, '..', '..')
 const storePath = path.join(root, 'electron', 'store.ts')
 const mainPath = path.join(root, 'electron', 'main.ts')
+const ipcPath = path.join(root, 'electron', 'ipc.ts')
 const storeCode = fs.readFileSync(storePath, 'utf-8')
 const mainCode = fs.readFileSync(mainPath, 'utf-8')
+const ipcCode = fs.readFileSync(ipcPath, 'utf-8')
 
 test('settings default includes ragTopK=3', () => {
   assert.match(storeCode, /ragTopK:\s*3/)
@@ -24,6 +26,9 @@ test('backendChildEnv injects RAG_TOP_K from persisted settings', () => {
 })
 
 test('save-settings restart path keeps rollback semantics', () => {
+  assert.match(ipcCode, /ipcMain\.handle\('save-settings'/)
+  assert.match(ipcCode, /restartBackendWithRollback\(previous\)/)
+  assert.match(ipcCode, /RESTART_ERROR/)
   assert.match(mainCode, /async function restartBackendWithRollback/)
   assert.match(mainCode, /restoreSettings\(previous\)/)
   assert.match(mainCode, /setBackendState\('restarting'\)/)
