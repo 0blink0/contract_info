@@ -48,6 +48,10 @@ const defaultOpeneds = computed(() => (jobId.value ? ['job-detail-nav'] : []))
           <el-icon><List /></el-icon>
           <span>文件列表</span>
         </el-menu-item>
+        <el-menu-item index="/kb-config">
+          <el-icon><List /></el-icon>
+          <span>知识库配置</span>
+        </el-menu-item>
         <el-sub-menu v-if="jobId" index="job-detail-nav">
           <template #title>
             <span>文件详情</span>
