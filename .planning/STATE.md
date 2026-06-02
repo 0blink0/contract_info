@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: 业绩报酬知识库与 RAG 增强
 status: executing
-last_updated: "2026-06-02T10:09:27.793Z"
-last_activity: 2026-06-02 -- Phase 22 plan 22-01 execution complete
+last_updated: "2026-06-02T10:16:50.881Z"
+last_activity: 2026-06-02 -- Completed 22-02-SUMMARY.md
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 24
-  completed_plans: 22
-  percent: 88
+  completed_plans: 23
+  percent: 96
 ---
 
 # State: CTRX
@@ -26,11 +26,11 @@ See: `contract_info/.planning/PROJECT.md`
 ## Current Position
 
 Phase: Phase 22 — RAG 检索与 LLM 注入
-Plan: 22-02-PLAN.md pending
-Status: Executing (22-01 completed)
-Last activity: 2026-06-02 -- Completed 22-01-SUMMARY.md
+Plan: 22-03-PLAN.md pending
+Status: Executing (22-02 completed)
+Last activity: 2026-06-02 -- Completed 22-02-SUMMARY.md
 
-Progress: [█████████░] 92%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -50,6 +50,8 @@ Progress: [█████████░] 92%
 - RAG 注入点：`performance_fee.py` / `chapter_prompts.py` 的 prompt 构建处
 - Phase 22-01: `ragTopK` 默认值固定为 3，且在 store 层强制 1-10 整数校验
 - Phase 22-01: Electron 后端子进程环境注入 `RAG_TOP_K`，沿用保存后重启生效机制
+- Phase 22-02: 仅 fees 链路触发 KB Top-K 检索并注入 performance fee prompt
+- Phase 22-02: 注入块固定三元组（字段名/字段值/原文摘录），不包含 score
 
 ### Todos
 
