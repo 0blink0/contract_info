@@ -34,7 +34,7 @@
 - [ ] **KB-RAG-01**: LLM 提取业绩报酬字段（`performance_fee.py` / `chapter_prompts.py`）前，自动对原文摘录进行语义检索，从 LanceDB 取 Top-K 最相似历史案例
 - [ ] **KB-RAG-02**: 检索结果作为 few-shot 示例注入 LLM prompt（格式：历史案例参考列表，包含字段名/字段值/原文摘录）
 - [ ] **KB-RAG-03**: 知识库为空时，提取流程正常运行（降级：无 few-shot 注入，不报错）
-- [ ] **KB-RAG-04**: Settings 页面增加「RAG Top-K」配置项（整数，默认 3，范围 1–10）；配置值持久化至 electron-store
+- [x] **KB-RAG-04**: Settings 页面增加「RAG Top-K」配置项（整数，默认 3，范围 1–10）；配置值持久化至 electron-store
 
 ### PyInstaller 打包兼容（KB-PKG）
 
@@ -77,7 +77,7 @@
 | KB-RAG-01 | Phase 22 | Pending |
 | KB-RAG-02 | Phase 22 | Pending |
 | KB-RAG-03 | Phase 22 | Pending |
-| KB-RAG-04 | Phase 22 | Pending |
+| KB-RAG-04 | Phase 22 | Complete |
 | KB-PKG-01 | Phase 23 | Pending |
 | KB-PKG-02 | Phase 23 | Pending |
 | KB-PKG-03 | Phase 23 | Pending |

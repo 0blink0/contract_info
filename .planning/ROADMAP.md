@@ -302,7 +302,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 22-01-PLAN.md — Electron 侧 RAG Top-K 类型/校验/重启注入链路（KB-RAG-04）
+- [x] 22-01-PLAN.md — Electron 侧 RAG Top-K 类型/校验/重启注入链路（KB-RAG-04）
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -350,7 +350,7 @@ Plans:
 | 19. 多文件上传与并行进度 UI | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 20. 知识库数据层 + PathB 录入 UI | v1.4 | 3/3 | Complete | 2026-06-02 |
 | 21. 知识库配置页 UI | v1.4 | 3/3 | Complete   | 2026-06-02 |
-| 22. RAG 检索与 LLM 注入 | v1.4 | 0/? | Not started | - |
+| 22. RAG 检索与 LLM 注入 | v1.4 | 1/3 | In Progress|  |
 | 23. PyInstaller 打包兼容与烟测 | v1.4 | 0/? | Not started | - |
 
 ---
