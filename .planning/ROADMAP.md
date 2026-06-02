@@ -9,6 +9,7 @@
 - ✅ **v1.1 抽取质量与导出扩展** — Phases 6–10（shipped 2026-05-26）→ [archive](milestones/v1.1-ROADMAP.md)
 - ✅ **v1.2 桌面化交付** — Phases 11–14（shipped 2026-05-29）→ [archive](milestones/v1.2-ROADMAP.md)
 - ✅ **v1.3 多文件并行与详情页重构** — Phases 15–19（shipped 2026-05-29）→ [Post-ship UX](v1.3-POST-SHIP-UX.md)
+- 🔄 **v1.4 业绩报酬知识库与 RAG 增强** — Phases 20–23（active）
 
 ## Phases
 
@@ -54,6 +55,16 @@
 - [x] **Phase 19: 多文件上传与并行进度 UI** - ≤3 docx 选择与批量处理、上传页多任务进度轮询
 
 **Post-ship:** [v1.3-POST-SHIP-UX.md](v1.3-POST-SHIP-UX.md)（启动页、摘录右栏、Hub/子页分工、API 回退）
+
+</details>
+
+<details open>
+<summary>🔄 v1.4 业绩报酬知识库与 RAG 增强 (Phases 20–23) — ACTIVE</summary>
+
+- [ ] **Phase 20: 知识库数据层 + PathB 录入 UI** - LanceDB 向量后端 CRUD + embedding，PathB 页底部可编辑录入表格与存入按钮
+- [ ] **Phase 21: 知识库配置页 UI** - 左侧菜单「知识库配置」入口，历史案例列表查看/过滤/删除
+- [ ] **Phase 22: RAG 检索与 LLM 注入** - 语义检索 Top-K 相似案例注入业绩报酬提取 prompt，Settings 增加 Top-K 配置
+- [ ] **Phase 23: PyInstaller 打包兼容与烟测** - LanceDB + sentence-transformers 模型权重纳入打包，烟测验证全链路
 
 </details>
 
@@ -203,6 +214,62 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 20: 知识库数据层 + PathB 录入 UI
+
+**Goal**: 建立 LanceDB 向量知识库后端（CRUD + embedding），PathB 页底部增加可编辑录入表格和存入按钮
+**Depends on**: Phase 19
+**Requirements**: KB-BE-01, KB-BE-02, KB-BE-03, KB-BE-04, KB-BE-05, KB-ENTRY-01, KB-ENTRY-02, KB-ENTRY-03, KB-ENTRY-04, KB-ENTRY-05
+**Success Criteria** (what must be TRUE):
+
+  1. 应用启动后，`CTRX_DATA_DIR` 下自动创建 LanceDB 向量表（首次启动无需手动操作）；sentence-transformers 模型完成预热，后续 embedding 调用无冷启动延迟
+  2. PathB 详情页底部可见 3 列 4 行可编辑表格（字段名/字段值/原文摘录），页面加载时自动预填当前解析结果，字段值与原文摘录单元格可自由修改
+  3. 用户勾选行后点击「存入知识库」，选中行批量提交至 `POST /kb/entries`，成功后界面显示入库条数提示（如「已存入 3 条」）
+  4. `GET /kb/entries` 返回全部历史案例（含 id/字段名/字段值/原文摘录/来源合同/入库时间）；`DELETE /kb/entries/{id}` 可删除单条并即时从列表消失
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 21: 知识库配置页 UI
+
+**Goal**: 左侧菜单新增「知识库配置」入口，知识库列表页支持查看/过滤/删除历史案例
+**Depends on**: Phase 20
+**Requirements**: KB-UI-01, KB-UI-02, KB-UI-03, KB-UI-04
+**Success Criteria** (what must be TRUE):
+
+  1. 左侧导航菜单出现「知识库配置」菜单项；点击后进入知识库列表页，不影响现有菜单项布局与路由
+  2. 知识库列表页以表格形式展示所有历史案例（字段名/字段值/原文摘录/来源合同/入库时间），数据量大时支持分页或虚拟滚动保持页面流畅
+  3. 用户在搜索框输入字段名关键字后，列表即时过滤只显示匹配条目
+  4. 用户点击删除某条案例时出现二次确认弹窗；确认后该条从列表消失，取消后列表不变
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 22: RAG 检索与 LLM 注入
+
+**Goal**: LLM 提取业绩报酬字段前自动语义检索 Top-K 相似案例注入 prompt；Settings 增加 Top-K 配置
+**Depends on**: Phase 21
+**Requirements**: KB-RAG-01, KB-RAG-02, KB-RAG-03, KB-RAG-04
+**Success Criteria** (what must be TRUE):
+
+  1. 处理一份含业绩报酬条款的合同时，LLM 收到的 prompt 中包含来自知识库的相似历史案例列表（字段名/字段值/原文摘录格式），且案例数量不超过 Settings 中配置的 Top-K 值
+  2. 知识库为空（无任何历史案例）时，提取流程正常完成、无报错，LLM prompt 中不出现 few-shot 注入块
+  3. 在 Settings 页面可看到「RAG Top-K」整数配置项（默认 3，范围 1–10），修改并保存后重启应用，新值生效且不丢失
+
+**Plans**: TBD
+
+### Phase 23: PyInstaller 打包兼容与烟测
+
+**Goal**: LanceDB 和 sentence-transformers 模型权重纳入打包，烟测验证全链路
+**Depends on**: Phase 22
+**Requirements**: KB-PKG-01, KB-PKG-02, KB-PKG-03
+**Success Criteria** (what must be TRUE):
+
+  1. 使用 `scripts/build.ps1` 构建的 CTRX 安装包中，LanceDB 及 pyarrow 相关包已通过 hiddenimports 纳入，安装后启动应用无「ModuleNotFoundError: lancedb」类错误
+  2. sentence-transformers 模型权重以离线方式打入 `extraResources`，应用启动时通过 `SENTENCE_TRANSFORMERS_HOME` / `TRANSFORMERS_CACHE` 路径变量指向该目录；无网络环境下 embedding 生成正常运行
+  3. 打包产物烟测全链路通过：PathB 录入 → embedding 生成 → LanceDB 持久化 → 语义检索 → RAG prompt 注入，全程无异常日志
+
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -226,6 +293,10 @@ Plans:
 | 17. 五表独立工作页 | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 18. Hub 摘要与字段 B 专页 | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 19. 多文件上传与并行进度 UI | v1.3 | 3/3 | Complete | 2026-05-29 |
+| 20. 知识库数据层 + PathB 录入 UI | v1.4 | 0/? | Not started | - |
+| 21. 知识库配置页 UI | v1.4 | 0/? | Not started | - |
+| 22. RAG 检索与 LLM 注入 | v1.4 | 0/? | Not started | - |
+| 23. PyInstaller 打包兼容与烟测 | v1.4 | 0/? | Not started | - |
 
 ---
-*Roadmap updated: 2026-05-29 — v1.3 shipped (Phases 15–19 + post-ship UX in v1.3-POST-SHIP-UX.md)*
+*Roadmap updated: 2026-06-02 — v1.4 started (业绩报酬知识库与 RAG 增强, Phases 20–23)*

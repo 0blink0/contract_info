@@ -58,10 +58,26 @@
 
 ## Traceability
 
-| REQ-ID | Phase |
-|--------|-------|
-| KB-BE-01~05 | Phase 20 |
-| KB-ENTRY-01~05 | Phase 20 |
-| KB-UI-01~04 | Phase 21 |
-| KB-RAG-01~04 | Phase 22 |
-| KB-PKG-01~03 | Phase 23 |
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| KB-BE-01 | Phase 20 | Pending |
+| KB-BE-02 | Phase 20 | Pending |
+| KB-BE-03 | Phase 20 | Pending |
+| KB-BE-04 | Phase 20 | Pending |
+| KB-BE-05 | Phase 20 | Pending |
+| KB-ENTRY-01 | Phase 20 | Pending |
+| KB-ENTRY-02 | Phase 20 | Pending |
+| KB-ENTRY-03 | Phase 20 | Pending |
+| KB-ENTRY-04 | Phase 20 | Pending |
+| KB-ENTRY-05 | Phase 20 | Pending |
+| KB-UI-01 | Phase 21 | Pending |
+| KB-UI-02 | Phase 21 | Pending |
+| KB-UI-03 | Phase 21 | Pending |
+| KB-UI-04 | Phase 21 | Pending |
+| KB-RAG-01 | Phase 22 | Pending |
+| KB-RAG-02 | Phase 22 | Pending |
+| KB-RAG-03 | Phase 22 | Pending |
+| KB-RAG-04 | Phase 22 | Pending |
+| KB-PKG-01 | Phase 23 | Pending |
+| KB-PKG-02 | Phase 23 | Pending |
+| KB-PKG-03 | Phase 23 | Pending |
