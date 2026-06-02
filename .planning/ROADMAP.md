@@ -275,15 +275,15 @@ Plans:
 Plans:
 **Wave 1**
  
-- [ ] 21-01-PLAN.md — 后端 KB 分页/字段名过滤契约与回归测试（KB-UI-02, KB-UI-03）
+- [x] 21-01-PLAN.md — 后端 KB 分页/字段名过滤契约与回归测试（KB-UI-02, KB-UI-03）
  
 **Wave 2** *(blocked on Wave 1 completion)*
  
-- [ ] 21-02-PLAN.md — 前端菜单/路由/配置页实现（分页列表+防抖过滤+删除确认刷新）（KB-UI-01~04）
+- [x] 21-02-PLAN.md — 前端菜单/路由/配置页实现（分页列表+防抖过滤+删除确认刷新）（KB-UI-01~04）
  
 **Wave 3** *(blocked on Wave 2 completion)*
  
-- [ ] 21-03-PLAN.md — 前端导航与交互回归测试门禁（KB-UI-01~04）
+- [x] 21-03-PLAN.md — 前端导航与交互回归测试门禁（KB-UI-01~04）
 **UI hint**: yes
 
 ### Phase 22: RAG 检索与 LLM 注入
@@ -336,7 +336,7 @@ Plans:
 | 18. Hub 摘要与字段 B 专页 | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 19. 多文件上传与并行进度 UI | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 20. 知识库数据层 + PathB 录入 UI | v1.4 | 3/3 | Complete | 2026-06-02 |
-| 21. 知识库配置页 UI | v1.4 | 0/? | Not started | - |
+| 21. 知识库配置页 UI | v1.4 | 3/3 | Complete   | 2026-06-02 |
 | 22. RAG 检索与 LLM 注入 | v1.4 | 0/? | Not started | - |
 | 23. PyInstaller 打包兼容与烟测 | v1.4 | 0/? | Not started | - |
 

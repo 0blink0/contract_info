@@ -24,10 +24,10 @@
 
 ### 知识库配置页（KB-UI）
 
-- [ ] **KB-UI-01**: 左侧菜单新增「知识库配置」菜单项（在现有导航下方），点击进入知识库列表页
-- [ ] **KB-UI-02**: 知识库列表页以表格形式展示全部历史案例（字段名 / 字段值 / 原文摘录 / 来源合同 / 入库时间），支持分页或虚拟滚动
-- [ ] **KB-UI-03**: 用户可按字段名过滤/搜索知识库列表
-- [ ] **KB-UI-04**: 用户可删除单条案例，删除后列表即时刷新，并二次确认
+- [x] **KB-UI-01**: 左侧菜单新增「知识库配置」菜单项（在现有导航下方），点击进入知识库列表页
+- [x] **KB-UI-02**: 知识库列表页以表格形式展示全部历史案例（字段名 / 字段值 / 原文摘录 / 来源合同 / 入库时间），支持分页或虚拟滚动
+- [x] **KB-UI-03**: 用户可按字段名过滤/搜索知识库列表
+- [x] **KB-UI-04**: 用户可删除单条案例，删除后列表即时刷新，并二次确认
 
 ### RAG 检索与注入（KB-RAG）
 
@@ -70,10 +70,10 @@
 | KB-ENTRY-03 | Phase 20 | Pending |
 | KB-ENTRY-04 | Phase 20 | Pending |
 | KB-ENTRY-05 | Phase 20 | Pending |
-| KB-UI-01 | Phase 21 | Pending |
-| KB-UI-02 | Phase 21 | Pending |
-| KB-UI-03 | Phase 21 | Pending |
-| KB-UI-04 | Phase 21 | Pending |
+| KB-UI-01 | Phase 21 | Complete |
+| KB-UI-02 | Phase 21 | Complete |
+| KB-UI-03 | Phase 21 | Complete |
+| KB-UI-04 | Phase 21 | Complete |
 | KB-RAG-01 | Phase 22 | Pending |
 | KB-RAG-02 | Phase 22 | Pending |
 | KB-RAG-03 | Phase 22 | Pending |
