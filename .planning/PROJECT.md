@@ -15,9 +15,20 @@
 ## Current State
 
 - **Shipped:** v1.3（2026-05-29）— 多文件并行 + 详情六页工作流 + UAT 体验收口
+- **Active:** v1.4 业绩报酬知识库与 RAG 增强（开发中）
 - **Runtime:** FastAPI + Vue + SQLite + Electron 桌面壳（Windows NSIS + Linux AppImage/deb）
 - **Deliverable:** `scripts/build.ps1 -Version 1.2.0` → `dist/CTRX-Setup-1.2.0.exe`（代码更新后需重打 PyInstaller + 前端 build）
 - **Planning:** v1.3 已交付；见 `MILESTONES.md`、`v1.3-POST-SHIP-UX.md`
+
+## Current Milestone: v1.4 业绩报酬知识库与 RAG 增强
+
+**Goal:** 建立业绩报酬字段向量知识库，供运营人工录入历史案例，LLM 提取时语义检索相似案例辅助判断，实现持续学习闭环。
+
+**Target features:**
+- 左侧菜单新增「知识库配置」入口，浏览/删除全部历史案例
+- PathB 详情页底部可编辑案例录入表格（字段名/字段值/原文摘录，固定 4 字段）
+- 运营确认后存入 LanceDB 向量知识库（sentence-transformers 本地 embedding）
+- LLM 提取业绩报酬字段时语义检索 Top-K 相似案例注入 prompt（RAG）
 
 ## Shipped Milestone: v1.3 多文件并行与详情页重构
 
@@ -57,6 +68,14 @@
 - ✓ Hub 摘要与字段 B 专页 — HUB-01~03, PB-01~02 — Phase 18
 - ✓ 后端并行与分表 API — API-01~03, UP-04 — Phase 15
 - ✓ Post-ship：摘录右栏、规则原文、Hub/子页分工、启动页、旧后端 API 回退 — `v1.3-POST-SHIP-UX.md`
+
+### Active (v1.4)
+
+- [ ] **KB-01**: 左侧菜单「知识库配置」页，展示/删除全部历史知识库案例 — Phase 20
+- [ ] **KB-02**: PathB 详情页底部可编辑案例录入表格（3 列：字段名/字段值/原文摘录，4 固定行）— Phase 20
+- [ ] **KB-03**: 「存入知识库」操作：后端存储案例至 LanceDB + 生成向量 — Phase 21
+- [ ] **KB-04**: LLM 提取时 RAG 检索：语义搜索相似历史案例，注入 prompt — Phase 22
+- [ ] **KB-05**: PyInstaller 打包兼容：LanceDB + sentence-transformers 模型权重纳入 extraResources — Phase 23
 
 ### Deferred (post-v1.3)
 
@@ -125,4 +144,4 @@
 
 ---
 
-*Last updated: 2026-05-29 — v1.3 shipped (Phases 15–19 + post-ship UX)*
+*Last updated: 2026-06-02 — v1.4 started (业绩报酬知识库与 RAG 增强, Phases 20–23)*

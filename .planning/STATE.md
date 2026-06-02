@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: 多文件并行与详情页重构
-status: shipped
-last_updated: "2026-05-29T12:00:00.000Z"
-last_activity: 2026-05-29 — v1.3 shipped (Phases 15–19 + post-ship UX documented)
+milestone: v1.4
+milestone_name: 业绩报酬知识库与 RAG 增强
+status: planning
+last_updated: "2026-06-02T00:00:00.000Z"
+last_activity: 2026-06-02 — Milestone v1.4 started
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # State: CTRX
@@ -20,17 +20,17 @@ progress:
 See: `contract_info/.planning/PROJECT.md`
 
 **Core value:** 上传 docx → 可导入 Excel + 路径 B 手录辅助 + 可解释校验（本地桌面，无服务器依赖）
-**Current focus:** v1.3 已交付；下一里程碑待规划
+**Current focus:** v1.4 业绩报酬知识库与 RAG 增强（Phases 20–23）
 **Project root:** `contract_info/`
 
 ## Current Position
 
-Phase: —
+Phase: Not started (defining requirements)
 Plan: —
-Status: Milestone v1.3 complete
-Last activity: 2026-05-29 — Post-ship UX recorded in `v1.3-POST-SHIP-UX.md`
+Status: Defining requirements
+Last activity: 2026-06-02 — Milestone v1.4 started
 
-Progress: `[██████████] 5/5 phases (v1.3)`
+Progress: `[          ] 0/4 phases (v1.4)`
 
 ## Performance Metrics
 
@@ -44,15 +44,15 @@ Progress: `[██████████] 5/5 phases (v1.3)`
 
 ### Decisions
 
-- v1.3 构建顺序：后端并行与分表 API → 路由骨架 → 五表工作页 → Hub/字段 B → 多文件上传 UI
-- 并行上限 3：产品约束 + SQLite/LLM；后端 409 + 前端 limit=3
-- Hub 不嵌入完整 ExportPreview；job 级校验在 Hub
-- Post-ship：页码列暂缓；摘录右栏 + 规则整段原文；Hub/子页信息分层
+- 向量知识库选用 LanceDB（本地文件，无服务器，PyInstaller 兼容）
+- Embedding 使用 sentence-transformers 本地模型（多语言，支持中文）
+- KB 固定 4 个字段：业绩报酬提取方式 / 业绩基准类型 / 门槛净值类型 / 提取时点
+- RAG 注入点：`performance_fee.py` / `chapter_prompts.py` 的 prompt 构建处
 
 ### Todos
 
-- [ ] `/gsd-complete-milestone` — 归档 v1.3 ROADMAP/REQUIREMENTS 至 `milestones/`
-- [ ] `/gsd-audit-milestone` — 可选里程碑审计
+- [ ] `/gsd-plan-phase 20` — 知识库 UI（菜单 + PathB 录入表格）
+- [ ] `/gsd-complete-milestone` — 归档 v1.3 ROADMAP/REQUIREMENTS（仍待执行）
 
 ### Blockers
 
@@ -60,7 +60,7 @@ _None_
 
 ## Session Continuity
 
-_Last update: 2026-05-29 — v1.3 shipped including post-ship UX (commits 4864c56..3ab4d45)_
+_Last update: 2026-06-02 — v1.4 milestone started_
 
 ## Archived Context
 
