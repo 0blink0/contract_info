@@ -297,7 +297,20 @@ Plans:
   2. 知识库为空（无任何历史案例）时，提取流程正常完成、无报错，LLM prompt 中不出现 few-shot 注入块
   3. 在 Settings 页面可看到「RAG Top-K」整数配置项（默认 3，范围 1–10），修改并保存后重启应用，新值生效且不丢失
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 22-01-PLAN.md — Electron 侧 RAG Top-K 类型/校验/重启注入链路（KB-RAG-04）
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 22-02-PLAN.md — 后端检索与 few-shot 注入（仅业绩报酬链路）+ 空库降级测试（KB-RAG-01~03）
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 22-03-PLAN.md — Settings 前端 RAG Top-K 配置项接入与表单回归测试（KB-RAG-04）
 
 ### Phase 23: PyInstaller 打包兼容与烟测
 
