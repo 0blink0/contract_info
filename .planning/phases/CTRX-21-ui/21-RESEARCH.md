@@ -246,15 +246,17 @@ await ElMessageBox.confirm('删除后不可恢复，是否继续？', '删除确
 
 ## Open Questions
 
-1. **分页参数命名**
-   - What we know: 当前只有 `field_name` 参数。[VERIFIED: `backend/app/api/routes/kb.py`]
-   - What's unclear: 使用 `page/page_size` 还是 `offset/limit`。
-   - Recommendation: 与 planner 在 Wave 0 锁定并同步前后端。
+### RESOLVED-01: 分页参数命名（已决议）
+- **Chosen Option:** `page` + `page_size`
+- **Decision:** 采用 `page/page_size`，不采用 `offset/limit`。
+- **Why:** 与现有前端 `el-pagination` 的 `current-page/page-size` 语义直接对齐，降低前后端转换与测试复杂度；并与本阶段计划中的服务端分页路径一致（D-03）。
+- **Implementation Note:** API 层与前端 `getKbEntries` 查询参数统一输出 `field_name/page/page_size`。
 
-2. **字段名匹配方式**
-   - What we know: 当前 `list_entries` 是“完全相等”匹配。[VERIFIED: `backend/app/services/kb_service.py`]
-   - What's unclear: “关键字过滤”是否要求子串匹配。
-   - Recommendation: 默认按“包含匹配”实现，更贴近需求文案；若有歧义先在计划中加确认点。[ASSUMED]
+### RESOLVED-02: 字段名过滤匹配方式（已决议）
+- **Chosen Option:** 包含匹配（contains，建议大小写不敏感）
+- **Decision:** `field_name` 过滤按“包含匹配”实现，不采用“完全匹配”。
+- **Why:** 更贴合“关键字过滤”用户心智与 KB-UI-03 的即时筛选体验目标；可减少用户记忆完整字段名的负担。
+- **Implementation Note:** 后端 `list_entries` 从“完全相等”升级为“包含匹配”；前端保持字段名即时防抖查询（D-04）。
 
 ## Environment Availability
 
