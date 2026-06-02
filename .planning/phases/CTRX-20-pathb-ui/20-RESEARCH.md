@@ -919,22 +919,25 @@ def models_dir() -> Path | None:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **bge-m3 在 Windows CPU 上的首次加载时间**
    - What we know：bge-m3 是 580M 参数模型，CPU 推理单条约 200-500ms
    - What's unclear：首次 lifespan 预热时加载权重到内存需要多久（可能 10-30 秒）
    - Recommendation：lifespan 中 `init_kb_service()` 用 `asyncio.to_thread` 包裹，加载期间 FastAPI 仍可接受健康检查请求；Electron IPC 在 Python ready 信号前已有超时处理
+   - RESOLVED：使用 `asyncio.to_thread(init_kb_service)` 包裹，加载期间不阻塞事件循环；本阶段不新增超时处理（Electron 已有）
 
 2. **`table.to_arrow().to_pydict()` 性能在大量记录时**
    - What we know：本阶段 Phase 20 仅录入少量条目（预计 < 1000 条）；`GET /kb/entries` 为全量返回
    - What's unclear：Phase 21 列表页大量数据时是否需要分页
    - Recommendation：本阶段实现全量返回；Phase 21 需分页时在 `list_entries()` 添加 `offset/limit` 参数（LanceDB 支持 `.scan(limit=N)` 模式）
+   - RESOLVED：本阶段实现全量返回，Phase 21 再决定是否分页
 
 3. **kbUnavailable 状态如何初始化**
    - What we know：前端无法在页面加载时知道 KB 是否可用（没有独立的 `/kb/status` 端点）
    - What's unclear：首次渲染 KB 区域时 `kbUnavailable` 应为 `false` 还是通过轮询检测
    - Recommendation：初始 `kbUnavailable = false`；第一次点击「存入知识库」时若返回 503 才设为 `true`；或在 Phase 20 新增 `GET /kb/status` 端点（轻量，返回 `{available: bool}`），前端页面加载时调用一次
+   - RESOLVED：初始 `kbUnavailable = false`；不新增 `/kb/status` 端点（Phase 21 决定）；首次 503 响应后设为 `true`
 
 ---
 

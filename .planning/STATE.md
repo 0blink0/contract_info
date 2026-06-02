@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: 业绩报酬知识库与 RAG 增强
-status: Defining requirements
-last_updated: "2026-06-02T07:38:11.290Z"
-last_activity: 2026-06-02 — Milestone v1.4 started
+status: Ready to execute
+last_updated: "2026-06-02T08:00:00.000Z"
+last_activity: 2026-06-02 — Phase 20 planned (3 plans, 3 waves)
 progress:
   total_phases: 6
   completed_phases: 5
@@ -25,12 +25,12 @@ See: `contract_info/.planning/PROJECT.md`
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-06-02 — Milestone v1.4 started
+Phase: Phase 20 — 知识库数据层 + PathB 录入 UI
+Plan: Ready to execute（3 plans: Wave 0/1/2）
+Status: Ready to execute
+Last activity: 2026-06-02 — Phase 20 planned
 
-Progress: `[          ] 0/4 phases (v1.4)`
+Progress: `[>         ] 0/4 phases (v1.4)`
 
 ## Performance Metrics
 
@@ -51,7 +51,8 @@ Progress: `[          ] 0/4 phases (v1.4)`
 
 ### Todos
 
-- [ ] `/gsd-plan-phase 20` — 知识库 UI（菜单 + PathB 录入表格）
+- [x] `/gsd-plan-phase 20` — 知识库 UI（菜单 + PathB 录入表格）✓ 2026-06-02
+- [ ] `/gsd-execute-phase 20` — 执行 3 个计划（Wave 0/1/2）
 - [ ] `/gsd-complete-milestone` — 归档 v1.3 ROADMAP/REQUIREMENTS（仍待执行）
 
 ### Blockers

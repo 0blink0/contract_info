@@ -229,6 +229,21 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 0**
+
+- [ ] 20-01-PLAN.md — 后端依赖安装（lancedb, sentence-transformers）+ pytest 测试骨架（KB-BE-01~05）
+
+**Wave 1** *(blocked on Wave 0 completion)*
+
+- [ ] 20-02-PLAN.md — 后端核心：kb_service.py + routes/kb.py + main.py lifespan 挂入（KB-BE-01~05）
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 20-03-PLAN.md — 前端：api/kb.ts + useKbEntry.ts + PathBDetail.vue KB 录入区（KB-ENTRY-01~05）
+
+**Cross-cutting constraints:**
+- bge-m3 软降级（D-06）：三个波次均需遵守；Wave 0 测试桩需覆盖 503 场景
+- kbUnavailable 前端状态（D-07）：Wave 1 返回 503，Wave 2 消费该状态显示 el-alert
 **Wave 1**
 
 - [ ] 20-01-PLAN.md — Wave 0：依赖安装 + 测试骨架（KB-BE-01~05 测试桩）
@@ -307,7 +322,7 @@ Plans:
 | 17. 五表独立工作页 | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 18. Hub 摘要与字段 B 专页 | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 19. 多文件上传与并行进度 UI | v1.3 | 3/3 | Complete | 2026-05-29 |
-| 20. 知识库数据层 + PathB 录入 UI | v1.4 | 0/? | Not started | - |
+| 20. 知识库数据层 + PathB 录入 UI | v1.4 | 0/3 | Planned | - |
 | 21. 知识库配置页 UI | v1.4 | 0/? | Not started | - |
 | 22. RAG 检索与 LLM 注入 | v1.4 | 0/? | Not started | - |
 | 23. PyInstaller 打包兼容与烟测 | v1.4 | 0/? | Not started | - |
