@@ -310,7 +310,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 22-03-PLAN.md — Settings 前端 RAG Top-K 配置项接入与表单回归测试（KB-RAG-04）
+- [x] 22-03-PLAN.md — Settings 前端 RAG Top-K 配置项接入与表单回归测试（KB-RAG-04）
 
 ### Phase 23: PyInstaller 打包兼容与烟测
 
@@ -350,7 +350,7 @@ Plans:
 | 19. 多文件上传与并行进度 UI | v1.3 | 3/3 | Complete | 2026-05-29 |
 | 20. 知识库数据层 + PathB 录入 UI | v1.4 | 3/3 | Complete | 2026-06-02 |
 | 21. 知识库配置页 UI | v1.4 | 3/3 | Complete   | 2026-06-02 |
-| 22. RAG 检索与 LLM 注入 | v1.4 | 2/3 | In Progress|  |
+| 22. RAG 检索与 LLM 注入 | v1.4 | 3/3 | Complete   | 2026-06-02 |
 | 23. PyInstaller 打包兼容与烟测 | v1.4 | 0/? | Not started | - |
 
 ---
