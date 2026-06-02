@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: 业绩报酬知识库与 RAG 增强
-status: planning
-last_updated: "2026-06-02T00:00:00.000Z"
+status: Defining requirements
+last_updated: "2026-06-02T07:38:11.290Z"
 last_activity: 2026-06-02 — Milestone v1.4 started
 progress:
-  total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 6
+  completed_phases: 5
+  total_plans: 15
+  completed_plans: 15
+  percent: 83
 ---
 
 # State: CTRX
