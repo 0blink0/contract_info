@@ -39,7 +39,9 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | 模块级垂直留白 |
 | 3xl | 64px | 全页级分段留白（仅大屏） |
 
-Exceptions: 行高可用 40px/44px（菜单项触达与可读性；来源: `AppLayout.vue` 现有模式）
+Spacing contract strict set: 仅允许 `4 / 8 / 16 / 24 / 32 / 48 / 64`，不得新增 40px/44px 作为间距 token。
+
+Component size note（非 spacing token）: 导航项高度可用 40px，紧凑列表行高可用 44px（来源: `AppLayout.vue` 现有模式）。
 
 ---
 
@@ -69,6 +71,12 @@ Exceptions: 行高可用 40px/44px（菜单项触达与可读性；来源: `AppL
 | Destructive | `#f56c6c` | 删除按钮、删除确认主动作、危险提示 |
 
 Accent reserved for: `搜索/刷新` 触发按钮、菜单「知识库配置」激活态、分页当前页指示、表格内关键可操作入口；不得用于纯说明文字。
+
+主屏视觉焦点与层级（Dimension 2 补充）：
+- 第一层（主焦点）：页面标题 + 主 CTA（搜索/刷新）位于首屏顶部，使用最高对比与最明确操作 affordance。
+- 第二层（任务主体）：知识库表格卡片作为内容主层，占据主要可视面积，信息密度高于其他区块。
+- 第三层（辅助信息）：筛选提示、说明文案与空/错态说明使用次级视觉权重，不得与主 CTA 争夺注意力。
+- 危险操作（删除）仅在行内操作与确认弹窗中呈现，视觉权重低于主任务路径，避免误触优先级提升。
 
 ---
 
