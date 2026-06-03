@@ -321,7 +321,7 @@ Plans:
 
 **Wave 1** *(blocked on Wave 0 completion)*
 
-- [ ] 23-02-PLAN.md — hiddenimports 扩充（windows_hidden）+ changelog 同提交门禁（KB-PKG-01）
+- [x] 23-02-PLAN.md — hiddenimports 扩充（windows_hidden）+ changelog 同提交门禁（KB-PKG-01）
 - [ ] 23-03-PLAN.md — Electron backendChildEnv() 模型 env 注入 + extraResources models/** + D-08 guard（KB-PKG-02）
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -354,7 +354,7 @@ Plans:
 | 20. 知识库数据层 + PathB 录入 UI | v1.4 | 3/3 | Complete | 2026-06-02 |
 | 21. 知识库配置页 UI | v1.4 | 3/3 | Complete   | 2026-06-02 |
 | 22. RAG 检索与 LLM 注入 | v1.4 | 3/3 | Complete   | 2026-06-02 |
-| 23. PyInstaller 打包兼容与烟测 | v1.4 | 1/4 | Executing | - |
+| 23. PyInstaller 打包兼容与烟测 | v1.4 | 2/4 | Executing | - |
 
 ---
 *Roadmap updated: 2026-06-02 — Phase 23 plans defined (KB 打包兼容与烟测, 4 plans, 3 waves)*
