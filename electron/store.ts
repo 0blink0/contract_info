@@ -37,7 +37,7 @@ export function validateSettings(input: AppSettings): string | null {
   }
   if (!input.llmApiKey?.trim()) return 'llmApiKey is required'
   if (!input.llmModel?.trim()) return 'llmModel is required'
-  if (!Number.isInteger(input.ragTopK)) return 'ragTopK must be an integer'
+  if (input.ragTopK === undefined || !Number.isInteger(input.ragTopK)) return 'ragTopK must be an integer'
   if (input.ragTopK < 1 || input.ragTopK > 10) return 'ragTopK must be between 1 and 10'
   return null
 }

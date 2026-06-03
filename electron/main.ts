@@ -111,14 +111,30 @@ function attachBackendListeners(port: number): void {
 function backendChildEnv(port: number): NodeJS.ProcessEnv {
   const settings = loadSettings()
   const ragTopK = Number.isInteger(settings.ragTopK) ? settings.ragTopK : 3
+
+  // Derive resourcesDir using same three-candidate logic as backendEntrypoint()
+  const resourcesCandidates = [
+    path.join(__dirname, 'resources'),
+    path.join(app.getAppPath(), 'electron', 'resources'),
+    path.join(process.resourcesPath, 'electron', 'resources'),
+  ]
+  const resourcesDir =
+    resourcesCandidates.find((candidate) => fs.existsSync(path.join(candidate, '.backend-manifest.json'))) ??
+    resourcesCandidates[0]
+  const modelsDir = path.join(resourcesDir, 'models')
+
   return {
-    ...process.env,
+    ...process.env,           // spread FIRST — explicit keys below override system env (D-12)
     CTRX_PORT: String(port),
     CTRX_DATA_DIR: app.getPath('userData'),
     OPENAI_API_KEY: settings.llmApiKey.trim(),
     OPENAI_BASE_URL: settings.llmBaseUrl.trim(),
     LLM_MODEL: settings.llmModel.trim(),
     RAG_TOP_K: String(ragTopK),
+    // Phase 23 additions (D-09)
+    CTRX_MODELS_DIR: modelsDir,
+    SENTENCE_TRANSFORMERS_HOME: modelsDir,
+    TRANSFORMERS_CACHE: modelsDir,
   }
 }
 
@@ -311,6 +327,27 @@ async function bootstrap(): Promise<void> {
     resolvePort: () => port,
     restartBackendWithRollback,
   })
+
+  // D-08: fast-fail if model directory is absent (KB-PKG-02)
+  const bootstrapResourcesCandidates = [
+    path.join(__dirname, 'resources'),
+    path.join(app.getAppPath(), 'electron', 'resources'),
+    path.join(process.resourcesPath, 'electron', 'resources'),
+  ]
+  const bootstrapResourcesDir =
+    bootstrapResourcesCandidates.find((candidate) =>
+      fs.existsSync(path.join(candidate, '.backend-manifest.json'))
+    ) ?? bootstrapResourcesCandidates[0]
+  const bgem3Path = path.join(bootstrapResourcesDir, 'models', 'bge-m3')
+  if (!fs.existsSync(bgem3Path)) {
+    lastError = {
+      summary: `模型目录缺失: ${bgem3Path} — 请重新安装应用以恢复模型权重`,
+      logPath: backendLogPath(),
+    }
+    setBackendState('failed')
+    await showFatalDialog()
+    return
+  }
 
   try {
     await spawnBackend(port)
