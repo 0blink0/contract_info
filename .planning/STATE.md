@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: 业绩报酬知识库与 RAG 增强
 status: executing
-last_updated: "2026-06-03T02:00:00.000Z"
-last_activity: "2026-06-03 -- 23-02 complete: windows_hidden extended for KB pipeline; PyInstaller build passed; D-03 gate satisfied"
+last_updated: "2026-06-03T02:02:36.409Z"
+last_activity: "2026-06-03 -- 23-03 complete: backendChildEnv() model env injection + D-08 guard + extraResources models/**"
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 28
-  completed_plans: 26
-  percent: 93
+  completed_plans: 27
+  percent: 89
 ---
 
 # State: CTRX
@@ -26,11 +26,11 @@ See: `contract_info/.planning/PROJECT.md`
 ## Current Position
 
 Phase: Phase 23 — PyInstaller 打包兼容与烟测
-Plan: 23-03-PLAN.md (next, Wave 1)
-Status: Executing (2/4 plans complete)
-Last activity: 2026-06-03 -- 23-02 complete: windows_hidden extended for KB pipeline; PyInstaller build passed; D-03 gate satisfied
+Plan: 23-04-PLAN.md (next, Wave 2)
+Status: Executing (3/4 plans complete)
+Last activity: 2026-06-03 -- 23-03 complete: backendChildEnv() model env injection + D-08 guard + extraResources models/**
 
-Progress: [██████████] 100%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [██████████] 100%
 - Phase 23-01: bge-m3 以 flat local-path 格式（model.save()）存入 electron/resources/models/bge-m3/，通过 local_files_only=True 离线加载
 - Phase 23-01: torch 安装 CPU-only variant（--index-url whl/cpu），避免 CUDA wheel 额外体积
 - Phase 23-02: windows_hidden 仅扩展（不修改 common_hidden/linux_hidden）；sentence_transformers.models namespace package WARNING 属已知限制，不阻断发布
+- Phase 23-03: backendChildEnv() 独立复制三候选 resourcesDir 解析，避免与 backendEntrypoint() exe 路径逻辑耦合；package.json 使用 Option A（追加到现有 filter 数组，最小化差异）
 
 ### Todos
 
@@ -69,7 +70,7 @@ _None_
 
 ## Session Continuity
 
-_Last update: 2026-06-03 — 23-02 complete (windows_hidden + changelog, D-03 gate passed); next: 23-03 Electron env injection_
+_Last update: 2026-06-03 — 23-03 complete (backendChildEnv() 模型 env 注入 + D-08 guard + package.json extraResources models/**); next: 23-04 烟测清单文档_
 
 ## Archived Context
 

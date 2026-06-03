@@ -39,7 +39,7 @@
 ### PyInstaller 打包兼容（KB-PKG）
 
 - [ ] **KB-PKG-01**: LanceDB 相关包（`lancedb`、`pyarrow` 等）纳入 PyInstaller `hiddenimports` 清单与打包 spec
-- [ ] **KB-PKG-02**: sentence-transformers 模型权重目录（离线缓存）打包至 `extraResources`，应用启动时通过 `TRANSFORMERS_CACHE` / `SENTENCE_TRANSFORMERS_HOME` 路径变量指向该目录
+- [x] **KB-PKG-02**: sentence-transformers 模型权重目录（离线缓存）打包至 `extraResources`，应用启动时通过 `TRANSFORMERS_CACHE` / `SENTENCE_TRANSFORMERS_HOME` 路径变量指向该目录
 - [ ] **KB-PKG-03**: 烟测验证打包产物的知识库全链路：入库（含 embedding 生成）→ LanceDB 持久化 → 语义检索 → RAG prompt 注入，全流程无异常
 
 ## Future Requirements (deferred)
@@ -79,5 +79,5 @@
 | KB-RAG-03 | Phase 22 | Complete |
 | KB-RAG-04 | Phase 22 | Complete |
 | KB-PKG-01 | Phase 23 | Pending |
-| KB-PKG-02 | Phase 23 | Pending |
+| KB-PKG-02 | Phase 23 | Complete |
 | KB-PKG-03 | Phase 23 | Pending |
