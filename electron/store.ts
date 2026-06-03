@@ -37,8 +37,8 @@ export function validateSettings(input: AppSettings): string | null {
   }
   if (!input.llmApiKey?.trim()) return 'llmApiKey is required'
   if (!input.llmModel?.trim()) return 'llmModel is required'
-  if (input.ragTopK === undefined || !Number.isInteger(input.ragTopK)) return 'ragTopK must be an integer'
-  if (input.ragTopK < 1 || input.ragTopK > 10) return 'ragTopK must be between 1 and 10'
+  const topK = input.ragTopK ?? 3
+  if (!Number.isInteger(topK) || topK < 1 || topK > 10) return 'ragTopK must be an integer between 1 and 10'
   return null
 }
 
@@ -51,12 +51,13 @@ export function loadSettings(): AppSettings {
 }
 
 export function saveSettings(next: AppSettings): { ok: true } | { ok: false; reason: string } {
-  const validationError = validateSettings(next)
+  const withDefaults: AppSettings = { ...DEFAULT_SETTINGS, ...next }
+  const validationError = validateSettings(withDefaults)
   if (validationError) return { ok: false, reason: validationError }
 
   const current = loadSettings()
   try {
-    store.set('settings', next)
+    store.set('settings', withDefaults)
     // only masked value can appear in logs
     console.info('[settings] save ok', {
       llmBaseUrl: next.llmBaseUrl,
