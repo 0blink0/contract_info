@@ -3,6 +3,9 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { List, Setting, Upload } from '@element-plus/icons-vue'
 import { JOB_FIELD_B, JOB_TABLE_SECTIONS } from '@/constants/jobSections'
+import { useKbStatus } from '@/composables/useKbStatus'
+
+const { modelLoaded } = useKbStatus()
 
 const route = useRoute()
 
@@ -51,6 +54,14 @@ const defaultOpeneds = computed(() => (jobId.value ? ['job-detail-nav'] : []))
         <el-menu-item index="/kb-config">
           <el-icon><List /></el-icon>
           <span>知识库配置</span>
+          <span
+            class="kb-status-dot"
+            :class="{
+              'kb-dot-loading': modelLoaded === false,
+              'kb-dot-ready': modelLoaded === true,
+            }"
+            :title="modelLoaded === null ? '' : modelLoaded ? 'RAG 模型已就绪' : 'RAG 模型加载中…'"
+          />
         </el-menu-item>
         <el-sub-menu v-if="jobId" index="job-detail-nav">
           <template #title>
@@ -174,5 +185,28 @@ const defaultOpeneds = computed(() => (jobId.value ? ['job-detail-nav'] : []))
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.kb-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.kb-dot-loading {
+  background: #f59e0b;
+  animation: kb-pulse 1.2s ease-in-out infinite;
+}
+
+.kb-dot-ready {
+  background: #22c55e;
+}
+
+@keyframes kb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 </style>

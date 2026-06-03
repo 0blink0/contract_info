@@ -5,6 +5,73 @@ from __future__ import annotations
 import re
 from typing import Any
 
+
+_split_tokens = lambda s: set(t for t in re.split(r"[、，,\s；;/]+", s.strip()) if t)
+
+
+def _kb_matches(suggested: str | None, kb_value: str) -> bool:
+    """KB 值的所有 token 都被 suggested 覆盖才算一致（子集判断，非单纯交集）。"""
+    if not suggested or not kb_value:
+        return False
+    return _split_tokens(kb_value).issubset(_split_tokens(suggested))
+
+
+def _find_similar_passage(text: str, kb_snippets: list[str], min_score: float = 0.08) -> str | None:
+    """用 KB 摘录的字符 bigram 在当前合同文本里定位最相似的段落。"""
+    passages = [p.strip() for p in re.split(r"[。；\n]+", text) if len(p.strip()) > 4]
+    if not passages:
+        return None
+
+    def bigrams(s: str) -> set[str]:
+        return {s[i : i + 2] for i in range(len(s) - 1)}
+
+    best_score = 0.0
+    best_idx = -1
+    for kb_snip in kb_snippets:
+        kb_bi = bigrams(kb_snip)
+        if not kb_bi:
+            continue
+        for idx, passage in enumerate(passages):
+            p_bi = bigrams(passage)
+            if not p_bi:
+                continue
+            score = len(kb_bi & p_bi) / len(kb_bi | p_bi)
+            if score > best_score:
+                best_score = score
+                best_idx = idx
+
+    if best_idx < 0 or best_score < min_score:
+        return None
+
+    start = max(0, best_idx - 1)
+    end = min(len(passages), best_idx + 3)
+    return "。".join(passages[start:end])
+
+
+def _rag_note(crm_field: str, suggested: str | None, kb_index: dict[str, list[dict]]) -> str:
+    """生成 KB 交叉核对诊断追加文本。crm_field 与 KB field_name 直接匹配。"""
+    cases = kb_index.get(crm_field) or []
+    if not cases:
+        return ""
+    kb_values = list(dict.fromkeys(
+        c.get("field_value", "").strip() for c in cases if c.get("field_value", "").strip()
+    ))
+    if not kb_values:
+        return ""
+    kb_repr = "、".join(kb_values[:2])
+    if any(_kb_matches(suggested, v) for v in kb_values):
+        return f" · 知识库参考一致（{kb_repr}）"
+    # 有部分重叠但 KB 包含更多 token → 提示缺失项
+    s_tokens = _split_tokens(suggested or "")
+    all_kb_tokens: set[str] = set()
+    for v in kb_values:
+        all_kb_tokens |= _split_tokens(v)
+    missing = all_kb_tokens - s_tokens
+    if missing and s_tokens:
+        missing_str = "、".join(list(missing)[:3])
+        return f" · 知识库含「{missing_str}」，建议核查"
+    return f" · 知识库案例：{kb_repr}，建议核查"
+
 _CRM_METHOD_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("基金整体资产高水位法", re.compile(r"基金整体资产高水位|整体.*?高水位|基金整体.*?高水位")),
     ("单个投资者高水位法", re.compile(r"单个投资者.*?高水位|单笔高水位")),
@@ -142,13 +209,35 @@ def _suggest_ratio(tiers: list[dict]) -> tuple[str | None, str | None]:
     return "；".join(parts), "\n".join(snips[:4])
 
 
-def build_crm_handoff(path_b: dict[str, Any], *, fees_context: str = "") -> list[dict[str, str | None]]:
+def build_crm_handoff(
+    path_b: dict[str, Any],
+    *,
+    fees_context: str = "",
+    rag_cases: list[dict[str, str]] | None = None,
+) -> list[dict[str, str | None]]:
     """CRM 手录字段列表：crm_field, suggested_value, snippet, coverage, diagnostic。"""
     perf = path_b.get("performance_fee") or {}
     open_day = path_b.get("open_day") or {}
     snippets = path_b.get("source_snippets") or {}
     tiers: list[dict] = perf.get("tiers") if isinstance(perf.get("tiers"), list) else []
     fees_ctx = fees_context or str(perf.get("summary") or "")
+
+    # Build KB lookup by field_name for O(1) cross-reference in each row
+    kb_cases = rag_cases or (path_b.get("kb_cases") or [])
+    kb_index: dict[str, list[dict]] = {}
+    for c in kb_cases:
+        fn = c.get("field_name", "").strip()
+        if fn:
+            kb_index.setdefault(fn, []).append(c)
+
+    kb_extractions: dict[str, tuple[str, str]] = path_b.get("kb_field_extractions") or {}
+
+    def _kb_llm(crm_field: str) -> tuple[str | None, str | None]:
+        """返回 LLM 预提取的 (value, passage)；无则 (None, None)。"""
+        entry = kb_extractions.get(crm_field)
+        if entry:
+            return entry[0] or None, entry[1] or None
+        return None, None
 
     items: list[dict[str, str | None]] = []
 
@@ -170,12 +259,35 @@ def build_crm_handoff(path_b: dict[str, Any], *, fees_context: str = "") -> list
             }
         )
 
+    # 0. 是否计提业绩报酬（首行，决定下方字段是否需要填）
+    has_pf = perf.get("has_performance_fee")
+    has_pf_snip = _snip(snippets, "performance_fee.has_performance_fee") or _snip(
+        snippets, "performance_fee.summary"
+    )
+    if has_pf:
+        diag_pf = "LLM 从合同原文判断" if has_pf != "是" or not tiers else "合同含业绩报酬条款"
+        coverage_pf = "full" if has_pf == "否" else "partial"
+    else:
+        diag_pf = "未能自动判断，请人工确认"
+        coverage_pf = "missing"
+    add(
+        "是否计提业绩报酬",
+        has_pf,
+        has_pf_snip,
+        coverage=coverage_pf,
+        diagnostic=diag_pf,
+    )
+
     # 1. 业绩报酬提取方式
     raw_method = perf.get("extraction_method")
-    method, snip_m = _suggest_method(
-        raw_method or _snip(snippets, "performance_fee.extraction_method")
-    )
-    diag_m = "合同明确描述，可直接填写" if method else "未检测到提取方式关键词，请查阅费用与税收章节"
+    kb_m_val, kb_m_snip = _kb_llm("业绩报酬提取方式")
+    if kb_m_val:
+        method, snip_m = kb_m_val, kb_m_snip
+        diag_m = "知识库案例定位，LLM 从相似段落提取"
+    else:
+        method, snip_m = _suggest_method(raw_method or _snip(snippets, "performance_fee.extraction_method"))
+        diag_m = "合同明确描述，可直接填写" if method else "未检测到提取方式关键词，请查阅费用与税收章节"
+    diag_m += _rag_note("业绩报酬提取方式", method, kb_index)
     add(
         "业绩报酬提取方式",
         method,
@@ -186,7 +298,12 @@ def build_crm_handoff(path_b: dict[str, Any], *, fees_context: str = "") -> list
 
     # 2. 业绩基准类型
     raw_bench = perf.get("benchmark_type")
-    bench, snip_b, diag_b = _suggest_benchmark(raw_bench, raw_method, tiers, fees_ctx)
+    kb_b_val, kb_b_snip = _kb_llm("业绩基准类型")
+    if kb_b_val:
+        bench, snip_b, diag_b = kb_b_val, kb_b_snip, "知识库案例定位，LLM 从相似段落提取"
+    else:
+        bench, snip_b, diag_b = _suggest_benchmark(raw_bench, raw_method, tiers, fees_ctx)
+    diag_b += _rag_note("业绩基准类型", bench, kb_index)
     add(
         "业绩基准类型",
         bench,
@@ -201,7 +318,12 @@ def build_crm_handoff(path_b: dict[str, Any], *, fees_context: str = "") -> list
         snip_h = _snip(snippets, "performance_fee.hurdle_nav")
         diag_h = "已从合同检测到门槛描述"
     else:
-        hurdle, snip_h, diag_h = _suggest_hurdle(fees_ctx, tiers)
+        kb_h_val, kb_h_snip = _kb_llm("门槛净值类型")
+        if kb_h_val:
+            hurdle, snip_h, diag_h = kb_h_val, kb_h_snip, "知识库案例定位，LLM 从相似段落提取"
+        else:
+            hurdle, snip_h, diag_h = _suggest_hurdle(fees_ctx, tiers)
+    diag_h += _rag_note("门槛净值类型", hurdle, kb_index)
     add(
         "门槛净值类型",
         hurdle,
@@ -216,11 +338,13 @@ def build_crm_handoff(path_b: dict[str, Any], *, fees_context: str = "") -> list
         snip_t = _snip(snippets, "performance_fee.extraction_timing")
         diag_t = "合同明确描述提取时点"
     else:
-        timing, snip_t = _suggest_timing(fees_ctx)
-        if not timing and open_day.get("fixed_schedule"):
-            timing = "固定时点"
-            snip_t = str(open_day["fixed_schedule"])
-        diag_t = "从费用章节关键词推断" if timing else "请人工确认提取时点"
+        kb_t_val, kb_t_snip = _kb_llm("提取时点")
+        if kb_t_val:
+            timing, snip_t, diag_t = kb_t_val, kb_t_snip, "知识库案例定位，LLM 从相似段落提取"
+        else:
+            timing, snip_t = _suggest_timing(fees_ctx)
+            diag_t = "从费用章节关键词推断" if timing else "请人工确认提取时点"
+    diag_t += _rag_note("提取时点", timing, kb_index)
     add(
         "提取时点",
         timing,
@@ -229,9 +353,10 @@ def build_crm_handoff(path_b: dict[str, Any], *, fees_context: str = "") -> list
         diagnostic=diag_t,
     )
 
-    # 5. 提取比例
+    # 5. 提取比例（来自表格结构，不做段落定位）
     ratio, snip_r = _suggest_ratio(tiers)
     diag_r = "从基本情况表格提取，按份额类填写" if ratio else "未找到业绩报酬比例"
+    diag_r += _rag_note("提取比例", ratio, kb_index)
     add(
         "提取比例",
         ratio,
@@ -240,30 +365,16 @@ def build_crm_handoff(path_b: dict[str, Any], *, fees_context: str = "") -> list
         diagnostic=diag_r,
     )
 
-    # 6. 固定时点提取频率（来自开放日规则）
-    schedule = open_day.get("fixed_schedule")
-    diag_s = "来自合同开放日安排，与固定时点一致" if schedule else "未解析到开放日规则，请人工填写"
-    add(
-        "固定时点提取频率",
-        schedule,
-        _snip(snippets, "open_day.fixed_schedule"),
-        coverage="partial" if schedule else "missing",
-        diagnostic=diag_s,
-    )
-
-    # 7. 管理人放弃提取业绩报酬
-    waiver = perf.get("manager_waiver")
-    waiver_snip = _snip(snippets, "performance_fee.manager_waiver")
-    if waiver:
-        diag_w = "合同含管理人放弃条款，请在CRM对应选项确认"
-    else:
-        diag_w = "合同未检测到放弃条款，通常填「否」"
-    add(
-        "管理人放弃提取业绩报酬",
-        waiver or "否（未检测到放弃条款）",
-        waiver_snip,
-        coverage="partial" if waiver else "full",
-        diagnostic=diag_w,
-    )
+    # 6. 固定时点提取频率（仅当提取时点含"固定时点"时才有意义）
+    if timing and "固定时点" in timing:
+        schedule = open_day.get("fixed_schedule")
+        diag_s = "来自合同开放日安排，与固定时点一致" if schedule else "未解析到开放日规则，请人工填写"
+        add(
+            "固定时点提取频率",
+            schedule,
+            _snip(snippets, "open_day.fixed_schedule"),
+            coverage="partial" if schedule else "missing",
+            diagnostic=diag_s,
+        )
 
     return items

@@ -42,8 +42,12 @@ def build_path_b_document(
     open_day_fields: dict[str, FieldValue | None],
     tiers: list[PerformanceFeeTier],
     raw_sections: dict[str, str] | None = None,
+    rag_cases: list[dict[str, str]] | None = None,
+    kb_field_extractions: dict[str, tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     perf = PerformanceFeeModule()
+    if _fv_text(performance_fields.get("has_performance_fee")):
+        perf.has_performance_fee = _fv_text(performance_fields.get("has_performance_fee"))
     if _fv_text(performance_fields.get("extraction_method")):
         perf.extraction_method = _fv_text(performance_fields.get("extraction_method"))
     if _fv_text(performance_fields.get("benchmark_type")):
@@ -93,4 +97,9 @@ def build_path_b_document(
         source_snippets=snippets,
         raw_sections=capped_sections,
     )
-    return doc.model_dump(exclude_none=True)
+    result = doc.model_dump(exclude_none=True)
+    if rag_cases:
+        result["kb_cases"] = rag_cases
+    if kb_field_extractions:
+        result["kb_field_extractions"] = kb_field_extractions
+    return result

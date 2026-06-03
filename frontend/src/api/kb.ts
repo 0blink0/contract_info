@@ -61,3 +61,13 @@ export async function getKbEntries(params: GetKbEntriesParams = {}): Promise<KbL
 export async function deleteKbEntry(id: string): Promise<void> {
   await apiFetch(`/kb/entries/${id}`, { method: 'DELETE' })
 }
+
+export interface KbStatusResponse {
+  model_loaded: boolean
+  entry_count: number
+}
+
+export async function getKbStatus(): Promise<KbStatusResponse> {
+  const res = await apiFetch('/kb/status')
+  return res.json()
+}

@@ -9,7 +9,7 @@
 - ✅ **v1.1 抽取质量与导出扩展** — Phases 6–10（shipped 2026-05-26）→ [archive](milestones/v1.1-ROADMAP.md)
 - ✅ **v1.2 桌面化交付** — Phases 11–14（shipped 2026-05-29）→ [archive](milestones/v1.2-ROADMAP.md)
 - ✅ **v1.3 多文件并行与详情页重构** — Phases 15–19（shipped 2026-05-29）→ [Post-ship UX](v1.3-POST-SHIP-UX.md)
-- 🔄 **v1.4 业绩报酬知识库与 RAG 增强** — Phases 20–23（active）
+- ✅ **v1.4 业绩报酬知识库与 RAG 增强** — Phases 20–23（shipped 2026-06-03）
 
 ## Phases
 
@@ -58,13 +58,13 @@
 
 </details>
 
-<details open>
-<summary>🔄 v1.4 业绩报酬知识库与 RAG 增强 (Phases 20–23) — ACTIVE</summary>
+<details>
+<summary>✅ v1.4 业绩报酬知识库与 RAG 增强 (Phases 20–23) — SHIPPED 2026-06-03</summary>
 
 - [x] **Phase 20: 知识库数据层 + PathB 录入 UI** - LanceDB 向量后端 CRUD + embedding，PathB 页底部可编辑录入表格与存入按钮
-- [ ] **Phase 21: 知识库配置页 UI** - 左侧菜单「知识库配置」入口，历史案例列表查看/过滤/删除
-- [ ] **Phase 22: RAG 检索与 LLM 注入** - 语义检索 Top-K 相似案例注入业绩报酬提取 prompt，Settings 增加 Top-K 配置
-- [ ] **Phase 23: PyInstaller 打包兼容与烟测** - LanceDB + sentence-transformers 模型权重纳入打包，烟测验证全链路
+- [x] **Phase 21: 知识库配置页 UI** - 左侧菜单「知识库配置」入口，历史案例列表查看/过滤/删除
+- [x] **Phase 22: RAG 检索与 LLM 注入** - 语义检索 Top-K 相似案例注入业绩报酬提取 prompt，Settings 增加 Top-K 配置
+- [x] **Phase 23: PyInstaller 打包兼容与烟测** - LanceDB + sentence-transformers 打包兼容，字段级并行 RAG + KB Few-Shot LLM 提取，全链路烟测通过
 
 </details>
 
@@ -354,7 +354,7 @@ Plans:
 | 20. 知识库数据层 + PathB 录入 UI | v1.4 | 3/3 | Complete | 2026-06-02 |
 | 21. 知识库配置页 UI | v1.4 | 3/3 | Complete   | 2026-06-02 |
 | 22. RAG 检索与 LLM 注入 | v1.4 | 3/3 | Complete   | 2026-06-02 |
-| 23. PyInstaller 打包兼容与烟测 | v1.4 | 3/4 | In Progress|  |
+| 23. PyInstaller 打包兼容与烟测 | v1.4 | 4/4 | Complete | 2026-06-03 |
 
 ---
-*Roadmap updated: 2026-06-02 — Phase 23 plans defined (KB 打包兼容与烟测, 4 plans, 3 waves)*
+*Roadmap updated: 2026-06-03 — v1.4 shipped: Phase 23 complete，字段级 RAG + KB LLM 提取 + 模型状态 UI*

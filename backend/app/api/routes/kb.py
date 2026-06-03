@@ -9,6 +9,24 @@ from backend.app.services.kb_service import get_kb_service
 router = APIRouter(prefix="/kb", tags=["kb"], dependencies=[Depends(verify_api_key)])
 
 
+class KbStatusResponse(BaseModel):
+    model_loaded: bool
+    entry_count: int
+
+
+@router.get("/status", response_model=KbStatusResponse)
+def get_kb_status() -> KbStatusResponse:
+    svc = get_kb_service()
+    if svc is None:
+        return KbStatusResponse(model_loaded=False, entry_count=0)
+    try:
+        result = svc.list_entries(page=1, page_size=1)
+        count = result.get("total", 0)
+    except Exception:
+        count = 0
+    return KbStatusResponse(model_loaded=svc.model_available, entry_count=count)
+
+
 class KbEntryInput(BaseModel):
     field_name: str
     field_value: str

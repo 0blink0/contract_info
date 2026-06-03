@@ -10,6 +10,31 @@ from backend.app.extract.schemas import ExtractionWarning, FieldValue, Performan
 _SHARE_COL = re.compile(r"([A-D])\s*类(?:份额)?", re.IGNORECASE)
 _RATE_PCT = re.compile(r"(\d+(?:\.\d+)?)\s*%")
 
+# Matches "业绩报酬" appearing as a SECTION HEADING.
+# Branch 1: mandatory numeric/Chinese prefix (e.g. "5、业绩报酬", "（五）基金管理人的业绩报酬").
+#   No negative lookahead — allows full heading titles like "5、业绩报酬提取条款".
+# Branch 2: exact full phrase "基金管理人的业绩报酬" at line start (no prefix required).
+_PERF_FEE_HEADING_PAT = re.compile(
+    r"(?:^|\n)[ \t]*"
+    r"(?:"
+    r"(?:\d+[、．.]|[一二三四五六七八九十]+[、．.]|（[一二三四五六七八九十]+）)"
+    r"[ \t]*(?:(?:基金|本基金)(?:管理人的?|的)?)?业绩报酬"
+    r"|基金管理人的业绩报酬"
+    r")",
+    re.MULTILINE,
+)
+
+_CHINESE_NUM_SEQ = "一二三四五六七八九十"
+
+# Specific performance-fee content markers for fallback (more reliable than bare "业绩报酬").
+_PERF_FEE_CONTENT_MARKERS = (
+    "计提业绩报酬",
+    "业绩报酬的计提",
+    "业绩报酬计提比例",
+    "业绩报酬提取",
+    "业绩报酬比例",
+)
+
 # 提取方式
 _RE_PERF_METHOD_SPECIFIC = re.compile(
     r"(基金整体资产高水位|基金整体高水位|整体高水位"
@@ -37,7 +62,14 @@ _RE_OPEN_BUSINESS = re.compile(
 _RE_TEMP_OPEN = re.compile(r"临时开放[^。\n]{0,400}")
 
 _TIMING_CHECKS: list[tuple[str, re.Pattern[str]]] = [
-    ("固定时点", re.compile(r"开放日|估值日|计提日|固定.*?开放|每年.*?月|每季|每半年")),
+    # "固定时点" only when the contract explicitly states performance fee is
+    # collected at a recurring fixed interval — not merely because a fixed
+    # open-day schedule exists elsewhere.
+    ("固定时点", re.compile(
+        r"(?:按|于|在).*?(?:开放日|估值日|计提日).*?(?:计提|提取|收取)"
+        r"|(?:每年|每季|每半年|每月).*?(?:计提|提取)业绩报酬"
+        r"|固定.*?开放.*?计提"
+    )),
     ("分红", re.compile(r"分红|收益分配")),
     ("赎回", re.compile(r"赎回")),
     ("基金清算", re.compile(r"清算|合同终止|基金终止|解散")),
@@ -231,12 +263,10 @@ def _extract_manager_waiver(fees_text: str) -> FieldValue | None:
 
 
 def _extract_extraction_timing(
-    fees_text: str, *, has_fixed_schedule: bool
+    fees_text: str, *, has_fixed_schedule: bool  # noqa: ARG001
 ) -> FieldValue | None:
     hits: list[str] = []
     snips: list[str] = []
-    if has_fixed_schedule:
-        hits.append("固定时点")
     for label, pat in _TIMING_CHECKS:
         m = pat.search(fees_text)
         if m and label not in hits:
@@ -291,12 +321,88 @@ def _extract_open_day_fields(
     return fields
 
 
+def _perf_fee_next_sibling_pos(heading_match: re.Match[str], tail: str) -> int:
+    """Return the position within *tail* where the next sibling section starts, or len(tail)."""
+    heading_str = heading_match.group(0)
+
+    # Digit prefix: "5、" → next sibling starts at 6、, 7、, …
+    digit_m = re.search(r"(\d+)[、．.]", heading_str)
+    if digit_m:
+        n = int(digit_m.group(1))
+        # Build alternation for numbers n+1 … n+20 to avoid matching sub-items
+        alternatives = "|".join(str(n + i) for i in range(1, 21))
+        sibling_pat = re.compile(r"\n[ \t]*(?:" + alternatives + r")[、．.]", re.MULTILINE)
+        sm = sibling_pat.search(tail, 1)
+        if sm:
+            return sm.start()
+
+    # Parenthesised Chinese numeral: "（五）" → next is "（六）"
+    paren_m = re.search(r"（([" + _CHINESE_NUM_SEQ + r"]+)）", heading_str)
+    if paren_m:
+        cn = paren_m.group(1)
+        idx = _CHINESE_NUM_SEQ.find(cn)
+        if 0 <= idx < len(_CHINESE_NUM_SEQ) - 1:
+            next_cn = _CHINESE_NUM_SEQ[idx + 1]
+            sm = re.search(r"\n[ \t]*（" + next_cn + r"）", tail[1:], re.MULTILINE)
+            if sm:
+                return sm.start() + 1
+
+    # Chinese numeral + 、: "五、" → next is "六、"
+    cn_m = re.search(r"([" + _CHINESE_NUM_SEQ + r"]+)[、．.]", heading_str)
+    if cn_m:
+        cn = cn_m.group(1)
+        idx = _CHINESE_NUM_SEQ.find(cn)
+        if 0 <= idx < len(_CHINESE_NUM_SEQ) - 1:
+            next_cn = _CHINESE_NUM_SEQ[idx + 1]
+            sm = re.search(r"\n[ \t]*" + next_cn + r"[、．.]", tail[1:], re.MULTILINE)
+            if sm:
+                return sm.start() + 1
+
+    return len(tail)
+
+
+def _perf_fee_raw_section(fees_text: str) -> str:
+    """Return only the performance-fee subsection of the fees chapter.
+
+    Primary: finds ALL section headings (e.g. '5、业绩报酬', '基金管理人的业绩报酬') and
+    returns the most substantive one — the heading match that yields the longest
+    body text.  Contracts often have a brief fee-enumeration line ("4、业绩报酬：
+    基金的证券、期货交易费用…") earlier in the fees chapter; the actual detailed clause
+    with tier tables comes later.  Picking the longest match skips the brief line.
+    Fallback 1: window around specific content markers like '计提业绩报酬'.
+    Fallback 2: window around the first bare '业绩报酬' occurrence.
+    Last resort: full fees_text.
+    """
+    best: str | None = None
+    for m in _PERF_FEE_HEADING_PAT.finditer(fees_text):
+        tail = fees_text[m.start():]
+        end = _perf_fee_next_sibling_pos(m, tail)
+        chunk = tail[:end].strip()
+        if best is None or len(chunk) > len(best):
+            best = chunk
+    if best and len(best) >= 30:
+        return best
+    for marker in _PERF_FEE_CONTENT_MARKERS:
+        idx = fees_text.find(marker)
+        if idx >= 0:
+            return fees_text[max(0, idx - 200):idx + 2000].strip()
+    idx = fees_text.find("业绩报酬")
+    if idx >= 0:
+        return fees_text[max(0, idx - 100):idx + 2000].strip()
+    return fees_text
+
+
 def extract_path_b_rules(
     document: dict[str, Any],
     windows: dict[str, str],
     *,
     fund_name: str | None,
     product_elements: dict[str, Any],
+    llm_perf_raw_section: str | None = None,
+    llm_perf_flag: str | None = None,
+    llm_open_day_raw_section: str | None = None,
+    rag_cases: list[dict[str, str]] | None = None,
+    kb_field_extractions: dict[str, tuple[str, str]] | None = None,
 ) -> tuple[dict[str, Any], list[ExtractionWarning]]:
     del fund_name
     warnings: list[ExtractionWarning] = []
@@ -305,11 +411,18 @@ def extract_path_b_rules(
     perf_fields: dict[str, FieldValue | None] = {}
     tiers = _parse_performance_tiers_from_table(document)
 
-    if not tiers:
+    # When LLM confirms no performance fee, record the original text as summary
+    # and skip further parsing — no warning needed since the answer is definitive.
+    if llm_perf_flag == "否":
+        raw_text = llm_perf_raw_section or ""
+        perf_fields["has_performance_fee"] = _fv("否", snippet=raw_text)
+        perf_fields["summary"] = _fv(raw_text, snippet=raw_text) if raw_text else None
+    elif not tiers:
         summary = _performance_summary_from_fees(fees_text)
         if summary:
             perf_fields["summary"] = summary
-        else:
+        elif not llm_perf_raw_section:
+            # Only warn when we have neither rules-based nor LLM-sourced content.
             warnings.append(
                 ExtractionWarning(
                     field="path_b.performance_fee",
@@ -319,6 +432,10 @@ def extract_path_b_rules(
                 )
             )
     else:
+        perf_fields["has_performance_fee"] = _fv(
+            llm_perf_flag if llm_perf_flag else "是", snippet=""
+        )
+
         method = _extract_extraction_method(fees_text)
         if method:
             perf_fields["extraction_method"] = method
@@ -353,14 +470,24 @@ def extract_path_b_rules(
     sub_text = windows.get("subscription", "") or ""
     raw_sections: dict[str, str] = {}
     if fees_text.strip():
-        raw_sections["performance_fee"] = fees_text
+        # Prefer LLM-located verbatim text; fall back to regex heuristic.
+        raw_sections["performance_fee"] = (
+            llm_perf_raw_section if llm_perf_raw_section
+            else _perf_fee_raw_section(fees_text)
+        )
     if sub_text.strip():
-        raw_sections["open_day"] = sub_text
+        # Prefer LLM-located open-day clauses; fall back to full subscription chapter.
+        raw_sections["open_day"] = (
+            llm_open_day_raw_section if llm_open_day_raw_section
+            else sub_text
+        )
 
     path_b = build_path_b_document(
         performance_fields=perf_fields,
         open_day_fields=open_fields,
         tiers=tiers,
         raw_sections=raw_sections,
+        rag_cases=rag_cases,
+        kb_field_extractions=kb_field_extractions,
     )
     return path_b, warnings

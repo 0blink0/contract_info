@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import { useKbConfigList } from '@/composables/useKbConfigList'
+import { useKbStatus } from '@/composables/useKbStatus'
 import type { KbEntryItem } from '@/api/kb'
 
 const { loading, keyword, page, pageSize, total, items, refresh, onPageChange, onPageSizeChange, remove } =
   useKbConfigList()
+
+const { modelLoaded } = useKbStatus()  // 共享 AppLayout 的单例轮询，无需重复启动
+
+onMounted(() => {
+  void refresh()
+})
 
 function formatTime(iso: string): string {
   try {
@@ -45,6 +53,29 @@ onMounted(() => {
 
 <template>
   <div class="page-shell">
+    <!-- 向量模型加载状态 -->
+    <el-alert
+      v-if="modelLoaded === false"
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px;"
+    >
+      <template #title>
+        <span>向量模型加载中，RAG 功能暂不可用</span>
+        <el-icon class="is-loading" style="margin-left: 8px; vertical-align: middle;"><Loading /></el-icon>
+      </template>
+      <span style="font-size: 12px; color: #666;">首次启动约需 4 分钟，加载完成后此提示自动消失，提取时将自动注入 RAG 增强。</span>
+    </el-alert>
+    <el-alert
+      v-else-if="modelLoaded === true"
+      type="success"
+      :closable="false"
+      show-icon
+      title="向量模型已就绪，RAG 功能可用"
+      style="margin-bottom: 12px;"
+    />
+
     <div class="list-header">
       <div>
         <h1 class="page-title">知识库配置</h1>

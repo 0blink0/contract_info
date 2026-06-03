@@ -84,7 +84,9 @@ class KbService:
         await asyncio.to_thread(self._table.add, rows)
         return ids
 
-    async def search_similar_entries(self, query: str, k: int) -> list[dict[str, str]]:
+    async def search_similar_entries(
+        self, query: str, k: int, field_name: str | None = None
+    ) -> list[dict[str, str]]:
         query_text = (query or "").strip()
         if not query_text:
             return []
@@ -94,7 +96,7 @@ class KbService:
 
         try:
             embedding_text = self._build_embedding_text(
-                field_name="业绩报酬",
+                field_name=field_name or "业绩报酬",
                 field_value=query_text,
                 snippet=query_text,
             )
@@ -106,6 +108,8 @@ class KbService:
             )
             query_vector = query_vectors[0].tolist()
             search_result = self._table.search(query_vector).limit(top_k)
+            if field_name:
+                search_result = search_result.where(f"field_name = '{field_name}'")
             rows = await asyncio.to_thread(search_result.to_list)
         except Exception as exc:  # noqa: BLE001
             logger.warning("KB semantic search unavailable, degrade to empty cases: %s", exc)
@@ -172,6 +176,7 @@ def init_kb_service() -> None:
         table = db.create_table(KB_TABLE_NAME, schema=_KB_SCHEMA)
 
     svc = KbService(table)
+    _kb = svc  # expose early so get_kb_service() never returns None
     models_dir_raw = os.environ.get("CTRX_MODELS_DIR", "").strip()
     if models_dir_raw:
         try:
@@ -181,9 +186,9 @@ def init_kb_service() -> None:
             model = SentenceTransformer(str(model_path), local_files_only=True)
             model.encode(["预热"], show_progress_bar=False)
             svc.set_model(model)
+            logger.info("KB model loaded: %s", model_path)
         except Exception as exc:
             logger.warning("Failed to load local bge-m3 model, fallback to unavailable mode: %s", exc)
-    _kb = svc
 
 
 def get_kb_service() -> KbService | None:
