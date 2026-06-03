@@ -44,7 +44,8 @@
         "filter": [
           "ctrx-backend-*/**",
           "ctrx-backend-*",
-          ".backend-manifest.json"
+          ".backend-manifest.json",
+          "models/**"
         ]
       }
     ],
