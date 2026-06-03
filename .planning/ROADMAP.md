@@ -317,7 +317,7 @@ Plans:
 Plans:
 **Wave 0**
 
-- [ ] 23-01-PLAN.md — 依赖安装（torch CPU-only + lancedb + sentence-transformers）+ bge-m3 模型下载 + .gitignore（KB-PKG-01, KB-PKG-02）
+- [x] 23-01-PLAN.md — 依赖安装（torch CPU-only + lancedb + sentence-transformers）+ bge-m3 模型下载 + .gitignore（KB-PKG-01, KB-PKG-02）
 
 **Wave 1** *(blocked on Wave 0 completion)*
 
@@ -354,7 +354,7 @@ Plans:
 | 20. 知识库数据层 + PathB 录入 UI | v1.4 | 3/3 | Complete | 2026-06-02 |
 | 21. 知识库配置页 UI | v1.4 | 3/3 | Complete   | 2026-06-02 |
 | 22. RAG 检索与 LLM 注入 | v1.4 | 3/3 | Complete   | 2026-06-02 |
-| 23. PyInstaller 打包兼容与烟测 | v1.4 | 0/4 | Not started | - |
+| 23. PyInstaller 打包兼容与烟测 | v1.4 | 1/4 | Executing | - |
 
 ---
 *Roadmap updated: 2026-06-02 — Phase 23 plans defined (KB 打包兼容与烟测, 4 plans, 3 waves)*

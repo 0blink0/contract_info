@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: 业绩报酬知识库与 RAG 增强
 status: executing
-last_updated: "2026-06-02T12:28:30.219Z"
-last_activity: 2026-06-02 -- Completed 22-02-SUMMARY.md
+last_updated: "2026-06-03T02:00:00.000Z"
+last_activity: 2026-06-03 -- 23-01 complete (KB deps + bge-m3 model + .gitignore)
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 24
-  completed_plans: 24
+  total_plans: 28
+  completed_plans: 25
   percent: 89
 ---
 
@@ -25,10 +25,10 @@ See: `contract_info/.planning/PROJECT.md`
 
 ## Current Position
 
-Phase: Phase 22 — RAG 检索与 LLM 注入
-Plan: 22-03-PLAN.md pending
-Status: Executing (22-02 completed)
-Last activity: 2026-06-02 -- Completed 22-02-SUMMARY.md
+Phase: Phase 23 — PyInstaller 打包兼容与烟测
+Plan: 23-02-PLAN.md (next, Wave 1)
+Status: Executing (1/4 plans complete)
+Last activity: 2026-06-03 -- 23-01 complete: KB deps installed, bge-m3 model downloaded, .gitignore updated
 
 Progress: [██████████] 100%
 
@@ -52,6 +52,8 @@ Progress: [██████████] 100%
 - Phase 22-01: Electron 后端子进程环境注入 `RAG_TOP_K`，沿用保存后重启生效机制
 - Phase 22-02: 仅 fees 链路触发 KB Top-K 检索并注入 performance fee prompt
 - Phase 22-02: 注入块固定三元组（字段名/字段值/原文摘录），不包含 score
+- Phase 23-01: bge-m3 以 flat local-path 格式（model.save()）存入 electron/resources/models/bge-m3/，通过 local_files_only=True 离线加载
+- Phase 23-01: torch 安装 CPU-only variant（--index-url whl/cpu），避免 CUDA wheel 额外体积
 
 ### Todos
 
@@ -66,7 +68,7 @@ _None_
 
 ## Session Continuity
 
-_Last update: 2026-06-02 — v1.4 milestone started_
+_Last update: 2026-06-03 — 23-01 complete; next: 23-02 hiddenimports audit_
 
 ## Archived Context
 
