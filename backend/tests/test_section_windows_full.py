@@ -1,4 +1,4 @@
-"""Section windows must not head-truncate chapter text used by rules."""
+"""Section windows must not head-truncate chapter text used by LLM prompts."""
 
 from pathlib import Path
 

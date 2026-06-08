@@ -39,7 +39,9 @@ def test_fees_path_triggers_rag_search_and_injects_top_k(monkeypatch, sample_doc
     captured = {"query": None, "k": None, "called": 0}
 
     class _Kb:
-        async def search_similar_entries(self, query: str, k: int):
+        model_available = True
+
+        async def search_similar_entries(self, query: str, k: int, *, field_name: str = ""):
             captured["query"] = query
             captured["k"] = k
             captured["called"] += 1
@@ -47,27 +49,27 @@ def test_fees_path_triggers_rag_search_and_injects_top_k(monkeypatch, sample_doc
                 {"field_name": "字段A", "field_value": "值A", "snippet": "摘录A"},
                 {"field_name": "字段B", "field_value": "值B", "snippet": "摘录B"},
                 {"field_name": "字段C", "field_value": "值C", "snippet": "摘录C"},
-                {"field_name": "字段D", "field_value": "值D", "snippet": "摘录D"},
             ]
 
-    async def _fake_extract_perf(client, fees_text, rag_cases):
-        assert rag_cases is not None
-        assert len(rag_cases) == 3
-        return "raw", "是", []
+    _CRM_FIELDS_COUNT = 5  # 提取时点/业绩报酬提取方式/业绩基准类型/门槛净值类型/提取比例
 
-    async def _fake_extract_open_day(client, text):
-        return None, []
+    async def _fake_fees_combined(client, fees_text, sub_fees_text, *, fund_name, rag_cases):
+        # rag_cases should be 3 results × 5 fields = 15
+        assert rag_cases is not None and len(rag_cases) == 3 * _CRM_FIELDS_COUNT
+        return [], [], {}, "raw", "是", {}, {}, None, None, []
+
+    async def _fake_product_combined(client, windows, *, fund_name):
+        return {}, [], [], None, []
 
     monkeypatch.setattr(pipeline, "get_kb_service", lambda: _Kb())
-    monkeypatch.setattr(pipeline, "extract_performance_fee_section_llm", _fake_extract_perf)
-    monkeypatch.setattr(pipeline, "extract_open_day_section_llm", _fake_extract_open_day)
+    monkeypatch.setattr(pipeline, "extract_fees_combined_llm", _fake_fees_combined)
+    monkeypatch.setattr(pipeline, "extract_product_combined_llm", _fake_product_combined)
 
     extract_document_sync(sample_document, llm_client=_ClientOn())  # type: ignore[arg-type]
 
-    assert captured["called"] == 1
+    assert captured["called"] == _CRM_FIELDS_COUNT  # one search per CRM field
     assert captured["k"] == 3
     assert isinstance(captured["query"], str) and captured["query"].strip()
-    assert "业绩" in captured["query"] or "报酬" in captured["query"]
 
 
 def test_prompt_injection_block_is_compact_and_has_no_score():

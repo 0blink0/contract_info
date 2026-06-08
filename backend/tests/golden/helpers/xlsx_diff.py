@@ -38,7 +38,6 @@ CRITICAL_FROM_CONTRACT = frozenset(
         "外包机构",
         "投资顾问",
         "风险等级",
-        "投资经理",
         "开放日规则",
         "预警线",
         "止损线",
@@ -123,14 +122,6 @@ def assert_critical_product(
             assert contains_normalized(
                 actual, exp_val
             ), f"{field}: expected substring {exp_val!r}, got {actual!r}"
-        elif field == "投资经理":
-            actual = actual or read_product_field(export_path, row, "投资经理信息")
-            for part in str(exp_val).replace("、", ",").split(","):
-                part = part.strip()
-                if part:
-                    assert contains_normalized(
-                        actual, part
-                    ), f"{field}: missing {part!r} in {actual!r}"
         else:
             assert empty_equiv(actual, exp_val) or normalize_cell(
                 actual

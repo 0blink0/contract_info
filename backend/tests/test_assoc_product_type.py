@@ -1,4 +1,4 @@
-from backend.app.extract.rules.assoc_product_type import infer_assoc_product_type
+from backend.app.extract.assoc_product_type import infer_assoc_product_type
 
 
 def test_equity_80pct_total_assets():
@@ -73,7 +73,6 @@ def test_shiyufulu_contract_is_mixed():
     """石云福禄1000指数增强一号合同：已投资产限定+期货独立类别 → 混合类。"""
     from pathlib import Path
 
-    from backend.app.extract.rules.classification_rules import extract_classification_rules
     from backend.app.extract.section_windows import build_section_windows
     from backend.app.parse.docx_parser import parse_docx
     from backend.app.parse.schemas import document_to_dict
@@ -87,5 +86,3 @@ def test_shiyufulu_contract_is_mixed():
     assert typ == "混合类", (
         f"期望混合类（已投资产限定+期货独立类别），实际={typ!r}\nsnip={snip}"
     )
-    out = extract_classification_rules(doc, windows, {})
-    assert out["产品类型（协会）"].value == "混合类"

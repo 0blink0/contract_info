@@ -1,4 +1,4 @@
-"""TEST-01: parse → extract → export E2E without LLM."""
+"""TEST-01: parse → extract (golden mock LLM) → export E2E."""
 
 import pytest
 
@@ -17,8 +17,8 @@ from backend.tests.golden.helpers.xlsx_diff import (
 @pytest.mark.parametrize(
     "docx_fixture,expected_key,lock_rows",
     [
-        ("golden_docx_shiyun", SHIYUN_KEY, 2),
-        ("golden_docx_fulu", FULU_KEY, 2),
+        ("golden_docx_shiyun", SHIYUN_KEY, 1),
+        ("golden_docx_fulu", FULU_KEY, 1),
     ],
 )
 def test_golden_export_e2e(

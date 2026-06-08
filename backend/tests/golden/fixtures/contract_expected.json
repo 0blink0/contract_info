@@ -53,7 +53,7 @@
       "管理费": { "rate_annual_pct": "1" },
       "托管费": { "rate_annual_pct": "0.03" },
       "销售服务费": { "rate_annual_pct": "0.5" },
-      "基金服务费": { "rate_annual_pct": "0.01" }
+      "外包服务费": { "rate_annual_pct": "0.01" }
     },
     "lock_periods": [
       { "锁定时间": "90天", "投资者类型": "一般投资者" }
