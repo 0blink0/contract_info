@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import asc, func, select
 
 from backend.app.services.export_service import persist_export
 from backend.app.services.extract_service import persist_extract
@@ -30,6 +30,7 @@ def can_run(status: str) -> bool:
         return False
     return status in {
         "pending",
+        "queued",
         "failed",
         "parsed",
         "extraction_failed",
@@ -52,6 +53,46 @@ def count_in_progress(session=None) -> int:
             .where(ContractFile.status.in_(IN_PROGRESS))
         )
         return int(session.scalar(stmt) or 0)
+    finally:
+        if own_session:
+            session.close()
+
+
+def count_queued(session=None) -> int:
+    from backend.app.db.session import SessionLocal
+    from backend.app.models.contract_file import ContractFile
+
+    own_session = session is None
+    if own_session:
+        session = SessionLocal()
+    try:
+        stmt = (
+            select(func.count())
+            .select_from(ContractFile)
+            .where(ContractFile.status == "queued")
+        )
+        return int(session.scalar(stmt) or 0)
+    finally:
+        if own_session:
+            session.close()
+
+
+def get_next_queued_id(session=None) -> uuid.UUID | None:
+    from backend.app.db.session import SessionLocal
+    from backend.app.models.contract_file import ContractFile
+
+    own_session = session is None
+    if own_session:
+        session = SessionLocal()
+    try:
+        stmt = (
+            select(ContractFile)
+            .where(ContractFile.status == "queued")
+            .order_by(asc(ContractFile.created_at))
+            .limit(1)
+        )
+        row = session.scalars(stmt).first()
+        return row.id if row else None
     finally:
         if own_session:
             session.close()
@@ -81,7 +122,7 @@ def run_pipeline(file_id: uuid.UUID) -> None:
 
     assert_can_run(status)
 
-    if status in ("pending", "failed"):
+    if status in ("pending", "queued", "failed"):
         parse_file_id(file_id)
         persist_extract(file_id)
         persist_export(file_id)

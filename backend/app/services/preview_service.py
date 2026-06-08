@@ -17,7 +17,7 @@ from openpyxl import load_workbook
 from backend.app.config import data_dir
 
 SNIPPET_DISPLAY = "摘录原文"
-_SKIP_PREVIEW_KEYS = frozenset({"snippet"})
+_SKIP_PREVIEW_KEYS = frozenset({"snippet", "分级份额简称"})
 
 
 def _append_snippet_column(
@@ -406,6 +406,9 @@ def _load_lock_section(record) -> tuple[str, list[str], list[dict[str, str | Non
     return source, lock_columns, lock_rows
 
 
+_SHARE_HIDE_COLUMNS = frozenset({"分级份额简称"})
+
+
 def _load_share_section(record) -> tuple[str, list[str], list[dict[str, str | None]]]:
     source = "extraction"
     share_columns: list[str] = []
@@ -415,6 +418,11 @@ def _load_share_section(record) -> tuple[str, list[str], list[dict[str, str | No
         share_columns, share_rows = _read_xlsx_table(
             path, SHARE_SHEET, SHARE_HEADER_ROW, SHARE_DATA_START_ROW
         )
+        share_columns = [c for c in share_columns if c not in _SHARE_HIDE_COLUMNS]
+        share_rows = [
+            {k: v for k, v in r.items() if k not in _SHARE_HIDE_COLUMNS}
+            for r in share_rows
+        ]
         source = "xlsx"
     if not share_rows and record.extraction_result:
         share_columns, share_rows = _table_from_extraction_list(

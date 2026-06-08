@@ -64,6 +64,7 @@ from backend.app.services.pipeline_service import (
     PipelineNotRunnableError,
     assert_can_run,
     count_in_progress,
+    count_queued,
 )
 
 router = APIRouter(prefix="/jobs", tags=["jobs"], dependencies=[Depends(verify_api_key)])
@@ -162,7 +163,7 @@ def list_jobs(limit: int = Query(50, ge=1, le=200)) -> JobListResponse:
 
 @router.get("/concurrency", response_model=JobConcurrencyResponse)
 def get_job_concurrency() -> JobConcurrencyResponse:
-    return JobConcurrencyResponse(active=count_in_progress(), max=3)
+    return JobConcurrencyResponse(active=count_in_progress(), queued=count_queued(), max=3)
 
 
 @router.get("/{job_id}", response_model=JobDetailResponse)
@@ -280,6 +281,17 @@ def delete_job(job_id: uuid.UUID) -> DeleteJobResponse:
     return DeleteJobResponse(job_id=job_id)
 
 
+def _set_job_queued(job_id: uuid.UUID) -> None:
+    session = SessionLocal()
+    try:
+        row = session.get(ContractFile, job_id)
+        if row:
+            row.status = "queued"
+            session.commit()
+    finally:
+        session.close()
+
+
 @router.post("/{job_id}/run", response_model=RunResponse, status_code=202)
 def run_job(job_id: uuid.UUID) -> RunResponse:
     record = _get_record(job_id)
@@ -293,13 +305,8 @@ def run_job(job_id: uuid.UUID) -> RunResponse:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     if count_in_progress() >= 3:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "detail": "已有 3 个任务正在处理，请稍后再试",
-                "active_count": 3,
-            },
-        )
+        _set_job_queued(job_id)
+        return RunResponse(job_id=job_id, status="queued")
 
     get_runner().submit(job_id)
     return RunResponse(job_id=job_id, status=record.status)
@@ -487,7 +494,8 @@ def get_path_b(job_id: uuid.UUID) -> PathBResponse:
     for t in perf.get("tiers") or []:
         if isinstance(t, dict) and t.get("description"):
             fees_ctx += " " + str(t["description"])
-    handoff = build_crm_handoff(raw, fees_context=fees_ctx)
+    kb_cases = raw.get("kb_cases") or []
+    handoff = build_crm_handoff(raw, fees_context=fees_ctx, rag_cases=kb_cases)
     snippets = raw.get("source_snippets") or {}
     snippet_rows = [
         PathBSnippetRow(
@@ -498,6 +506,8 @@ def get_path_b(job_id: uuid.UUID) -> PathBResponse:
         for path, text in sorted(snippets.items())
         if text and str(text).strip()
     ]
+    all_warnings = warnings_from_jsonb(record.extraction_warnings)
+    rag_warnings = [w for w in all_warnings if w.field == "performance_fee.rag"]
     return PathBResponse(
         job_id=record.id,
         performance_fee=perf,
@@ -506,4 +516,5 @@ def get_path_b(job_id: uuid.UUID) -> PathBResponse:
         source_snippet_rows=snippet_rows,
         crm_handoff=[CrmHandoffItem(**item) for item in handoff],
         raw_sections=raw.get("raw_sections") or {},
+        rag_warnings=rag_warnings,
     )

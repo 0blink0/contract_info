@@ -6,7 +6,9 @@ import re
 from typing import Any
 
 from backend.app.api.schemas import PreviewSection
-from backend.app.extract.evidence_enrich import enrich_extraction_dict
+from backend.app.extract.evidence_enrich import enrich_extraction_dict, resolve_share_class_cell_snippet
+from backend.app.extract.field_catalog import ALL_PRODUCT_FIELDS, FIXED_PRODUCT_VALUES
+from backend.app.extract.section_windows import build_section_windows
 from backend.app.export.column_map import (
     extraction_key_for_fee_header,
     extraction_key_for_subscription_header,
@@ -22,6 +24,9 @@ from backend.app.validate.field_labels import label_for_validation_field
 PAGE_UNAVAILABLE_NOTE = "页码暂未解析"
 
 _SKIP_PREVIEW_KEYS = frozenset({"snippet", "_snippet", "摘录", "block_id"})
+
+# product-elements 摘录核对只展示模板列（排除 fees 章节抽取字段和固定值字段）
+_PRODUCT_VERIFICATION_FIELDS: frozenset[str] = frozenset(ALL_PRODUCT_FIELDS) - frozenset(FIXED_PRODUCT_VALUES)
 
 
 def _page_for_block(block_id: str | None, parse_json: dict | None) -> int | None:
@@ -64,10 +69,12 @@ def _list_row_field_aliases(field: str, *, table: str) -> list[str]:
     keys = {field, key}
     if table == "fee_rates":
         keys.add(extraction_key_for_fee_header(template_header_for_fee_key(key)))
-        keys.update({"rate_annual_pct", "费率（%/年）", "费率（单位：%/年）", "费率"})
+        if key in _FEE_RATE_VALUE_KEYS:
+            keys.update(_FEE_RATE_VALUE_KEYS)
     elif table == "subscription_fees":
         keys.add(extraction_key_for_subscription_header(template_header_for_subscription_key(key)))
-        keys.update({"费率", "计费方式", "申赎费类型"})
+        if key in _SUB_VALUE_KEYS:
+            keys.update(_SUB_VALUE_KEYS)
     return [f"{prefix}.{k}" for k in keys if k]
 
 
@@ -85,6 +92,12 @@ def _validation_lookup_keys(field: str) -> list[str]:
     return unique
 
 
+_SHARE_CLASS_TAG_RE = re.compile(r"\([A-Da-d]类份额\)$")
+
+_FEE_RATE_VALUE_KEYS = frozenset({"rate_annual_pct", "费率（%/年）", "费率（单位：%/年）", "费率"})
+_SUB_VALUE_KEYS = frozenset({"费率", "计费方式", "申赎费类型"})
+
+
 def _overlay_validation(
     rows: list[dict[str, Any]],
     validation_result: dict | None,
@@ -93,12 +106,21 @@ def _overlay_validation(
         return
     if validation_result.get("skipped"):
         return
-    by_field = {
-        str(item.get("field") or ""): item
-        for item in (validation_result.get("items") or [])
-        if isinstance(item, dict)
-    }
+    by_field: dict[str, Any] = {}
+    for item in (validation_result.get("items") or []):
+        if not isinstance(item, dict):
+            continue
+        field = str(item.get("field") or "")
+        by_field[field] = item
+        # Also index under the tag-stripped name so per-class rows (e.g.
+        # "fee_rates[0].费率（%/年）(A类份额)") match verification row fields
+        # that carry no class tag (e.g. "fee_rates[0].费率（%/年）").
+        stripped = _SHARE_CLASS_TAG_RE.sub("", field)
+        if stripped != field:
+            by_field.setdefault(stripped, item)
     for row in rows:
+        if not row.get("value"):
+            continue
         field = str(row.get("field") or "")
         item = None
         for key in _validation_lookup_keys(field):
@@ -214,7 +236,7 @@ def _verification_rows_from_preview(
             if not isinstance(item, dict):
                 continue
             field = str(item.get("field") or "").strip()
-            if not field:
+            if not field or field not in _PRODUCT_VERIFICATION_FIELDS:
                 continue
             val = item.get("value")
             value = str(val).strip() if val is not None else None
@@ -262,12 +284,17 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
     extraction = dict(record.extraction_result or {})
     parse_json = record.parse_json or {}
     enrich_extraction_dict(extraction, parse_json)
+    section_windows: dict[str, str] = {}
+    if isinstance(parse_json, dict) and parse_json.get("blocks"):
+        section_windows, _ = build_section_windows(parse_json)
     rows: list[dict[str, Any]] = []
 
     if table_key == "product-elements":
         elements = extraction.get("product_elements") or {}
         if isinstance(elements, dict):
             for field_name, raw in elements.items():
+                if field_name not in _PRODUCT_VERIFICATION_FIELDS:
+                    continue
                 if not isinstance(raw, dict):
                     val = str(raw).strip() if raw is not None else ""
                     block_id = None
@@ -366,13 +393,21 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                 if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
                     continue
                 cell_val = str(val).strip() if val is not None else None
-                excerpt, capture_source, excerpt_table = _verification_evidence(
-                    row, cell_val, parse_json, section="share-classes"
+                cell_snippet = resolve_share_class_cell_snippet(
+                    key, cell_val, row, section_windows, parse_json
                 )
-                if not (excerpt_table and excerpt_table.get("rows")) and row_table:
-                    excerpt_table = row_table
-                if not excerpt:
-                    excerpt, capture_source = row_excerpt, row_source or capture_source
+                if cell_snippet:
+                    excerpt = cell_snippet
+                    capture_source = "section"
+                    excerpt_table = row_table if row_table else None
+                else:
+                    excerpt, capture_source, excerpt_table = _verification_evidence(
+                        row, cell_val, parse_json, section="share-classes"
+                    )
+                    if not (excerpt_table and excerpt_table.get("rows")) and row_table:
+                        excerpt_table = row_table
+                    if not excerpt:
+                        excerpt, capture_source = row_excerpt, row_source or capture_source
                 field_path = f"share_classes[{i}].{key}"
                 rows.append(
                     _row_template(

@@ -51,6 +51,7 @@ class JobListResponse(BaseModel):
 
 class JobConcurrencyResponse(BaseModel):
     active: int
+    queued: int = 0
     max: int = 3
 
 
@@ -148,6 +149,7 @@ class PathBResponse(BaseModel):
     source_snippet_rows: list[PathBSnippetRow] = Field(default_factory=list)
     crm_handoff: list[CrmHandoffItem] = Field(default_factory=list)
     raw_sections: dict[str, str] = Field(default_factory=dict)
+    rag_warnings: list[WarningItem] = Field(default_factory=list)
 
 
 class ValidationItemResponse(BaseModel):

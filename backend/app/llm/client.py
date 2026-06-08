@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import traceback
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -11,6 +14,24 @@ from pydantic import BaseModel
 from backend.app.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+# Always write to project root (backend/app/llm/client.py → parents[3])
+_DEBUG_LOG = Path(__file__).resolve().parents[3] / "llm_debug.log"
+
+
+def _debug_log_path() -> Path:
+    return _DEBUG_LOG
+
+
+def _dbg(tag: str, **kwargs: Any) -> None:
+    try:
+        line = f"[{datetime.now().isoformat(timespec='seconds')}] [{tag}] "
+        line += " | ".join(f"{k}={str(v)!r}" for k, v in kwargs.items())
+        p = _debug_log_path()
+        with p.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
@@ -38,6 +59,7 @@ class LlmClient:
         self._base_url = (settings.openai_base_url or "").rstrip("/")
         self._model = settings.llm_model
         self._timeout = settings.llm_timeout
+        self._max_tokens = settings.llm_max_tokens
 
     @property
     def available(self) -> bool:
@@ -63,13 +85,51 @@ class LlmClient:
         payload = {
             "model": self._model,
             "messages": messages,
-            "temperature": 0.1,
+            "temperature": 0,
             "response_format": {"type": "json_object"},
+            "max_tokens": self._max_tokens,
         }
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        content = data["choices"][0]["message"]["content"]
-        parsed = _extract_json_object(content)
-        return response_model.model_validate(parsed)
+
+        input_chars = sum(len(m.get("content", "")) for m in messages)
+        _dbg("REQUEST", model=self._model, max_tokens=self._max_tokens,
+             input_chars=input_chars, caller=response_model.__name__)
+
+        raw_text: str = ""
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                http_status = resp.status_code
+                try:
+                    resp.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    _dbg("HTTP_ERROR", status=http_status,
+                         body=resp.text[:2000], caller=response_model.__name__)
+                    raise
+                data = resp.json()
+
+            finish_reason = (
+                data.get("choices", [{}])[0].get("finish_reason", "?")
+                if data.get("choices") else "no_choices"
+            )
+            usage = data.get("usage") or {}
+            raw_text = data["choices"][0]["message"]["content"]
+            _dbg("RESPONSE", finish_reason=finish_reason,
+                 prompt_tokens=usage.get("prompt_tokens"),
+                 completion_tokens=usage.get("completion_tokens"),
+                 response_chars=len(raw_text),
+                 response_head=raw_text[:300],
+                 caller=response_model.__name__)
+
+            if finish_reason == "length":
+                _dbg("TRUNCATED", msg="Response cut off — max_tokens too low",
+                     response_tail=raw_text[-200:], caller=response_model.__name__)
+
+            parsed = _extract_json_object(raw_text)
+            return response_model.model_validate(parsed)
+
+        except Exception as exc:
+            _dbg("EXCEPTION", exc_type=type(exc).__name__, exc=str(exc),
+                 raw_head=raw_text[:500] if raw_text else "(empty)",
+                 tb=traceback.format_exc()[-800:],
+                 caller=response_model.__name__)
+            raise

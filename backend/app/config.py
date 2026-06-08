@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     llm_timeout: int = 120
     llm_max_retries: int = 1
+    llm_max_tokens: int = 16384
     rag_top_k: int = 3
 
     api_key: str = ""

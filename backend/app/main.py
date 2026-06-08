@@ -1,16 +1,31 @@
 import os
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api.routes import health, jobs, upload
+from backend.app.api.routes import health, jobs, kb, upload
 from backend.app.config import cors_origin_list
-from backend.app.services.job_runner_service import shutdown_runner
+from backend.app.services.job_runner_service import get_runner, shutdown_runner
+from backend.app.services.kb_service import init_kb_service
+
+
+def _resume_queued_jobs() -> None:
+    """On startup, re-submit any jobs left in 'queued' state from a previous run."""
+    from backend.app.services.pipeline_service import count_in_progress, get_next_queued_id
+    runner = get_runner()
+    while count_in_progress() < 3:
+        next_id = get_next_queued_id()
+        if next_id is None:
+            break
+        runner.submit(next_id)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    asyncio.get_running_loop().run_in_executor(None, init_kb_service)
+    asyncio.get_running_loop().run_in_executor(None, _resume_queued_jobs)
     yield
     shutdown_runner(wait=False)
 
@@ -38,4 +53,5 @@ v1 = APIRouter(prefix="/api/v1")
 v1.include_router(health.router)
 v1.include_router(upload.router)
 v1.include_router(jobs.router)
+v1.include_router(kb.router)
 app.include_router(v1)
