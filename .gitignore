@@ -12,6 +12,18 @@ frontend/node_modules/
 frontend/dist/
 node_modules/
 dist/
-electron/resources/models/
+electron/resources/
+
+# 构建产物
+build/
+
+# 调试 / 临时文件
+debug_fees.txt
+llm_debug.log
+_shiyun_perf_fee.txt
+test_check.db
+
+# example 目录中的合同文档和分析快照（不入库）
+example/
 
 # 本地规划提交在 monorepo 时可选；独立仓库可保留 .planning
