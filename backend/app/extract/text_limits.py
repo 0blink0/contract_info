@@ -1,6 +1,18 @@
-"""Text length helpers: rules use full chapter text; LLM prompts may cap at model limits."""
+"""Text length helpers: chapter text for LLM prompts may cap at model limits."""
 
 from __future__ import annotations
+
+import re
+
+# Strip 【digit】 template placeholders — a common contract-template marker where
+# the drafter fills in a number surrounded by fullwidth brackets (e.g. 【1】%).
+# Normalising once before regex matching lets all extractors see plain digits.
+_TEMPLATE_NUM_RE = re.compile(r"【(\d+(?:\.\d+)?)】")
+
+
+def normalize_template_brackets(text: str) -> str:
+    """Replace 【digit】 with digit; leave non-numeric 【…】 intact."""
+    return _TEMPLATE_NUM_RE.sub(r"\1", text)
 
 # Rules / section windows: no artificial cap (full classified chapter text).
 # LLM: very high default; truncate only at paragraph boundary when exceeded.

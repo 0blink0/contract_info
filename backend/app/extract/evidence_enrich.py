@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from backend.app.extract.field_catalog import FIXED_PRODUCT_VALUES
-from backend.app.extract.field_snippets import resolve_field_snippet
+from backend.app.extract.field_snippets import extract_section_body, resolve_field_snippet
 from backend.app.extract.schemas import ExtractionResult, FieldValue
 from backend.app.extract.section_windows import build_section_windows
 from backend.app.extract.text_limits import excerpt_for_display
@@ -15,27 +14,19 @@ MIN_SNIPPET_LEN = 8
 
 # Preferred section windows to search per field (first hit wins).
 _FIELD_WINDOWS: dict[str, tuple[str, ...]] = {
-    "运作方式": ("basic", "subscription", "investment"),
-    "产品存续期": ("basic", "establish"),
+    "产品类型（协会）": ("investment",),  # 必须从投资范围/限制章节取证，禁止从basic的「基金的类型」标签取
     "管理类型": ("basic", "cover_parties"),
     "份额结构": ("basic", "subscription"),
     "结构类型": ("basic",),
     "产品分类": ("basic", "investment"),
-    "默认分红方式": ("distribution", "subscription"),
     "是否封闭": ("subscription", "basic"),
     "封闭期": ("subscription", "basic"),
     "封闭方式": ("subscription",),
-    "是否支持基金转换": ("subscription",),
-    "基金转换方式": ("subscription",),
-    "基金转换限制": ("subscription",),
-    "是否支持金额赎回": ("subscription",),
-    "金额赎回方式": ("subscription",),
     "冷静期回访": ("raising", "subscription"),
     "首次申购起点": ("subscription", "raising"),
     "追加起点": ("subscription", "raising"),
     "最低持有类型": ("subscription", "raising"),
     "最低持有数量": ("subscription", "raising"),
-    "交易确认规则": ("subscription",),
     "计费基准": ("fees", "subscription"),
     "计费频率": ("fees",),
     "基金类型": ("basic", "cover_parties"),
@@ -54,11 +45,59 @@ _DEFAULT_WINDOWS = (
 )
 
 _LIST_TABLE_WINDOWS: dict[str, tuple[str, ...]] = {
-    "fee_rates": ("fees", "subscription", "basic"),
     "lock_periods": ("subscription", "basic"),
     "share_classes": ("subscription", "basic"),
-    "subscription_fees": ("subscription", "fees", "raising"),
 }
+
+_SHARE_CLASS_IDENTITY_FIELDS = frozenset(
+    {
+        "基金全称",
+        "基金代码",
+        "分级份额名称",
+        "分级份额简称",
+        "分级份额代码",
+        "代码类型",
+        "分级类型",
+        "实际成立日期",
+        "投资起始日",
+    }
+)
+_SHARE_CLASS_RISK_FIELDS = frozenset({"预警线", "止损线"})
+
+
+def resolve_share_class_cell_snippet(
+    field_key: str,
+    value: str | None,
+    row: dict[str, Any],
+    windows: dict[str, str],
+    document: dict[str, Any],
+) -> str | None:
+    """Per-column excerpt for 分级份额核对；预警/止损不得复用份额分类行摘录。"""
+    val = _stringify(value)
+    if field_key in _SHARE_CLASS_RISK_FIELDS:
+        llm_snip = _stringify(row.get("预警止损原文"))
+        if llm_snip:
+            return excerpt_for_display(llm_snip)
+        # 回退：从 investment 窗口里搜索含该值的句子
+        inv_text = windows.get("investment") or ""
+        if inv_text and val:
+            around = _snippet_around_value(inv_text, val)
+            if len(around.strip()) >= MIN_SNIPPET_LEN:
+                return around
+        return None
+
+    if field_key in _SHARE_CLASS_IDENTITY_FIELDS:
+        row_snip = _stringify(row.get("snippet") or row.get("_snippet"))
+        if row_snip:
+            return row_snip
+        for wkey in ("basic", "subscription"):
+            text = windows.get(wkey) or ""
+            if not text or not val:
+                continue
+            around = _snippet_around_value(text, val)
+            if len(around.strip()) >= MIN_SNIPPET_LEN:
+                return around
+    return None
 
 
 def _stringify(value: object) -> str:
@@ -218,46 +257,6 @@ def _row_primary_value(row: dict[str, Any]) -> str:
     return best
 
 
-_FEE_TYPE_SECTION_LABELS: dict[str, list[str]] = {
-    "管理费": ["基金的管理费", "管理费"],
-    "托管费": ["基金的托管费", "托管费"],
-    "基金服务费": ["基金的运营服务费", "运营服务费", "基金服务费", "外包服务费"],
-    "销售服务费": ["基金的销售服务费", "销售服务费"],
-    "投资顾问费": ["基金的投资顾问费", "投资顾问费"],
-}
-
-
-def _fee_rate_snippet(
-    row: dict[str, Any],
-    fees_window: str,
-    document: dict[str, Any],
-) -> tuple[str | None, str | None]:
-    """Find the specific fee-type subsection in the (二) 费用计提 section."""
-    fee_type = _stringify(row.get("运营费类型") or "")
-    if not fee_type or not fees_window:
-        return None, None
-
-    # Narrow search to the 计提 subsection (二) when present
-    idx = fees_window.find("（二）")
-    search_area = fees_window[idx:] if idx >= 0 else fees_window
-
-    labels = _FEE_TYPE_SECTION_LABELS.get(fee_type, [fee_type])
-    for label in labels:
-        pos = search_area.find(label)
-        if pos < 0:
-            continue
-        tail = search_area[pos:]
-        stop = re.search(r"\n\d+[、.]|\n（[二三四五六七八九十]）", tail[len(label) :])
-        end = len(label) + (stop.start() if stop else min(400, len(tail) - len(label)))
-        chunk = tail[:end].strip()
-        if len(chunk) < 8:
-            continue
-        snip = excerpt_for_display(chunk)
-        bid = find_block_id_for_text(document, chunk[:60])
-        return snip, bid
-
-    return None, None
-
 
 def enrich_list_row(
     row: dict[str, Any],
@@ -267,19 +266,6 @@ def enrich_list_row(
 ) -> dict[str, Any]:
     if row.get("snippet") or row.get("_snippet"):
         return row
-
-    # Fee-rate rows: locate the specific fee-type subsection rather than
-    # searching by primary value (which is often the fund name and matches
-    # the chapter preamble instead of the per-fee paragraph).
-    if table_key == "fee_rates":
-        fees_text = windows.get("fees") or ""
-        snip, bid = _fee_rate_snippet(row, fees_text, document)
-        if snip:
-            updated = dict(row)
-            updated["snippet"] = snip
-            if bid and not updated.get("block_id"):
-                updated["block_id"] = bid
-            return updated
 
     value = _row_primary_value(row)
     if not value:
@@ -326,7 +312,7 @@ def enrich_extraction_dict(
         for name, raw in list(pe.items()):
             pe[name] = enrich_field_value(raw, str(name), windows, doc)
 
-    for table_key in ("fee_rates", "lock_periods", "share_classes", "subscription_fees"):
+    for table_key in ("lock_periods", "share_classes"):
         rows = extraction.get(table_key)
         if not isinstance(rows, list):
             continue

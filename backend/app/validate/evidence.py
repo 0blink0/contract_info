@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from backend.app.extract.field_catalog import FIXED_PRODUCT_VALUES
@@ -175,6 +176,68 @@ def _collect_table_rows(
             )
 
 
+def _format_fee_tables_text(tables: list[dict]) -> str:
+    parts: list[str] = []
+    for t in tables:
+        caption = t.get("caption") or "表格"
+        rows = t.get("rows") or []
+        text = "\n".join("\t".join(str(c) for c in row) for row in rows)
+        if text.strip():
+            parts.append(f"【{caption}】\n{text}")
+    return "\n\n".join(parts)
+
+
+_SHARE_LETTER = re.compile(r"([A-Da-d])类?$")
+
+
+def _share_class_tag(row: dict) -> str:
+    """Return '(D类份额)' style tag from row's 基金名称, or empty string."""
+    name = _stringify(row.get("基金名称")) or ""
+    m = _SHARE_LETTER.search(name)
+    return f"({m.group(1).upper()}类份额)" if m else ""
+
+
+def _collect_fee_rate_rows(
+    extraction_result: dict,
+    parse_json: dict,
+    out: list[ValidationCandidate],
+    seen: set[str],
+) -> None:
+    from backend.app.services.fee_verification_evidence import (
+        resolve_fee_row_verification_evidence,
+    )
+
+    rows = extraction_result.get("fee_rates") or []
+    if not isinstance(rows, list):
+        return
+    value_columns = ("运营费类型", "费率", "rate_annual_pct", "费率（%/年）")
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        snippet = _row_snippet(row)
+        block_id = row.get("block_id")
+        if not snippet and not block_id:
+            continue
+        narrative = resolve_evidence_text(snippet, block_id, parse_json)
+        _, _, fee_tables = resolve_fee_row_verification_evidence(row, parse_json)
+        table_text = _format_fee_tables_text(fee_tables) if fee_tables else ""
+        if narrative and table_text:
+            evidence: str | None = f"{narrative}\n\n{table_text}"
+        elif table_text:
+            evidence = table_text
+        else:
+            evidence = narrative
+        if not evidence:
+            continue
+        class_tag = _share_class_tag(row)
+        for col in value_columns:
+            value = _stringify(row.get(col))
+            if not value:
+                continue
+            field = f"fee_rates[{idx}].{col}{class_tag}"
+            _add_candidate(out, seen, field=field, value=value, evidence_text=evidence)
+
+
 def _collect_path_b(
     path_b_json: dict | None,
     out: list[ValidationCandidate],
@@ -211,9 +274,7 @@ def collect_validation_candidates(
     seen: set[str] = set()
     parse_json = parse_json or {}
     _collect_product_elements(extraction_result, parse_json, out, seen)
-    _collect_table_rows(
-        extraction_result, "fee_rates", "fee_rates", parse_json, out, seen
-    )
+    _collect_fee_rate_rows(extraction_result, parse_json, out, seen)
     _collect_table_rows(
         extraction_result,
         "subscription_fees",

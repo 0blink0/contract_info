@@ -6,9 +6,6 @@ from __future__ import annotations
 MANUAL_ONLY_PRODUCT: frozenset[str] = frozenset(
     {
         "销售经理",
-        "产品经理",
-        "投资机构",
-        "补充协议",
         "特殊的产品类型",
         "运行状态",
     }
@@ -29,6 +26,19 @@ SKIP_PRODUCT_FIELDS: frozenset[str] = frozenset(
         "清算起始日",
         "投资起始日",
         "封闭期起始日",
+        # 运营录入，合同无需提取
+        "基金组织形式",
+        "合同变更方式",
+        # 合同通常无明确约定，不提取
+        "是否支持金额赎回",
+        "金额赎回方式",
+        "是否支持基金转换",
+        "基金转换方式",
+        "基金转换限制",
+        "是否量化/对冲基金",
+        "量化策略",
+        "交易确认规则",
+        "默认分红方式",
     }
 )
 
@@ -53,13 +63,16 @@ FIXED_PRODUCT_VALUES: dict[str, str] = {
     "基金类型": "私募证券投资基金",
 }
 
+# 合同未明确约定时使用的兜底默认值（LLM 已抽到则不覆盖）
+DEFAULT_PRODUCT_VALUES: dict[str, str] = {
+    "最小变动单位": "1.0万",
+}
+
 # CRM/导出真正必填；其余产品要素列合同无则留空
 CORE_REQUIRED_PRODUCT: frozenset[str] = frozenset({"基金全称", "管理人"})
 
 # 导出阶段额外检查的必填（合同通常有，无则 warning）
-EXPORT_REQUIRED_PRODUCT: frozenset[str] = frozenset(
-    CORE_REQUIRED_PRODUCT | {"是否支持金额赎回"}
-)
+EXPORT_REQUIRED_PRODUCT: frozenset[str] = frozenset(CORE_REQUIRED_PRODUCT)
 
 # 产品要素 77 列（与 templates/产品要素-2.xlsx 表头一致）
 ALL_PRODUCT_FIELDS: tuple[str, ...] = (
@@ -94,21 +107,14 @@ ALL_PRODUCT_FIELDS: tuple[str, ...] = (
     "默认分红方式",
     "销售经理",
     "合同变更方式",
-    "运作方式",
-    "自定产品名称",
     "是否量化/对冲基金",
     "量化策略",
     "开放日规则",
     "锁定期",
+    "预警线",
     "止损线",
     "清算起始日",
-    "产品存续期",
-    "产品经理",
-    "发行机构",
-    "投资机构",
-    "补充协议",
     "投资经理信息",
-    "投资经理",
     "交易确认规则",
     "首次申购起点",
     "追加起点",
@@ -135,62 +141,33 @@ ALL_PRODUCT_FIELDS: tuple[str, ...] = (
     "投资限制",
     "风险收益特征",
     "业绩比较基准",
-    "是否为专户产品",
     "银行账户信息",
 )
 
-# 规则层优先抽取（正则 / 表格扫描，含固定值填充）
-RULE_PRODUCT_FIELDS: frozenset[str] = frozenset(
-    {
+# 按章节窗口分批 LLM（product_combined 合并调用）
+CHAPTER_FIELDS: dict[str, list[str]] = {
+    "cover_parties": [
         "基金全称",
         "备案编码",
         "管理人",
         "托管人",
         "投资顾问",
         "外包机构",
-        "基金组织形式",
-        "发行机构",
-        "首次申购起点",
-        "追加起点",
-        "交易确认规则",
-        "预警线",
-        "止损线",
-        "锁定期",
-        "最低持有类型",
-        "最低持有数量",
-        "封闭期",
-        "产品类型（协会）",  # 由 classification_rules 80%规则推断
-        "基金类型",  # 固定值"私募证券投资基金"（FIXED_PRODUCT_VALUES）
-    }
-)
-
-# 按章节窗口分批 LLM
-CHAPTER_FIELDS: dict[str, list[str]] = {
+    ],
     "basic": [
         "基金面值",
         "币种",
-        "基金组织形式",
         "合伙人类型",
         "管理类型",
         "份额结构",
         "结构类型",
         "海外基金",
-        "运作方式",
-        "产品存续期",
-        "是否为专户产品",
-        "是否量化/对冲基金",
-        "量化策略",
         "母基金代码",
         "产品分类",
-        "合同变更方式",
-        "自定产品名称",
     ],
     "subscription": [
         "首次申购起点",
         "追加起点",
-        "交易确认规则",
-        "是否支持金额赎回",
-        "金额赎回方式",
         "是否封闭",
         "封闭方式",
         "封闭期",
@@ -198,12 +175,10 @@ CHAPTER_FIELDS: dict[str, list[str]] = {
         "最低持有类型",
         "最低持有数量",
         "最小变动单位",
-        "是否支持基金转换",
-        "基金转换方式",
-        "基金转换限制",
         "开放日规则",
     ],
     "investment": [
+        "产品类型（协会）",
         "预警线",
         "止损线",
         "投资目标",
@@ -213,16 +188,13 @@ CHAPTER_FIELDS: dict[str, list[str]] = {
         "风险收益特征",
         "业绩比较基准",
         "投资经理信息",
-        "投资经理",
     ],
     "raising": [
-        "发行机构",
         "销售机构信息",
         "冷静期回访",
         "双录",
     ],
     "distribution": [
-        "默认分红方式",
         "投资收益分配",
     ],
     "risk": [
@@ -231,6 +203,8 @@ CHAPTER_FIELDS: dict[str, list[str]] = {
     "fees": [
         "计费频率",
         "计费基准",
+        "年计提天数",
+        "费用计算方式",
     ],
 }
 

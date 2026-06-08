@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from backend.app.config import get_settings
 from backend.app.extract.schemas import ExtractionWarning
 from backend.app.extract.text_limits import text_for_llm_prompt
 from backend.app.llm.client import LlmClient
-
-_ALLOWED = frozenset({"价内法", "价外法"})
 
 
 class SubscriptionBillingResponse(BaseModel):
@@ -20,30 +18,16 @@ class SubscriptionBillingResponse(BaseModel):
     赎回费计费方式: str | None = None
 
 
-def _normalize_method(raw: str | None) -> str | None:
-    if not raw or not str(raw).strip():
-        return None
-    text = str(raw).strip().replace(" ", "")
-    if "价内" in text:
-        return "价内法"
-    if "价外" in text:
-        return "价外法"
-    if text in _ALLOWED:
-        return text
-    return None
-
-
 def billing_map_from_response(parsed: SubscriptionBillingResponse) -> dict[str, str]:
     out: dict[str, str] = {}
-    sub = _normalize_method(parsed.认购费计费方式)
-    pur = _normalize_method(parsed.申购费计费方式)
-    if sub:
-        out["认购费"] = sub
-    if pur:
-        out["申购费"] = pur
-    redeem = _normalize_method(parsed.赎回费计费方式)
-    if redeem:
-        out["赎回费"] = redeem
+    for key, val in [
+        ("认购费", parsed.认购费计费方式),
+        ("申购费", parsed.申购费计费方式),
+        ("赎回费", parsed.赎回费计费方式),
+    ]:
+        v = (val or "").strip()
+        if v:
+            out[key] = v
     return out
 
 
@@ -56,13 +40,14 @@ async def extract_subscription_billing_llm(
 
     system = (
         "你是私募基金合同申赎费用计费方式判断助手。"
-        "根据合同片段判断认购费、申购费、赎回费各自采用「价内法」还是「价外法」。"
-        "价外法（主流）：净认/申购金额=金额/(1+费率)；费用=净额×费率=金额×费率/(1+费率)；"
-        "份额=(金额-费用)/净值或金额/(1+费率)/价格。"
-        "价内法：净认/申购金额=金额×(1-费率)；费用=金额×费率（不除以1+费率）。"
-        "赎回：赎回金额扣减费用为价内。"
-        "认购费公式若在募集章、申购费在申赎章，需分别判断，二者可能不同。"
-        "合同未写明计算依据或无法判断时对应字段留空。只输出 JSON，禁止 markdown。"
+        "根据合同片段判断认购费、申购费、赎回费各自采用「价内法」还是「价外法」。\n"
+        "价外法（主流）：净认/申购金额 = 金额 ÷ (1+费率)；费用 = 金额×费率÷(1+费率)；"
+        "份额 = (金额−费用) ÷ 净值。\n"
+        "价内法：净认/申购金额 = 金额×(1−费率)；费用 = 金额×费率（不除以1+费率）；"
+        "赎回金额直接扣减费用。\n"
+        "认购费公式在募集章、申购费公式在申赎章，需分别判断，二者可能不同。"
+        "合同未写明计算依据或无法判断时对应字段留空字符串。"
+        "只输出 JSON，禁止 markdown。"
     )
     user = (
         "【合同片段（含募集章认购、申赎章申购赎回）】\n"

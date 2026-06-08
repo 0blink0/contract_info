@@ -16,7 +16,6 @@ ABSENCE_NOTE_PRODUCT_FIELDS: frozenset[str] = frozenset(
         "备案编码",
         "封闭期",
         "锁定期",
-        "产品存续期",
         "到期日期",
     }
 )

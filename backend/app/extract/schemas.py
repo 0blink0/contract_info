@@ -54,6 +54,7 @@ class ShareClassRow(BaseModel):
     投资起始日: str | None = None
     预警线: str | None = None
     止损线: str | None = None
+    预警止损原文: str | None = None
 
 
 class PerformanceFeeTier(BaseModel):
@@ -69,6 +70,7 @@ class PerformanceFeeTier(BaseModel):
 class PerformanceFeeModule(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 
+    has_performance_fee: str | None = None  # "是" / "否" / "条件性不计提"
     extraction_method: str | None = None
     benchmark_type: str | None = None
     hurdle_nav: str | None = None
@@ -104,6 +106,7 @@ class SubscriptionFeeRow(BaseModel):
     基金代码: str | None = None
     申赎费类型: str | None = None
     snippet: str | None = None
+    原文: str | None = None
     计费方式: str | None = None
     费率生效日期: str | None = None
     计费基准: str | None = None
@@ -119,6 +122,7 @@ class FeeRateRow(BaseModel):
 
     block_id: str | None = None
     snippet: str | None = None
+    原文: str | None = None
     基金名称: str | None = None
     基金代码: str | None = None
     运营费类型: str | None = None

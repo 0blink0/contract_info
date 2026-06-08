@@ -1,11 +1,10 @@
-"""Shared helpers for party / org-name extraction from contract text."""
+"""Shared helpers for party / org-name validation."""
 
 from __future__ import annotations
 
 import re
 from typing import Any
 
-# Values that look like boilerplate, not institution names
 _INVALID_PARTY_MARKERS = (
     "保证",
     "登记",

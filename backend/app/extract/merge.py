@@ -1,7 +1,9 @@
+"""Legacy merge helpers — extraction is LLM-only; kept for tests and party validation."""
+
 from __future__ import annotations
 
 from backend.app.extract.field_catalog import SKIP_PRODUCT_FIELDS
-from backend.app.extract.rules.party_helpers import is_valid_party_name
+from backend.app.extract.party_helpers import is_valid_party_name
 from backend.app.extract.schemas import (
     ExtractionMeta,
     ExtractionResult,
@@ -10,29 +12,6 @@ from backend.app.extract.schemas import (
     SubscriptionFeeRow,
 )
 
-_PARTY_FIELDS = frozenset({"管理人", "托管人", "投资顾问", "外包机构"})
-_LONG_TEXT_FIELDS = frozenset(
-    {"投资目标", "投资范围", "投资限制", "投资策略", "风险等级"}
-)
-_INVESTMENT_TEXT_FIELDS = frozenset(
-    {
-        "投资目标",
-        "投资范围",
-        "投资限制",
-        "投资策略",
-        "风险收益特征",
-        "业绩比较基准",
-        "投资经理",
-        "投资经理信息",
-    }
-)
-_SUBSCRIPTION_RULE_FIELDS = frozenset(
-    {"是否封闭", "封闭期", "是否支持金额赎回", "开放日规则", "锁定期"}
-)
-_CLASSIFICATION_RULE_FIELDS = frozenset(
-    {"份额结构", "产品类型（协会）", "管理类型"}
-)
-_LINE_FIELDS = frozenset({"预警线", "止损线"})
 _MIS_EXTRACT_MARKERS = (
     "保证",
     "登记为私募基金管理人",
@@ -43,15 +22,11 @@ _MIS_EXTRACT_MARKERS = (
 )
 
 
-def _confidence_rank(c: str) -> int:
-    return {"high": 3, "medium": 2, "low": 1}.get(c, 0)
-
-
-def is_invalid_rule_value(field_name: str, value: object) -> bool:
+def is_invalid_field_value(field_name: str, value: object) -> bool:
     if value is None or str(value).strip() == "":
         return True
     text = str(value).strip()
-    if field_name in _PARTY_FIELDS:
+    if field_name in frozenset({"管理人", "托管人", "投资顾问", "外包机构"}):
         return not is_valid_party_name(text)
     if any(marker in text for marker in _MIS_EXTRACT_MARKERS):
         return True
@@ -64,41 +39,16 @@ def merge_field(
     *,
     field_name: str = "",
 ) -> FieldValue | None:
-    effective_rule = (
-        None if is_invalid_rule_value(field_name, rule_val.value if rule_val else None) else rule_val
-    )
-
-    if field_name in _LINE_FIELDS and effective_rule and str(effective_rule.value).strip() == "无":
-        return effective_rule
-
-    if field_name in _INVESTMENT_TEXT_FIELDS and effective_rule:
-        return effective_rule
-
-    if field_name in _SUBSCRIPTION_RULE_FIELDS and effective_rule:
-        return effective_rule
-
-    if field_name in _CLASSIFICATION_RULE_FIELDS and effective_rule:
-        return effective_rule
-
-    if field_name in _LONG_TEXT_FIELDS and effective_rule and llm_val:
-        rv = effective_rule.value
-        lv = llm_val.value
-        if rv not in (None, "") and lv not in (None, ""):
-            if len(str(lv)) > len(str(rv)):
-                return llm_val
-            return effective_rule
-
-    if field_name in _PARTY_FIELDS and effective_rule:
-        return effective_rule
-
-    if effective_rule and llm_val:
-        if _confidence_rank(effective_rule.confidence) >= _confidence_rank(
-            llm_val.confidence
-        ):
-            if effective_rule.value not in (None, ""):
-                return effective_rule
-        return llm_val if llm_val.value not in (None, "") else effective_rule
-    return effective_rule or llm_val
+    """Prefer LLM; ignore invalid values."""
+    if llm_val and llm_val.value not in (None, "") and not is_invalid_field_value(
+        field_name, llm_val.value
+    ):
+        return llm_val
+    if rule_val and rule_val.value not in (None, "") and not is_invalid_field_value(
+        field_name, rule_val.value
+    ):
+        return rule_val
+    return llm_val or rule_val
 
 
 def merge_extraction(
@@ -111,26 +61,14 @@ def merge_extraction(
     share_classes: list | None = None,
     subscription_fees: list[SubscriptionFeeRow] | None = None,
 ) -> ExtractionResult:
-    merged: dict[str, FieldValue] = dict(product_rules)
-    for key, llm_fv in llm_fields.items():
-        merged[key] = (
-            merge_field(merged.get(key), llm_fv, field_name=key) or llm_fv
-        )
+    merged: dict[str, FieldValue] = dict(llm_fields)
+    for key, rule_fv in product_rules.items():
+        if key not in merged:
+            merged[key] = rule_fv
+        else:
+            merged[key] = merge_field(rule_fv, merged.get(key), field_name=key) or merged[key]
     for key in SKIP_PRODUCT_FIELDS:
         merged.pop(key, None)
-
-    warn = merged.get("预警线")
-    stop = merged.get("止损线")
-    if (
-        warn
-        and stop
-        and str(warn.value).strip() == "无"
-        and str(stop.value).strip() == "无"
-        and warn.snippet
-        and "止损线" in warn.snippet
-        and (not stop.snippet or "止损线" not in stop.snippet)
-    ):
-        stop.snippet = warn.snippet
 
     return ExtractionResult(
         product_elements=merged,

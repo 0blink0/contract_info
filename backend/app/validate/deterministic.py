@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import re
 
-from backend.app.extract.rules.assoc_product_type import infer_assoc_product_type
-from backend.app.extract.rules.share_rules import _share_letters_in_text
-from backend.app.extract.rules.subscription_rules import infer_subscription_billing_rules
+from backend.app.extract.assoc_product_type import infer_assoc_product_type
+from backend.app.extract.share_helpers import share_letters_in_text
+from backend.app.validate.billing_inference import infer_subscription_billing_rules
 from backend.app.validate.schemas import ValidationItem
 
 _RE_NO_STOP_LINES = re.compile(
@@ -60,7 +60,7 @@ def deterministic_validation_items(
     structure_val = _field_value(elements, "份额结构")
     structure_snip = _field_snippet(elements, "份额结构")
     if structure_val == "分级结构" and structure_snip:
-        if "份额分类" in structure_snip or len(_share_letters_in_text(structure_snip)) >= 2:
+        if "份额分类" in structure_snip or len(share_letters_in_text(structure_snip)) >= 2:
             out["份额结构"] = ValidationItem(
                 field="份额结构",
                 status="pass",
@@ -132,19 +132,6 @@ def deterministic_validation_items(
             suggestion=None,
         )
 
-    redeem_val = _field_value(elements, "是否支持金额赎回")
-    redeem_snip = _field_snippet(elements, "是否支持金额赎回")
-    if redeem_val == "不支持" and re.search(
-        r"基金赎回采用份额申请|赎回采用份额申请", redeem_snip
-    ):
-        out["是否支持金额赎回"] = ValidationItem(
-            field="是否支持金额赎回",
-            status="pass",
-            value=redeem_val,
-            reason="摘录写明赎回采用份额申请，与「不支持」金额赎回一致。",
-            suggestion=None,
-        )
-
     limits_val = _field_value(elements, "投资限制")
     limits_snip = _field_snippet(elements, "投资限制")
     if limits_val and re.search(r"（五）投资限制|投资限制", limits_snip):
@@ -157,40 +144,6 @@ def deterministic_validation_items(
                 suggestion=None,
             )
 
-    mgr_val = _field_value(elements, "投资经理")
-    mgr_snip = _field_snippet(elements, "投资经理")
-    if mgr_val and mgr_snip:
-        listed = [n.strip() for n in re.split(r"[、,，/]", mgr_val) if n.strip()]
-        if listed and all(n in mgr_snip for n in listed):
-            out["投资经理"] = ValidationItem(
-                field="投资经理",
-                status="pass",
-                value=mgr_val,
-                reason="摘录列明的投资经理姓名与抽取值一致。",
-                suggestion=None,
-            )
-
-    add_val = _field_value(elements, "追加起点")
-    add_snip = _field_snippet(elements, "追加起点")
-    step_val = _field_value(elements, "最小变动单位")
-    step_snip = _field_snippet(elements, "最小变动单位")
-    if add_val == "无追加起点限制" and step_val and re.search(
-        r"追加金额应不低于\s*1\s*万元", step_snip
-    ):
-        out["追加起点"] = ValidationItem(
-            field="追加起点",
-            status="pass",
-            value=add_val,
-            reason="合同对追加仅约定最低变动金额，运营表记为无追加起点限制。",
-            suggestion=None,
-        )
-        out["最小变动单位"] = ValidationItem(
-            field="最小变动单位",
-            status="pass",
-            value=step_val,
-            reason="摘录写明追加金额不低于1万元，对应最小变动单位。",
-            suggestion=None,
-        )
 
     sub_rows = extraction_result.get("subscription_fees") or []
     if isinstance(sub_rows, list):

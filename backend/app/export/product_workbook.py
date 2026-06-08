@@ -20,7 +20,7 @@ from backend.app.export.xlsx_utils import (
 )
 
 _CLOSED_PERIOD_FIELDS = frozenset(
-    {"封闭期", "封闭方式", "封闭期起始日", "运作方式"}
+    {"封闭期", "封闭方式", "封闭期起始日"}
 )
 
 

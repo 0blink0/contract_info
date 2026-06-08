@@ -21,7 +21,7 @@ _INVESTOR_COMMITMENT = re.compile(
 )
 
 _SECTION_PATTERNS: dict[str, re.Pattern[str]] = {
-    "fees": re.compile(r"费用与税收|费用|税收|管理费|托管费|基金服务费|业绩报酬|计提"),
+    "fees": re.compile(r"费用与税收|费用|税收|管理费|托管费|基金服务费|外包服务费|业绩报酬|计提"),
     "subscription": re.compile(
         r"申购|赎回|转让|开放日|封闭|份额锁定|申购赎回"
     ),
@@ -53,12 +53,20 @@ def _section_title_map(document: dict[str, Any]) -> dict[str, str]:
     return section_title_map(document)
 
 
+_RISK_DISCLOSURE_SUB = re.compile(r"引起的风险|可能.*?风险|带来.*?风险")
+
+
 def _classify_section(title: str) -> str:
     t = title.strip()
     if _INVESTOR_COMMITMENT.search(t):
         return "risk"
     if t in ("基金的投资",) or re.match(r"^基金的投资\s*\d*$", t):
         return "investment"
+    # Numbered risk-disclosure sub-items like "17、业绩报酬安排可能引起的风险" contain
+    # fee-related keywords ("业绩报酬") but belong to the risk chapter, not fees.
+    # Check this BEFORE the main pattern loop so "fees" doesn't steal them.
+    if _RISK_DISCLOSURE_SUB.search(t):
+        return "risk"
     for key, pattern in _SECTION_PATTERNS.items():
         if pattern.search(t):
             return key
@@ -147,30 +155,30 @@ def _normalize_outline_title(title: str) -> str:
     return re.sub(r"\t\d+\s*$", "", (title or "").strip())
 
 
+# Common prefix for numbered main chapters — supports 章/部分/篇 so patterns work
+# across contracts that differ only in structural word (e.g. "第七部分" vs "第七章").
+_CHAPTER_NUM_PREFIX = r"^(?:第[零一二三四五六七八九十百]+(?:章|部分|篇)[：:\s]*)?"
+
 # Main chapter headings from parsed outline (wording varies by contract).
 _MAIN_CHAPTER_PATTERNS: dict[str, re.Pattern[str]] = {
     "raising": re.compile(
-        r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
-        r"(?:私募)?基金的募集\s*$"
+        _CHAPTER_NUM_PREFIX + r"(?:私募)?基金的募集\s*$"
     ),
     "subscription": re.compile(
-        r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
-        r"(?:私募)?基金的申购[、,]\s*赎回"
+        _CHAPTER_NUM_PREFIX + r"(?:私募)?基金的申购[、,]\s*赎回"
     ),
     "fees": re.compile(
-        r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
-        r"(?:私募)?基金的费用|费用与税收"
+        _CHAPTER_NUM_PREFIX + r"(?:私募)?基金的费用|费用与税收"
     ),
     "investment": re.compile(
-        r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
-        r"(?:私募)?基金的投资\s*$"
+        _CHAPTER_NUM_PREFIX + r"(?:私募)?基金的投资\s*$"
     ),
 }
 
 # Next major part after 申赎章（目录表述不一，用常见后继章名截断）
 _CHAPTER_BOUNDARY = re.compile(
-    r"^(?:第[零一二三四五六七八九十百]+章[：:\s]*)?"
-    r"(?:当事人及权利义务|基金的财产|基金的投资|费用与税收|基金的收益|"
+    _CHAPTER_NUM_PREFIX
+    + r"(?:当事人及权利义务|基金的财产|基金的投资|费用与税收|基金的收益|"
     r"风险揭示|基金的成立|基金合同的效力)"
 )
 
@@ -291,17 +299,25 @@ def gather_outline_chapter_text(
 
 
 def build_section_windows(document: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
-    """Build full chapter windows for rules; no head truncation."""
+    """Build full chapter windows for LLM prompts; no head truncation."""
     title_map = _section_title_map(document)
     buckets: dict[str, list[str]] = {k: [] for k in WINDOW_KEYS}
 
     blocks = document.get("blocks") or []
+    last_section_id: str | None = None
     for idx, block in enumerate(blocks):
         section_id = block.get("section_id")
         title = title_map.get(section_id or "", "")
         window = _classify_section(title) if title else (
             "cover_parties" if idx < 80 else "basic"
         )
+        # Inject the section title as a heading line when entering a new section.
+        # Word headings are often stored only in the outline (not as body blocks), so
+        # without this the fees window lacks the "4、基金管理人的业绩报酬" line and
+        # _perf_fee_raw_section's heading-pattern match falls back to the wrong section.
+        if section_id and section_id != last_section_id and title.strip():
+            buckets[window].append(title.strip())
+            last_section_id = section_id
         text = _block_text(block).strip()
         if text:
             buckets[window].append(text)
