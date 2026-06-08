@@ -126,7 +126,7 @@ python -m backend.cli parse example\*.docx --out out.json
 
 ## 字段抽取（CLI）
 
-在 `.env` 中配置 `OPENAI_API_KEY`（及可选 `OPENAI_BASE_URL`、`LLM_MODEL`）。无 Key 时仅运行规则层，**摘录校验会跳过**（任务仍可导出）。
+在 `.env` 中配置 `OPENAI_API_KEY`（及可选 `OPENAI_BASE_URL`、`LLM_MODEL`）。无 Key 时**抽取结果为空**（仅保留固定字段如基金类型），摘录校验会跳过。
 
 ```powershell
 # 从 docx 解析并抽取（不写库）
@@ -254,7 +254,7 @@ npm run dev
 
 **前端说明：** 侧栏三页导航与切换任务时校验刷新，详见 `.planning/v1.1-FRONTEND-NAV.md`。
 
-**LLM：** 生产环境请在根目录 `.env` 配置 `OPENAI_API_KEY`，否则仅规则抽取且无 LLM 校验明细。
+**LLM：** 生产环境请在根目录 `.env` 配置 `OPENAI_API_KEY`，否则无法进行字段抽取。
 
 生产构建（可选 `VITE_API_KEY`）：
 

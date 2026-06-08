@@ -1,0 +1,36 @@
+name: backend-packaging-gate
+
+on:
+  pull_request:
+    paths:
+      - "ctrx_backend.spec"
+      - "docs/packaging/hiddenimports-changelog.md"
+      - "scripts/check_hiddenimports_diff.py"
+      - ".github/workflows/backend-packaging-gate.yml"
+  push:
+    paths:
+      - "ctrx_backend.spec"
+      - "docs/packaging/hiddenimports-changelog.md"
+      - "scripts/check_hiddenimports_diff.py"
+      - ".github/workflows/backend-packaging-gate.yml"
+
+jobs:
+  hiddenimports-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Enforce hiddenimports changelog update
+        run: |
+          python scripts/check_hiddenimports_diff.py \
+            --base origin/master \
+            --spec ctrx_backend.spec \
+            --changelog docs/packaging/hiddenimports-changelog.md
