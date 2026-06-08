@@ -49,6 +49,8 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
   return response
 }
 
+export { apiFetch }
+
 export async function listJobs(limit = 20): Promise<JobListResponse> {
   const res = await apiFetch(`/jobs?limit=${limit}`)
   return res.json()

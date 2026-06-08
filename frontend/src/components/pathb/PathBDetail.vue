@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, toRef } from 'vue'
+import { onMounted, ref, toRef, watch } from 'vue'
 import { usePathB } from '@/composables/usePathB'
-
-const PAGE_UNAVAILABLE = '页码暂未解析'
+import { useKbEntry, type KbRow } from '@/composables/useKbEntry'
 
 const props = defineProps<{
   jobId: string
@@ -11,6 +10,7 @@ const props = defineProps<{
 }>()
 
 const jobIdRef = toRef(props, 'jobId')
+const jobFilenameRef = ref<string | null>(null)
 
 const {
   data,
@@ -30,7 +30,19 @@ const {
   downloadJson,
 } = usePathB(jobIdRef)
 
-const showPageNotice = computed(() => true)
+const { kbRows, submitting, kbUnavailable, buildRows, submit } = useKbEntry(
+  jobIdRef,
+  jobFilenameRef,
+  crmRows,
+)
+
+watch(
+  () => data.value,
+  (val) => {
+    if (val) buildRows()
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   if (props.autoLoad !== false && props.available) {
@@ -51,16 +63,6 @@ defineExpose({ load, refresh })
       description="业绩报酬与开放日建议摘录供人工判断，不写入 Excel 导入母版。"
       class="top-alert"
     />
-    <el-alert
-      v-if="showPageNotice"
-      type="warning"
-      :closable="false"
-      show-icon
-      title="页码说明"
-      description="合同摘录暂未标注页码，请结合下方原文块判断位置。"
-      class="page-alert"
-    />
-
     <el-empty v-if="!available" description="暂无开放日与业绩报酬数据" />
 
     <template v-else>
@@ -76,6 +78,16 @@ defineExpose({ load, refresh })
       <el-skeleton v-if="loading && !data" :rows="4" animated />
 
       <template v-else-if="data">
+        <el-alert
+          v-for="w in (data.rag_warnings ?? [])"
+          :key="w.code"
+          :type="w.code === 'rag_injected' ? 'success' : w.code === 'rag_model_loading' ? 'warning' : 'error'"
+          :title="w.message"
+          :closable="false"
+          show-icon
+          class="rag-alert"
+        />
+
         <p v-if="data.open_day?.fixed_schedule" class="field-line">
           <strong>固定开放日：</strong>{{ data.open_day.fixed_schedule }}
         </p>
@@ -114,9 +126,6 @@ defineExpose({ load, refresh })
               <el-text v-else type="info">— 未从合同推断 —</el-text>
             </template>
           </el-table-column>
-          <el-table-column label="页码" width="110">
-            <template #default>{{ PAGE_UNAVAILABLE }}</template>
-          </el-table-column>
           <el-table-column label="状态" width="90">
             <template #default="{ row }">
               <el-tag :type="coverageTagType(row.coverage)" size="small">
@@ -139,9 +148,6 @@ defineExpose({ load, refresh })
         >
           <el-table-column prop="label" label="标签" width="140" />
           <el-table-column prop="text" label="摘录" min-width="240" show-overflow-tooltip />
-          <el-table-column label="页码" width="110">
-            <template #default>{{ PAGE_UNAVAILABLE }}</template>
-          </el-table-column>
         </el-table>
 
         <div v-if="rawSections.length" class="raw-sections">
@@ -153,6 +159,62 @@ defineExpose({ load, refresh })
         </div>
 
         <pre v-if="showJson" class="json-block">{{ jsonText }}</pre>
+
+        <div v-if="available" class="kb-entry-section">
+          <div class="sub-title">存入知识库</div>
+
+          <el-alert
+            v-if="kbUnavailable"
+            type="warning"
+            :closable="false"
+            title="知识库功能不可用（模型未加载）"
+            class="kb-alert"
+          />
+
+          <el-table
+            :data="kbRows"
+            size="small"
+            stripe
+            border
+            class="section-table"
+            @selection-change="(sel: KbRow[]) => kbRows.forEach((r) => { r.selected = sel.includes(r) })"
+          >
+            <el-table-column type="selection" width="46" />
+            <el-table-column prop="field_name" label="字段名" width="150" />
+            <el-table-column label="字段值" min-width="160">
+              <template #default="{ row }">
+                <el-input
+                  v-model="row.field_value"
+                  size="small"
+                  :disabled="kbUnavailable"
+                  placeholder="（可修改）"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="原文摘录" min-width="240">
+              <template #default="{ row }">
+                <el-input
+                  v-model="row.snippet"
+                  size="small"
+                  type="textarea"
+                  :autosize="{ minRows: 1, maxRows: 3 }"
+                  :disabled="kbUnavailable"
+                  placeholder="（可选）"
+                />
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <el-button
+            type="primary"
+            size="small"
+            :loading="submitting"
+            :disabled="kbUnavailable || !kbRows.some((r: KbRow) => r.selected)"
+            @click="submit"
+          >
+            存入知识库
+          </el-button>
+        </div>
       </template>
     </template>
   </div>
@@ -165,10 +227,6 @@ defineExpose({ load, refresh })
 
 .top-alert {
   margin-bottom: 12px;
-}
-
-.page-alert {
-  margin-bottom: 16px;
 }
 
 .actions {
@@ -243,5 +301,17 @@ defineExpose({ load, refresh })
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.kb-entry-section {
+  margin-top: 16px;
+}
+
+.kb-alert {
+  margin-bottom: 8px;
+}
+
+.rag-alert {
+  margin-bottom: 8px;
 }
 </style>

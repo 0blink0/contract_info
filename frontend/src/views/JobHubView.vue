@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import HubSectionCard from '@/components/hub/HubSectionCard.vue'
-import WarningsList from '@/components/WarningsList.vue'
 import { useJobDetailInject } from '@/composables/useJobDetailContext'
 import { useHubSummary } from '@/composables/useHubSummary'
 import { JOB_FIELD_B } from '@/constants/jobSections'
@@ -16,7 +15,6 @@ const {
   reload,
 } = useHubSummary()
 
-const validationFail = computed(() => detail.value?.validation_fail_count ?? 0)
 const validationWarn = computed(() => detail.value?.validation_warn_count ?? 0)
 
 function tableSubtitle(rowCount: number | null, loading: boolean): string {
@@ -32,9 +30,6 @@ function tableSubtitle(rowCount: number | null, loading: boolean): string {
     <div class="hub-header">
       <h3 class="section-title">任务总览</h3>
       <div class="hub-header-tags">
-        <el-tag v-if="validationFail > 0" type="danger" size="small">
-          校验 fail {{ validationFail }}
-        </el-tag>
         <el-tag v-if="validationWarn > 0" type="warning" size="small">
           校验 warn {{ validationWarn }}
         </el-tag>
@@ -90,12 +85,6 @@ function tableSubtitle(rowCount: number | null, loading: boolean): string {
       </el-col>
     </el-row>
 
-    <WarningsList
-      v-if="detail"
-      :warnings="detail.extraction_warnings"
-      :count="detail.extraction_warnings_count"
-      class="hub-warnings"
-    />
   </div>
 </template>
 
@@ -131,8 +120,5 @@ function tableSubtitle(rowCount: number | null, loading: boolean): string {
   margin-bottom: 20px;
 }
 
-.hub-warnings {
-  margin-bottom: 16px;
-}
 
 </style>

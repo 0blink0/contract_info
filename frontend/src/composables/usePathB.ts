@@ -5,7 +5,7 @@ import type { PathBResponse } from '@/api/types'
 
 const rawSectionLabels: Record<string, string> = {
   performance_fee: '业绩报酬条款原文',
-  open_day: '申购赎回 / 开放日条款原文',
+  open_day: '开放日条款原文',
 }
 
 export function usePathB(jobId: Ref<string | null>) {

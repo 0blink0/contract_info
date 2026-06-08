@@ -18,6 +18,7 @@ export interface JobListResponse {
 
 export interface JobConcurrencyResponse {
   active: number
+  queued: number
   max: number
 }
 
@@ -131,6 +132,7 @@ export interface PathBResponse {
   source_snippet_rows: PathBSnippetRow[]
   crm_handoff: CrmHandoffItem[]
   raw_sections?: Record<string, string>
+  rag_warnings?: WarningItem[]
 }
 
 export interface ValidationItem {

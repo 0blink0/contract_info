@@ -2,7 +2,11 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+/** Electron loadFile() needs relative asset URLs; Docker/nginx keeps absolute "/". */
+const electronDesktop = process.env.VITE_ELECTRON === '1'
+
 export default defineConfig({
+  base: electronDesktop ? './' : '/',
   plugins: [vue()],
   resolve: {
     alias: {

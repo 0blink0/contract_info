@@ -30,6 +30,7 @@ const runningJobId = ref<string | null>(null)
 const batchRunning = ref(false)
 const concurrency = ref<JobConcurrencyResponse>({
   active: 0,
+  queued: 0,
   max: MAX_PARALLEL_JOBS,
 })
 
@@ -39,16 +40,8 @@ const pendingJobs = computed(() =>
   sessionJobs.value.filter((j) => j.status === 'pending'),
 )
 
-const slotsFull = computed(
-  () => concurrency.value.active >= concurrency.value.max,
-)
-
 const canBatchStart = computed(
-  () =>
-    pendingJobs.value.length > 0 &&
-    !slotsFull.value &&
-    !batchRunning.value &&
-    !uploading.value,
+  () => pendingJobs.value.length > 0 && !batchRunning.value && !uploading.value,
 )
 
 const uploadDisabled = computed(
@@ -144,28 +137,21 @@ async function runOne(jobId: string) {
 async function batchStart() {
   if (!canBatchStart.value) return
   batchRunning.value = true
-  let started = 0
+  let submitted = 0
   for (const job of [...pendingJobs.value]) {
-    await refreshConcurrency()
-    if (concurrency.value.active >= concurrency.value.max) {
-      ElMessage.warning('已有 3 个任务正在处理，请稍后再试')
-      break
-    }
     try {
       await runJob(job.jobId)
       const detail = await getJob(job.jobId)
       syncJobFromPoll(job.jobId, detail)
       jobsPoll.activate(job.jobId)
-      started += 1
-      await refreshConcurrency()
+      submitted += 1
     } catch (e) {
-      const msg = parseApiError(e)
-      ElMessage.error(`${job.filename}：${msg}`)
-      if (msg.includes('3') && msg.includes('处理')) break
+      ElMessage.error(`${job.filename}：${parseApiError(e)}`)
     }
   }
-  if (started > 0) {
-    ElMessage.success(`已启动 ${started} 个任务`)
+  if (submitted > 0) {
+    await refreshConcurrency()
+    ElMessage.success(`已提交 ${submitted} 个任务`)
   }
   batchRunning.value = false
 }
@@ -200,27 +186,16 @@ onUnmounted(() => {
   <div class="page-shell">
     <h1 class="page-title">文件上传解析</h1>
     <p class="page-desc">
-      一次最多上传 {{ MAX_UPLOAD_FILES }} 份 docx，可并行解析与导出（系统同时处理上限
-      {{ MAX_PARALLEL_JOBS }} 个任务）。
+      一次最多上传 {{ MAX_UPLOAD_FILES }} 份 docx，系统同时处理 {{ MAX_PARALLEL_JOBS }} 个任务，其余自动排队依次跟上。
     </p>
 
     <el-alert
-      v-if="concurrency.active > 0"
+      v-if="concurrency.active > 0 || concurrency.queued > 0"
       type="info"
       :closable="false"
       show-icon
       class="concurrency-banner"
-      :title="`系统正在处理 ${concurrency.active} / ${concurrency.max} 个任务`"
-    />
-
-    <el-alert
-      v-if="slotsFull"
-      type="warning"
-      :closable="false"
-      show-icon
-      class="concurrency-banner"
-      title="并行槽位已满"
-      description="请等待当前任务完成后再批量开始处理，或稍后在文件列表中重试。"
+      :title="`处理中 ${concurrency.active} / ${concurrency.max}${concurrency.queued ? `，排队等待 ${concurrency.queued} 个` : ''}`"
     />
 
     <div class="toolbar">

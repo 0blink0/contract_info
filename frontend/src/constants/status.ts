@@ -11,6 +11,7 @@ const IN_PROGRESS = new Set(['parsing', 'extracting', 'exporting'])
 
 /** 流水线任一阶段（含阶段间隙 parsed/extracted） */
 const PIPELINE_ACTIVE = new Set([
+  'queued',
   'parsing',
   'parsed',
   'extracting',
@@ -20,6 +21,7 @@ const PIPELINE_ACTIVE = new Set([
 
 const STATUS_ZH: Record<string, string> = {
   pending: '待处理',
+  queued: '排队中',
   parsing: '解析中',
   parsed: '已解析',
   extracting: '抽取中',
@@ -49,6 +51,10 @@ export function canStartRun(status: string): boolean {
   )
 }
 
+export function isQueued(status: string): boolean {
+  return status === 'queued'
+}
+
 export function canRetry(status: string): boolean {
   return ['failed', 'extraction_failed', 'export_failed'].includes(status)
 }
@@ -58,6 +64,7 @@ export function stepStates(status: string): StepView[] {
 
   switch (status) {
     case 'pending':
+    case 'queued':
       return base()
     case 'parsing':
       return [
