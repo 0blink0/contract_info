@@ -261,12 +261,13 @@ async def extract_fees_combined_llm(
             fee_rates = [r for r in parsed.运营费率 if r.rate_annual_pct is not None]
             sub_fees_raw = [r for r in parsed.申赎费率 if r.费率 is not None]
 
-            # Semantic retry: fee text exists but LLM returned nothing → treat as failure
-            if fees_clean and not fee_rates and attempt < settings.llm_max_retries:
-                last_err = "LLM returned empty 运营费率 despite fee content"
+            # Semantic retry: LLM quoted relevant text but failed to produce rows.
+            # Guard on parsed.*原文 so contracts with genuinely no fees don't retry.
+            if fees_clean and parsed.运营费率原文 and not fee_rates and attempt < settings.llm_max_retries:
+                last_err = "LLM found fee text but returned empty 运营费率"
                 continue
-            if sub_clean and not sub_fees_raw and attempt < settings.llm_max_retries:
-                last_err = "LLM returned empty 申赎费率 despite subscription content"
+            if sub_clean and parsed.申赎费率原文 and not sub_fees_raw and attempt < settings.llm_max_retries:
+                last_err = "LLM found subscription text but returned empty 申赎费率"
                 continue
 
             # If fund_name unavailable, infer base name from class-specific rows
