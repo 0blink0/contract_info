@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import traceback
 from datetime import datetime
@@ -15,20 +16,17 @@ from backend.app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Always write to project root (backend/app/llm/client.py → parents[3])
+_DEBUG_ENABLED = bool(os.environ.get("LLM_DEBUG"))
 _DEBUG_LOG = Path(__file__).resolve().parents[3] / "llm_debug.log"
 
 
-def _debug_log_path() -> Path:
-    return _DEBUG_LOG
-
-
 def _dbg(tag: str, **kwargs: Any) -> None:
+    if not _DEBUG_ENABLED:
+        return
     try:
         line = f"[{datetime.now().isoformat(timespec='seconds')}] [{tag}] "
         line += " | ".join(f"{k}={str(v)!r}" for k, v in kwargs.items())
-        p = _debug_log_path()
-        with p.open("a", encoding="utf-8") as f:
+        with _DEBUG_LOG.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
     except Exception:
         pass

@@ -18,6 +18,17 @@ class FieldValue(BaseModel):
     snippet: str | None = None
 
 
+def field_str(fields: dict[str, Any], key: str) -> str | None:
+    """Extract a non-empty string value from a FieldValue object or raw dict entry."""
+    fv = fields.get(key)
+    if fv is None:
+        return None
+    val = fv.get("value") if isinstance(fv, dict) else getattr(fv, "value", None)
+    if val is None or str(val).strip() == "":
+        return None
+    return str(val).strip()
+
+
 class LockPeriodRow(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 

@@ -16,11 +16,11 @@ from backend.app.extract.schemas import (
     ExtractionResult,
     ExtractionWarning,
     FieldValue,
+    field_str,
 )
 from backend.app.extract.section_windows import build_section_windows
 from backend.app.extract.subscription_billing import apply_subscription_billing
 from backend.app.extract.text_sources import (
-    gather_fee_source_text,
     gather_full_document_text,
     gather_subscription_rules_text,
 )
@@ -30,16 +30,6 @@ from backend.app.services.kb_service import get_kb_service
 
 logger = logging.getLogger(__name__)
 
-
-
-def _field_value(product: dict[str, Any], key: str) -> str | None:
-    fv = product.get(key)
-    if fv is None:
-        return None
-    val = fv.get("value") if isinstance(fv, dict) else getattr(fv, "value", None)
-    if val is None or str(val).strip() == "":
-        return None
-    return str(val).strip()
 
 
 def _build_extraction_result(
@@ -119,8 +109,7 @@ async def extract_document(
         return empty, warnings, {}
 
     full_text = gather_full_document_text(document)
-    fee_source = full_text
-    bill_text = ""
+    sub_fees_text = gather_subscription_rules_text(document, windows)
 
     # Product first so fees LLM can use 基金全称
     (
@@ -132,7 +121,7 @@ async def extract_document(
     ) = await extract_product_combined_llm(client, full_text, fund_name=None)
     warnings.extend(w_prod)
 
-    fund_name = _field_value(llm_product_fields, "基金全称")
+    fund_name = field_str(llm_product_fields, "基金全称")
     if llm_product_fields:
         chapters_called.append("product_combined")
     if lock_periods:
@@ -147,21 +136,15 @@ async def extract_document(
     if fees_win:
         kb_service = get_kb_service()
         if kb_service and not kb_service.model_available:
-            logger.info("KB RAG: model loading, waiting up to 300s before extraction")
-            waited = 0
-            while not kb_service.model_available and waited < 300:
-                await asyncio.sleep(5)
-                waited += 5
-            if not kb_service.model_available:
-                logger.warning("KB RAG: model still not ready after 300s, skipping")
-                warnings.append(
-                    ExtractionWarning(
-                        field="performance_fee.rag",
-                        code="rag_model_loading",
-                        message="KB 向量模型加载超时（>5 分钟），本次提取未注入 RAG",
-                        suggestion="请检查 bge-m3 模型路径配置",
-                    )
+            logger.warning("KB RAG: model not ready, skipping RAG for this extraction")
+            warnings.append(
+                ExtractionWarning(
+                    field="performance_fee.rag",
+                    code="rag_model_loading",
+                    message="KB 向量模型尚未就绪，本次提取跳过 RAG 注入",
+                    suggestion="请检查 bge-m3 模型路径配置，模型加载完成后重新提交",
                 )
+            )
         if kb_service and kb_service.model_available:
             rag_top_k = min(max(int(get_settings().rag_top_k), 1), 10)
             try:
@@ -221,8 +204,8 @@ async def extract_document(
         w_fees,
     ) = await extract_fees_combined_llm(
         client,
-        fee_source,
-        bill_text,
+        full_text,
+        sub_fees_text,
         fund_name=fund_name,
         share_class_labels=_share_labels or None,
         rag_cases=rag_cases,

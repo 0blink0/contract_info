@@ -330,7 +330,7 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                 row, parse_json
             )
             for key, val in row.items():
-                if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
+                if key in ("snippet", "_snippet", "摘录", "block_id", "source", "原文"):
                     continue
                 cell_val = str(val).strip() if val is not None else None
                 label = template_header_for_fee_key(key)
@@ -431,7 +431,7 @@ def build_verification_rows(record, table_key: PreviewSection) -> list[dict[str,
                 row, None, parse_json, section="subscription-fee-rates"
             )
             for key, val in row.items():
-                if key in ("snippet", "_snippet", "摘录", "block_id", "source"):
+                if key in ("snippet", "_snippet", "摘录", "block_id", "source", "原文"):
                     continue
                 cell_val = str(val).strip() if val is not None else None
                 excerpt, capture_source, excerpt_table = _verification_evidence(

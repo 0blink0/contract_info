@@ -5,17 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.app.extract.path_b_assemble import build_path_b_document
-from backend.app.extract.schemas import ExtractionWarning, FieldValue
-
-
-def _field_text(product_elements: dict[str, Any], key: str) -> str | None:
-    fv = product_elements.get(key)
-    if fv is None:
-        return None
-    val = fv.get("value") if isinstance(fv, dict) else getattr(fv, "value", None)
-    if val is None or str(val).strip() == "":
-        return None
-    return str(val).strip()
+from backend.app.extract.schemas import ExtractionWarning, FieldValue, field_str
 
 
 def _fv(value: str, *, snippet: str = "") -> FieldValue:
@@ -64,7 +54,7 @@ def build_path_b_from_llm(
             )
         )
 
-    open_rule = _field_text(product_elements, "开放日规则")
+    open_rule = field_str(product_elements, "开放日规则")
     if open_rule:
         open_fields["fixed_schedule"] = _fv(open_rule, snippet=open_rule)
     elif llm_open_day_raw_section:

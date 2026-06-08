@@ -8,6 +8,8 @@ Replaces individual calls to:
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.config import get_settings
@@ -270,18 +272,16 @@ async def extract_fees_combined_llm(
             # If fund_name unavailable, infer base name from class-specific rows
             effective_fund = fund_name
             if not effective_fund:
-                import re as _re
                 for r in fee_rates:
                     name = (r.基金名称 or "").strip()
                     if name:
-                        effective_fund = _re.sub(r"[A-Da-d]类?$", "", name).strip() or name
+                        effective_fund = re.sub(r"[A-Da-d]类?$", "", name).strip() or name
                         break
             if not effective_fund:
-                import re as _re
                 for r in sub_fees_raw:
                     name = (r.基金名称 or "").strip()
                     if name:
-                        effective_fund = _re.sub(r"[A-Da-d]类?$", "", name).strip() or name
+                        effective_fund = re.sub(r"[A-Da-d]类?$", "", name).strip() or name
                         break
 
             for r in fee_rates:
