@@ -88,7 +88,7 @@ try {
         Remove-Item Env:ELECTRON_RENDERER_URL -ErrorAction SilentlyContinue
     }
 
-    Write-Host '=== Starting Electron (close the window to stop) ==='
+    Write-Host '=== Starting Electron (dev uses python desktop_main.py when unpackaged) ==='
     npx electron .
 } finally {
     Remove-Item Env:ELECTRON_RENDERER_URL -ErrorAction SilentlyContinue

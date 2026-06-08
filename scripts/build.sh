@@ -28,11 +28,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "=== Step 1: PyInstaller backend ==="
 bash "$ROOT/scripts/package_backend.sh" --platform linux-x64 --version "$VERSION"
 
-echo "=== Step 2: Vite frontend ==="
-(cd "$ROOT/frontend" && npm run build)
+echo "=== Step 2: Vite frontend (Electron: relative base + hash router) ==="
+(cd "$ROOT/frontend" && VITE_ELECTRON=1 npm run build)
 
-echo "=== Step 3: tsc electron main process ==="
-(cd "$ROOT" && npx tsc -p tsconfig.electron.json)
+echo "=== Step 3: tsc electron main process + stage preload.cjs ==="
+(cd "$ROOT" && npm run build:electron)
 
 echo "=== Step 4: electron-builder (Linux AppImage + deb) ==="
 (cd "$ROOT" && npx electron-builder --linux "-c.extraMetadata.version=$VERSION")

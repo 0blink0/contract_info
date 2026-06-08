@@ -56,9 +56,19 @@ def run_migrations(db_url: str, alembic_dir: Path) -> None:
     command.upgrade(alembic_cfg, "head")
 
 
+def _assert_required_resources(bundle_base: Path) -> None:
+    """Fail-fast if required bundled resource directories are missing."""
+    required_dirs = ("alembic", "dicts", "templates")
+    for directory in required_dirs:
+        path = bundle_base / directory
+        if not path.is_dir():
+            raise RuntimeError(f"Missing required resource directory: {path}")
+
+
 def main() -> None:
     """Application entry point: configure environment, migrate DB, start server."""
     bundle_base = _get_bundle_base()
+    _assert_required_resources(bundle_base)
 
     # Resolve data directory — writable location for DB, uploads, exports.
     data_path = Path(os.environ.get("CTRX_DATA_DIR") or Path.home() / ".ctrx")
@@ -72,6 +82,7 @@ def main() -> None:
 
     # Clear lru_cache so get_settings() re-reads the newly set DATABASE_URL.
     from backend.app.config import get_settings
+
     get_settings.cache_clear()
 
     # Apply all pending migrations before uvicorn starts accepting requests.

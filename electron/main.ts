@@ -16,7 +16,7 @@ interface BackendRuntimeError {
 }
 
 const HEALTH_PATH = '/api/v1/health'
-const HEALTH_TIMEOUT_MS = 30_000
+const HEALTH_TIMEOUT_MS = 360_000
 const HEALTH_INTERVAL_MS = 300
 const RETRY_BACKOFF_MS = [0, 2000, 5000]
 const MAX_RETRIES = 3
@@ -58,7 +58,7 @@ function backendEntrypoint(): string {
     : path.join(resourcesDir, 'ctrx-backend-linux-x64-v1.2.0', 'ctrx-backend')
 
   try {
-    const raw = fs.readFileSync(manifestPath, 'utf-8')
+    const raw = fs.readFileSync(manifestPath, 'utf-8').replace(/^﻿/, '')
     const manifest = JSON.parse(raw) as {
       current?: { path?: string }
     }
@@ -138,14 +138,64 @@ function backendChildEnv(port: number): NodeJS.ProcessEnv {
   }
 }
 
+function resolvePythonBackendDev(): { command: string; args: string[]; cwd: string } | null {
+  if (app.isPackaged || process.env.CTRX_USE_BACKEND_EXE === '1') return null
+  const appRoot = app.getAppPath()
+  const desktopMain = path.join(appRoot, 'desktop_main.py')
+  if (!fs.existsSync(desktopMain)) return null
+  const python = (process.env.CTRX_PYTHON ?? 'python').trim() || 'python'
+  return { command: python, args: [desktopMain], cwd: appRoot }
+}
+
+function backendLaunchSpec(): { command: string; args: string[]; cwd?: string; label: string } {
+  const python = resolvePythonBackendDev()
+  if (python) {
+    return { ...python, label: `${python.command} ${python.args.join(' ')}` }
+  }
+  const entry = backendEntrypoint()
+  return { command: entry, args: [], label: entry }
+}
+
+function formatSpawnError(err: unknown, spec: { label: string }): string {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (msg.includes('UNKNOWN') || msg.includes('ENOENT')) {
+    return [
+      `无法启动后端 (${msg})`,
+      `路径: ${spec.label}`,
+      '常见原因: Windows Device Guard / 应用程序控制策略拦截未签名的 ctrx-backend.exe。',
+      '开发环境: 关闭 CTRX_USE_BACKEND_EXE 后 Electron 会自动改用 python desktop_main.py。',
+      '安装包环境: 需 IT 放行该 exe，或为安装包配置代码签名。',
+    ].join('\n')
+  }
+  return `spawn failed (${msg}) — ${spec.label}`
+}
+
 async function spawnBackend(port: number): Promise<void> {
   setBackendState(retryAttempt > 0 ? 'restarting' : 'starting')
-  const entry = backendEntrypoint()
-  backendProcess = spawn(entry, [], {
-    env: backendChildEnv(port),
+  const spec = backendLaunchSpec()
+  console.log('[CTRX] spawnBackend entry:', spec.label)
+  if (!resolvePythonBackendDev() && !fs.existsSync(spec.command)) {
+    throw new Error(`Backend executable not found: ${spec.command}`)
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    backendProcess = spawn(spec.command, spec.args, {
+      env: backendChildEnv(port),
+      cwd: spec.cwd,
+    })
+    backendProcess.once('error', (err) => {
+      lastError = {
+        summary: formatSpawnError(err, spec),
+        logPath: backendLogPath(),
+      }
+      reject(err)
+    })
+    attachBackendListeners(port)
+    void waitForHealth(port)
+      .then(resolve)
+      .catch(reject)
   })
-  attachBackendListeners(port)
-  await waitForHealth(port)
+
   retryAttempt = 0
   setBackendState('healthy')
 }

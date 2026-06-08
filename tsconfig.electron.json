@@ -13,5 +13,5 @@
     "rewriteRelativeImportExtensions": true
   },
   "include": ["electron/**/*.ts"],
-  "exclude": ["electron/tests/**"]
+  "exclude": ["electron/tests/**", "electron/preload.ts"]
 }

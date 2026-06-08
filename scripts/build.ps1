@@ -16,14 +16,19 @@ $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 Write-Host "=== Step 1: PyInstaller backend ==="
 & (Join-Path $PSScriptRoot "package_backend.ps1") -Platform win-x64 -Version $Version
 
-Write-Host "=== Step 2: Vite frontend ==="
+Write-Host "=== Step 2: Vite frontend (Electron: relative base + hash router) ==="
 Push-Location (Join-Path $Root "frontend")
-npm run build
+$env:VITE_ELECTRON = '1'
+try {
+  npm run build
+} finally {
+  Remove-Item Env:VITE_ELECTRON -ErrorAction SilentlyContinue
+}
 Pop-Location
 
-Write-Host "=== Step 3: tsc electron main process ==="
+Write-Host "=== Step 3: tsc electron main process + stage preload.cjs ==="
 Push-Location $Root
-npx tsc -p tsconfig.electron.json
+npm run build:electron
 Pop-Location
 
 Write-Host "=== Step 4: electron-builder (Windows NSIS) ==="
