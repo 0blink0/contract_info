@@ -17,10 +17,9 @@ from backend.app.extract.schemas import (
     SubscriptionFeeRow,
 )
 from backend.app.extract.llm.snippet_groups import apply_row_group_snippet
+from backend.app.extract.field_catalog import CRM_PERFORMANCE_FEE_FIELDS
 from backend.app.extract.text_limits import excerpt_for_display, text_for_llm_prompt
 from backend.app.llm.client import LlmClient
-
-_CRM_FEE_FIELDS = ("提取时点", "业绩报酬提取方式", "业绩基准类型", "门槛净值类型", "提取比例")
 _CHAPTER_FEE_FIELDS = ("计费频率", "计费基准", "年计提天数", "费用计算方式")
 
 
@@ -322,7 +321,7 @@ async def extract_fees_combined_llm(
             perf_flag = (parsed.是否计提业绩报酬 or "").strip() or None
 
             crm_fields: dict[str, str] = {}
-            for field in _CRM_FEE_FIELDS:
+            for field in CRM_PERFORMANCE_FEE_FIELDS:
                 v = (getattr(parsed, field, None) or "").strip()
                 if v:
                     crm_fields[field] = v

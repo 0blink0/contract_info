@@ -74,6 +74,15 @@ CORE_REQUIRED_PRODUCT: frozenset[str] = frozenset({"基金全称", "管理人"})
 # 导出阶段额外检查的必填（合同通常有，无则 warning）
 EXPORT_REQUIRED_PRODUCT: frozenset[str] = frozenset(CORE_REQUIRED_PRODUCT)
 
+# 业绩报酬 CRM 字段——RAG 召回、fees_combined 提取、KB few-shot 提取共用同一列表
+CRM_PERFORMANCE_FEE_FIELDS: tuple[str, ...] = (
+    "提取时点",
+    "业绩报酬提取方式",
+    "业绩基准类型",
+    "门槛净值类型",
+    "提取比例",
+)
+
 # 产品要素 77 列（与 templates/产品要素-2.xlsx 表头一致）
 ALL_PRODUCT_FIELDS: tuple[str, ...] = (
     "基金代码",

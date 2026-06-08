@@ -5,7 +5,7 @@ import logging
 from typing import Any, cast
 
 from backend.app.config import get_settings
-from backend.app.extract.field_catalog import DEFAULT_PRODUCT_VALUES, FIXED_PRODUCT_VALUES, SKIP_PRODUCT_FIELDS
+from backend.app.extract.field_catalog import CRM_PERFORMANCE_FEE_FIELDS, DEFAULT_PRODUCT_VALUES, FIXED_PRODUCT_VALUES, SKIP_PRODUCT_FIELDS
 from backend.app.extract.llm.fees_combined import extract_fees_combined_llm
 from backend.app.extract.llm.product_combined import extract_product_combined_llm
 from backend.app.extract.evidence_enrich import enrich_extraction_result
@@ -30,7 +30,6 @@ from backend.app.services.kb_service import get_kb_service
 
 logger = logging.getLogger(__name__)
 
-_CRM_FIELDS = ("提取时点", "业绩报酬提取方式", "业绩基准类型", "门槛净值类型", "提取比例")
 
 
 def _field_value(product: dict[str, Any], key: str) -> str | None:
@@ -169,11 +168,11 @@ async def extract_document(
                 field_results = await asyncio.gather(
                     *[
                         kb_service.search_similar_entries(fees_win, rag_top_k, field_name=f)
-                        for f in _CRM_FIELDS
+                        for f in CRM_PERFORMANCE_FEE_FIELDS
                     ]
                 )
                 rag_cases = [c for cases in field_results for c in cases]
-                hit_fields = [f for f, cases in zip(_CRM_FIELDS, field_results) if cases]
+                hit_fields = [f for f, cases in zip(CRM_PERFORMANCE_FEE_FIELDS, field_results) if cases]
                 logger.info(
                     "KB RAG: field-level recall %d cases across fields: %s",
                     len(rag_cases),

@@ -8,12 +8,11 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from backend.app.extract.field_catalog import CRM_PERFORMANCE_FEE_FIELDS
 from backend.app.extract.path_b_crm import _find_similar_passage
 from backend.app.llm.client import LlmClient
 
 logger = logging.getLogger(__name__)
-
-_CRM_FIELDS = ["提取时点", "业绩报酬提取方式", "业绩基准类型", "门槛净值类型"]
 
 
 class _FieldValue(BaseModel):
@@ -80,7 +79,7 @@ async def extract_crm_fields_with_kb(
     tasks: list[Any] = []
     meta: list[tuple[str, str]] = []  # (field_name, passage)
 
-    for field_name in _CRM_FIELDS:
+    for field_name in CRM_PERFORMANCE_FEE_FIELDS:
         cases = kb_index.get(field_name) or []
         if not cases:
             continue
