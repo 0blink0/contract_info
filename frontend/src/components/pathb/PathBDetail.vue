@@ -2,6 +2,7 @@
 import { onMounted, ref, toRef, watch } from 'vue'
 import { usePathB } from '@/composables/usePathB'
 import { useKbEntry, type KbRow } from '@/composables/useKbEntry'
+import DocTextDrawer from '@/components/DocTextDrawer.vue'
 
 const props = defineProps<{
   jobId: string
@@ -17,7 +18,6 @@ const {
   loading,
   showJson,
   crmRows,
-  snippetRows,
   rawSections,
   tierRows,
   filledCount,
@@ -49,6 +49,14 @@ onMounted(() => {
     void load()
   }
 })
+
+const drawerOpen = ref(false)
+const drawerExcerpt = ref<string | null>(null)
+
+function openDrawer(text: string) {
+  drawerExcerpt.value = text
+  drawerOpen.value = true
+}
 
 defineExpose({ load, refresh })
 </script>
@@ -137,28 +145,26 @@ defineExpose({ load, refresh })
           <el-table-column prop="snippet" label="合同摘录" min-width="220" show-overflow-tooltip />
         </el-table>
 
-        <el-table
-          v-if="snippetRows.length"
-          :data="snippetRows"
-          size="small"
-          stripe
-          border
-          class="section-table"
-          empty-text="暂无摘录行"
-        >
-          <el-table-column prop="label" label="标签" width="140" />
-          <el-table-column prop="text" label="摘录" min-width="240" show-overflow-tooltip />
-        </el-table>
-
         <div v-if="rawSections.length" class="raw-sections">
           <div class="sub-title">合同原文（业绩报酬 / 开放日章节）</div>
           <div v-for="sec in rawSections" :key="sec.key" class="raw-section-block">
-            <div class="raw-section-label">{{ sec.label }}</div>
+            <div class="raw-section-header">
+              <div class="raw-section-label">{{ sec.label }}</div>
+              <el-button size="small" link type="primary" @click="openDrawer(sec.text)">
+                查看原文位置
+              </el-button>
+            </div>
             <pre class="raw-section-text">{{ sec.text }}</pre>
           </div>
         </div>
 
         <pre v-if="showJson" class="json-block">{{ jsonText }}</pre>
+
+        <DocTextDrawer
+          v-model="drawerOpen"
+          :job-id="jobId"
+          :excerpt="drawerExcerpt"
+        />
 
         <div v-if="available" class="kb-entry-section">
           <div class="sub-title">存入知识库</div>
@@ -259,11 +265,17 @@ defineExpose({ load, refresh })
   margin-bottom: 16px;
 }
 
+.raw-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
 .raw-section-label {
   font-size: 12px;
   font-weight: 600;
   color: #2f5496;
-  margin-bottom: 4px;
   padding: 2px 6px;
   background: #deebf7;
   border-radius: 3px;

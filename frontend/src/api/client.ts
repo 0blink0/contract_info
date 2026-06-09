@@ -1,10 +1,13 @@
 import type {
+  DocumentTextResponse,
   DownloadKind,
   JobConcurrencyResponse,
   JobDetail,
   JobListResponse,
   JobPreview,
   JobPreviewSectionResponse,
+  MergePreview,
+  MergeRecord,
   PathBResponse,
   PreviewSection,
   TableVerificationResponse,
@@ -192,6 +195,11 @@ export async function getTableVerification(
   }
 }
 
+export async function getDocumentText(jobId: string): Promise<DocumentTextResponse> {
+  const res = await apiFetch(`/jobs/${jobId}/document-text`)
+  return res.json()
+}
+
 export async function upload(file: File): Promise<UploadResponse> {
   const form = new FormData()
   form.append('file', file)
@@ -204,6 +212,11 @@ export async function runJob(jobId: string): Promise<{ job_id: string; status: s
   return res.json()
 }
 
+export async function reextractProduct(jobId: string): Promise<{ job_id: string; status: string }> {
+  const res = await apiFetch(`/jobs/${jobId}/reextract-product`, { method: 'POST' })
+  return res.json()
+}
+
 export async function deleteJob(jobId: string): Promise<void> {
   await apiFetch(`/jobs/${jobId}`, { method: 'DELETE' })
 }
@@ -211,6 +224,66 @@ export async function deleteJob(jobId: string): Promise<void> {
 export function downloadUrl(jobId: string, kind: DownloadKind): string {
   return `${getApiBase()}/jobs/${jobId}/download/${kind}`
 }
+
+export async function createMerge(
+  jobIds: string[],
+  tableType: string,
+  name = '',
+): Promise<MergeRecord> {
+  const res = await apiFetch('/merge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ job_ids: jobIds, table_type: tableType, name }),
+  })
+  return res.json()
+}
+
+export async function listMerges(): Promise<MergeRecord[]> {
+  const res = await apiFetch('/merge')
+  return res.json()
+}
+
+export async function getMergePreview(mergeId: string): Promise<MergePreview> {
+  const res = await apiFetch(`/merge/${mergeId}/preview`)
+  return res.json()
+}
+
+export function mergeDownloadUrl(mergeId: string): string {
+  return `${getApiBase()}/merge/${mergeId}/download`
+}
+
+export async function downloadMergeBlob(mergeId: string, filename: string): Promise<void> {
+  const headers = apiHeaders()
+  const res = await fetch(mergeDownloadUrl(mergeId), { headers })
+  if (!res.ok) throw new Error(`下载失败: ${res.status}`)
+  const blob = await res.blob()
+  const objUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = objUrl
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(objUrl)
+}
+
+export async function appendToMerge(mergeId: string, jobIds: string[]): Promise<MergeRecord> {
+  const res = await apiFetch(`/merge/${mergeId}/append`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ job_ids: jobIds }),
+  })
+  return res.json()
+}
+
+export async function deleteMergeRecord(mergeId: string): Promise<void> {
+  await apiFetch(`/merge/${mergeId}`, { method: 'DELETE' })
+}
+
+export async function deleteAllMergeRecords(): Promise<number> {
+  const res = await apiFetch('/merge/all', { method: 'DELETE' })
+  const data = (await res.json()) as { deleted: number }
+  return data.deleted
+}
+
 
 export async function downloadBlob(
   jobId: string,

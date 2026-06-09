@@ -22,6 +22,16 @@ const filteredItems = computed(() => {
 
 const deletableItems = computed(() => items.value.filter((item) => !isInProgress(item.status)))
 
+const stats = computed(() => {
+  const all = items.value
+  const total = all.length
+  const done = all.filter((i) => i.status === 'exported').length
+  const inProg = all.filter((i) => isInProgress(i.status)).length
+  const failed = all.filter((i) => i.status.includes('failed')).length
+  const pending = all.filter((i) => i.status === 'pending').length
+  return { total, done, inProg, failed, pending }
+})
+
 async function refresh() {
   loading.value = true
   try {
@@ -133,6 +143,40 @@ onActivated(() => {
       </div>
     </div>
 
+    <!-- 批量状态仪表盘 -->
+    <el-row :gutter="12" class="dashboard-row">
+      <el-col :span="5">
+        <div class="stat-card stat-total">
+          <div class="stat-num">{{ stats.total }}</div>
+          <div class="stat-label">全部合同</div>
+        </div>
+      </el-col>
+      <el-col :span="5">
+        <div class="stat-card stat-done">
+          <div class="stat-num">{{ stats.done }}</div>
+          <div class="stat-label">已完成</div>
+        </div>
+      </el-col>
+      <el-col :span="5">
+        <div class="stat-card stat-progress">
+          <div class="stat-num">{{ stats.inProg }}</div>
+          <div class="stat-label">处理中</div>
+        </div>
+      </el-col>
+      <el-col :span="5">
+        <div class="stat-card stat-pending">
+          <div class="stat-num">{{ stats.pending }}</div>
+          <div class="stat-label">待处理</div>
+        </div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-card stat-failed">
+          <div class="stat-num">{{ stats.failed }}</div>
+          <div class="stat-label">失败</div>
+        </div>
+      </el-col>
+    </el-row>
+
     <div class="surface-card">
       <el-table
         v-loading="loading"
@@ -194,6 +238,36 @@ onActivated(() => {
 .search-input {
   width: 220px;
 }
+
+.dashboard-row {
+  margin: 14px 0 16px;
+}
+
+.stat-card {
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-align: center;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+}
+
+.stat-num {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #909399);
+  margin-top: 4px;
+}
+
+.stat-total .stat-num  { color: var(--el-text-color-primary, #303133); }
+.stat-done .stat-num   { color: var(--el-color-success, #67c23a); }
+.stat-progress .stat-num { color: var(--el-color-warning, #e6a23c); }
+.stat-pending .stat-num  { color: var(--el-color-info, #909399); }
+.stat-failed .stat-num   { color: var(--el-color-danger, #f56c6c); }
 
 :deep(.el-table__row) {
   cursor: pointer;

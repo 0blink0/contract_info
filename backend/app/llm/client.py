@@ -121,6 +121,10 @@ class LlmClient:
             if finish_reason == "length":
                 _dbg("TRUNCATED", msg="Response cut off — max_tokens too low",
                      response_tail=raw_text[-200:], caller=response_model.__name__)
+                raise ValueError(
+                    f"LLM response truncated (finish_reason=length) for {response_model.__name__}; "
+                    "increase llm_max_tokens or reduce input"
+                )
 
             parsed = _extract_json_object(raw_text)
             return response_model.model_validate(parsed)

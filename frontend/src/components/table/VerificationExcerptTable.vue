@@ -12,6 +12,7 @@ import {
   verificationExcerptTeaser,
   type ExcerptTableBlock,
 } from '@/utils/excerptFormat'
+import DocTextDrawer from '@/components/DocTextDrawer.vue'
 
 const props = defineProps<{
   jobId: string
@@ -34,6 +35,7 @@ const loading = ref(false)
 const data = ref<TableVerificationResponse | null>(null)
 const selectedField = ref<string | null>(null)
 const editing = ref(false)
+const drawerOpen = ref(false)
 const draftRows = ref<VerificationRow[]>([])
 const draftDirty = ref(false)
 
@@ -393,26 +395,35 @@ watch(
                   class="excerpt-group-hint"
                 >（本组字段共用此摘录）</span>
               </h5>
-              <el-tag
-                v-if="selectedRow.capture_source === 'rule'"
-                size="small"
-                type="info"
-                effect="plain"
-              >
-                规则抓取
-              </el-tag>
-              <el-tooltip
-                v-if="selectedRow.validation_status"
-                :content="selectedRow.validation_reason || selectedRow.validation_status"
-                placement="top"
-              >
-                <el-tag
+              <div class="excerpt-reader-head-actions">
+                <el-button
                   size="small"
-                  :type="llmStatusTagType(selectedRow.validation_status)"
+                  plain
+                  @click="drawerOpen = true"
                 >
-                  LLM {{ selectedRow.validation_status }}
+                  查看全文
+                </el-button>
+                <el-tag
+                  v-if="selectedRow.capture_source === 'rule'"
+                  size="small"
+                  type="info"
+                  effect="plain"
+                >
+                  规则抓取
                 </el-tag>
-              </el-tooltip>
+                <el-tooltip
+                  v-if="selectedRow.validation_status"
+                  :content="selectedRow.validation_reason || selectedRow.validation_status"
+                  placement="top"
+                >
+                  <el-tag
+                    size="small"
+                    :type="llmStatusTagType(selectedRow.validation_status)"
+                  >
+                    LLM {{ selectedRow.validation_status }}
+                  </el-tag>
+                </el-tooltip>
+              </div>
             </div>
             <p
               v-if="selectedRow.validation_reason"
@@ -488,6 +499,13 @@ watch(
       v-else
       description="暂无摘录核对数据（需完成抽取；仅导出 Excel 时无合同原文摘录）"
       :image-size="64"
+    />
+
+    <DocTextDrawer
+      v-model="drawerOpen"
+      :job-id="jobId"
+      :excerpt="selectedRow?.excerpt ?? null"
+      :field-value="selectedRow?.value ?? null"
     />
   </div>
 </template>
@@ -595,6 +613,13 @@ watch(
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.excerpt-reader-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .excerpt-reader-title {

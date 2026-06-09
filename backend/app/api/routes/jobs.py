@@ -12,6 +12,8 @@ from sqlalchemy import select
 from backend.app.api.deps import verify_api_key
 from backend.app.api.schemas import (
     DeleteJobResponse,
+    DocumentParagraph,
+    DocumentTextResponse,
     FeeSectionUpdate,
     JobDetailResponse,
     JobConcurrencyResponse,
@@ -166,6 +168,7 @@ def get_job_concurrency() -> JobConcurrencyResponse:
     return JobConcurrencyResponse(active=count_in_progress(), queued=count_queued(), max=3)
 
 
+
 @router.get("/{job_id}", response_model=JobDetailResponse)
 def get_job(job_id: uuid.UUID) -> JobDetailResponse:
     record = _get_record(job_id)
@@ -212,8 +215,10 @@ def _section_response_from_data(data: dict, section: PreviewSection) -> JobPrevi
         fee_rows=sliced.get("fee_rows"),
         lock_columns=sliced.get("lock_columns"),
         lock_rows=sliced.get("lock_rows"),
+        lock_empty_reason=sliced.get("lock_empty_reason"),
         share_columns=sliced.get("share_columns"),
         share_rows=sliced.get("share_rows"),
+        share_empty_reason=sliced.get("share_empty_reason"),
         subscription_columns=sliced.get("subscription_columns"),
         subscription_rows=sliced.get("subscription_rows"),
     )
@@ -268,6 +273,87 @@ def update_job_preview(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _preview_response_from_data(data)
+
+
+@router.post("/{job_id}/reextract-product", response_model=RunResponse)
+async def reextract_product_fields(job_id: uuid.UUID) -> RunResponse:
+    """Re-run product element extraction for a single job without touching fee data."""
+    from backend.app.extract.text_sources import gather_full_document_text
+    from backend.app.extract.llm.product_combined import extract_product_combined_llm
+    from backend.app.extract.field_catalog import (
+        DEFAULT_PRODUCT_VALUES,
+        FIXED_PRODUCT_VALUES,
+        SKIP_PRODUCT_FIELDS,
+    )
+    from backend.app.extract.schemas import FieldValue
+    from backend.app.export.product_workbook import fill_product_workbook
+    from backend.app.export.lock_workbook import fill_lock_workbook
+    from backend.app.export.share_workbook import fill_share_workbook
+    from backend.app.export.pipeline import PRODUCT_OUTPUT, LOCK_OUTPUT, SHARE_OUTPUT, PRODUCT_TEMPLATE
+    from backend.app.config import exports_dir, templates_dir
+    from backend.app.llm.client import LlmClient
+
+    record = _get_record(job_id)
+    if record.status not in PREVIEW_STATUSES:
+        raise HTTPException(status_code=409, detail=f"任务状态 {record.status!r} 不支持重新抽取")
+    if not record.parse_json:
+        raise HTTPException(status_code=409, detail="缺少原始解析数据，无法重新抽取")
+
+    client = LlmClient()
+    if not client.available:
+        raise HTTPException(status_code=409, detail="未配置 LLM API Key，无法重新抽取")
+
+    full_text = gather_full_document_text(record.parse_json)
+    product_fields, lock_rows, share_rows, _open_day_raw, _warnings = (
+        await extract_product_combined_llm(client, full_text, fund_name=None)
+    )
+
+    # Apply same post-processing as pipeline._build_extraction_result
+    merged: dict[str, FieldValue] = dict(product_fields)
+    for key in SKIP_PRODUCT_FIELDS:
+        merged.pop(key, None)
+    for fname, fval in FIXED_PRODUCT_VALUES.items():
+        merged[fname] = FieldValue(value=fval, confidence="high", source="fixed")
+    for fname, fval in DEFAULT_PRODUCT_VALUES.items():
+        existing = merged.get(fname)
+        has_val = existing if isinstance(existing, str) else getattr(existing, "value", None)
+        if not existing or not has_val:
+            merged[fname] = FieldValue(value=fval, confidence="low", source="rule")
+    if len(share_rows) >= 2:
+        merged["份额结构"] = FieldValue(value="分级", confidence="high", source="rule")
+
+    product_dict = {k: v.model_dump() for k, v in merged.items()}
+    lock_list = [r.model_dump() for r in lock_rows]
+    share_list = [r.model_dump() for r in share_rows]
+
+    session = SessionLocal()
+    try:
+        rec = session.get(ContractFile, job_id)
+        if rec is None:
+            raise HTTPException(status_code=404, detail="Job not found")
+        existing_result = dict(rec.extraction_result or {})
+        existing_result["product_elements"] = product_dict
+        existing_result["lock_periods"] = lock_list
+        existing_result["share_classes"] = share_list
+        rec.extraction_result = existing_result
+
+        if rec.status == "exported":
+            fid = str(job_id)
+            out_dir = exports_dir() / fid
+            out_dir.mkdir(parents=True, exist_ok=True)
+            tpl = templates_dir() / PRODUCT_TEMPLATE
+            fill_product_workbook(tpl, out_dir / PRODUCT_OUTPUT, product_dict)
+            fill_lock_workbook(tpl, out_dir / LOCK_OUTPUT, lock_list)
+            fill_share_workbook(tpl, out_dir / SHARE_OUTPUT, share_list)
+
+        session.commit()
+        status_out = rec.status
+    except HTTPException:
+        raise
+    finally:
+        session.close()
+
+    return RunResponse(job_id=job_id, status=status_out)
 
 
 @router.delete("/{job_id}", response_model=DeleteJobResponse)
@@ -420,6 +506,37 @@ def download_review_report(job_id: uuid.UUID) -> Response:
         content=content,
         media_type=XLSX_MEDIA,
         headers={"Content-Disposition": f'attachment; filename="{safe_name}_核对报告.xlsx"'},
+    )
+
+
+@router.get("/{job_id}/document-text", response_model=DocumentTextResponse)
+def get_document_text(job_id: uuid.UUID) -> DocumentTextResponse:
+    """返回合同的段落/表格文本列表，用于前端全文定位。数据来自已解析的 parse_json。"""
+    record = _get_record(job_id)
+    raw = getattr(record, "parse_json", None)
+    if not raw or not isinstance(raw, dict):
+        raise HTTPException(status_code=404, detail="Document not parsed yet")
+
+    blocks: list[dict] = raw.get("blocks") or []
+    paragraphs: list[DocumentParagraph] = []
+    for i, block in enumerate(blocks):
+        btype = block.get("type", "")
+        if btype == "paragraph":
+            text = (block.get("text") or "").strip()
+            if text:
+                paragraphs.append(DocumentParagraph(index=i, type="paragraph", text=text))
+        elif btype == "table":
+            rows: list[list[str]] = block.get("rows") or []
+            table_text = "\n".join(" | ".join(cell for cell in row) for row in rows if any(row))
+            if table_text.strip():
+                paragraphs.append(
+                    DocumentParagraph(index=i, type="table", text=table_text, rows=rows)
+                )
+
+    return DocumentTextResponse(
+        job_id=job_id,
+        paragraph_count=len(paragraphs),
+        paragraphs=paragraphs,
     )
 
 

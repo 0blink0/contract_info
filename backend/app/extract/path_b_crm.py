@@ -142,9 +142,11 @@ def _suggest_benchmark(
     if m_idx:
         return "超额收益", m_idx.group(0), f"合同引用外部基准（{m_idx.group(0)}）→ 超额收益"
 
-    # 高水位法无外部指数 → 净值型
-    if re.search(r"高水位", text):
-        return "净值型", text[:100], "高水位法且无外部指数比较，建议填净值型"
+    # 高水位法无外部指数 → 净值型（text 可能为空，也需搜 fees_context）
+    combined_for_hw = text + " " + fees_context
+    if re.search(r"高水位", combined_for_hw):
+        snip_hw = re.search(r".{0,30}高水位.{0,30}", combined_for_hw)
+        return "净值型", (snip_hw.group(0) if snip_hw else combined_for_hw[:100]), "高水位法且无外部指数比较，建议填净值型"
 
     return None, None, "无法从合同自动判断，请人工确认"
 
@@ -353,9 +355,17 @@ def build_crm_handoff(
         diagnostic=diag_t,
     )
 
-    # 5. 提取比例（来自表格结构，不做段落定位）
+    # 5. 提取比例（优先从表格档位，其次从合同业绩报酬条款 LLM 提取）
     ratio, snip_r = _suggest_ratio(tiers)
-    diag_r = "从基本情况表格提取，按份额类填写" if ratio else "未找到业绩报酬比例"
+    if ratio:
+        diag_r = "从基本情况表格提取，按份额类填写"
+    else:
+        kb_r_val, kb_r_snip = _kb_llm("提取比例")
+        if kb_r_val:
+            ratio, snip_r = kb_r_val, kb_r_snip
+            diag_r = "从合同业绩报酬条款提取"
+        else:
+            diag_r = "未找到业绩报酬比例"
     diag_r += _rag_note("提取比例", ratio, kb_index)
     add(
         "提取比例",

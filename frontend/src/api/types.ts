@@ -76,8 +76,10 @@ export interface JobPreviewSectionResponse {
   fee_rows?: Record<string, string | null>[]
   lock_columns?: string[]
   lock_rows?: Record<string, string | null>[]
+  lock_empty_reason?: string | null
   share_columns?: string[]
   share_rows?: Record<string, string | null>[]
+  share_empty_reason?: string | null
   subscription_columns?: string[]
   subscription_rows?: Record<string, string | null>[]
 }
@@ -160,4 +162,39 @@ export interface UploadResponse {
   filename: string
 }
 
+export interface DocumentParagraph {
+  index: number
+  type: 'paragraph' | 'table'
+  text: string
+  rows?: string[][] // 仅 type==='table' 时有值
+}
+
+export interface DocumentTextResponse {
+  job_id: string
+  paragraph_count: number
+  paragraphs: DocumentParagraph[]
+}
+
 export type DownloadKind = PreviewSection
+
+export interface MergeSourceJob {
+  job_id: string
+  filename: string
+}
+
+export interface MergeRecord {
+  id: string
+  name: string
+  table_type: string
+  table_type_label: string
+  source_jobs: MergeSourceJob[]
+  merged_at: string
+  row_count: number
+  columns: string[]
+}
+
+export interface MergePreview {
+  id: string
+  columns: string[]
+  rows: Record<string, string>[]
+}

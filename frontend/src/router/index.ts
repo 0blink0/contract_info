@@ -74,6 +74,12 @@ const router = createRouter({
       ],
     },
     {
+      path: '/merge-tables',
+      name: 'merge-tables',
+      component: () => import('@/views/MergeTablesView.vue'),
+      meta: { title: '表格合并' },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/SettingsView.vue'),

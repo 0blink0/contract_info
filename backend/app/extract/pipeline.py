@@ -7,6 +7,7 @@ from typing import Any, cast
 from backend.app.config import get_settings
 from backend.app.extract.field_catalog import CRM_PERFORMANCE_FEE_FIELDS, DEFAULT_PRODUCT_VALUES, FIXED_PRODUCT_VALUES, SKIP_PRODUCT_FIELDS
 from backend.app.extract.llm.fees_combined import extract_fees_combined_llm
+from backend.app.extract.llm.perf_fee_section import extract_perf_fee_section_llm
 from backend.app.extract.llm.product_combined import extract_product_combined_llm
 from backend.app.extract.evidence_enrich import enrich_extraction_result
 from backend.app.extract.path_b_llm import build_path_b_from_llm
@@ -191,6 +192,17 @@ async def extract_document(
         if _lbl and _lbl not in _share_labels:
             _share_labels.append(_lbl)
 
+    (fees_result, direct_perf_section) = await asyncio.gather(
+        extract_fees_combined_llm(
+            client,
+            full_text,
+            sub_fees_text,
+            fund_name=fund_name,
+            share_class_labels=_share_labels or None,
+            rag_cases=rag_cases,
+        ),
+        extract_perf_fee_section_llm(client, full_text),
+    )
     (
         llm_fee_rows,
         llm_sub_rows,
@@ -202,14 +214,7 @@ async def extract_document(
         fee_meta_snippet,
         crm_group_snippet,
         w_fees,
-    ) = await extract_fees_combined_llm(
-        client,
-        full_text,
-        sub_fees_text,
-        fund_name=fund_name,
-        share_class_labels=_share_labels or None,
-        rag_cases=rag_cases,
-    )
+    ) = fees_result
     warnings.extend(w_fees)
 
     if llm_perf_raw:
@@ -236,10 +241,23 @@ async def extract_document(
     subscription_fees = sort_subscription_fees(llm_sub_rows)
     fee_rates = sort_fee_rates(llm_fee_rows)
 
+    # Propagate global fee metadata to every FeeRateRow (including zero-fee rows).
+    # The LLM returns 计费基准/年计提天数/费用计算方式 as top-level fields, not per-row;
+    # all rows — regardless of rate — share the same calculation method for the fund.
+    _META_FEE_FIELDS = ("计费基准", "年计提天数", "费用计算方式")
+    for _field in _META_FEE_FIELDS:
+        _val = chapter_fee_fields.get(_field, "").strip()
+        if _val:
+            for _row in fee_rates:
+                if not (getattr(_row, _field, None) or "").strip():
+                    setattr(_row, _field, _val)
+
     meta = ExtractionMeta(
         model=client.model_name,
         chapters_called=chapters_called,
         truncated_windows=truncated,
+        lock_confirmed_empty=len(lock_periods) == 0 and bool(full_text.strip()),
+        share_confirmed_empty=len(share_classes) == 0 and bool(full_text.strip()),
     )
 
     result = _build_extraction_result(
@@ -258,6 +276,7 @@ async def extract_document(
         llm_perf_raw_section=llm_perf_raw,
         llm_perf_flag=llm_perf_flag,
         llm_open_day_raw_section=llm_open_day_raw,
+        direct_perf_section=direct_perf_section or None,
         rag_cases=rag_cases,
         kb_field_extractions=kb_field_extractions,
     )

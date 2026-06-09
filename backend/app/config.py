@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.openai.com/v1"
     llm_model: str = "gpt-4o-mini"
     llm_timeout: int = 120
-    llm_max_retries: int = 1
+    llm_max_retries: int = 2
     llm_max_tokens: int = 16384
     rag_top_k: int = 3
 

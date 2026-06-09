@@ -23,6 +23,7 @@ def build_path_b_from_llm(
     llm_perf_raw_section: str | None,
     llm_perf_flag: str | None,
     llm_open_day_raw_section: str | None,
+    direct_perf_section: str | None = None,
     rag_cases: list[dict[str, str]] | None = None,
     kb_field_extractions: dict[str, tuple[str, str]] | None = None,
 ) -> tuple[dict[str, Any], list[ExtractionWarning]]:
@@ -32,18 +33,20 @@ def build_path_b_from_llm(
 
     perf_raw = (llm_perf_raw_section or "").strip()
     perf_flag = (llm_perf_flag or "").strip()
+    # 专用调用提取的完整章节，用于 CRM 规则分析和前端展示；回退到 fees_combined 引用
+    analysis_text = (direct_perf_section or "").strip() or perf_raw
 
     if perf_flag == "否":
-        perf_fields["has_performance_fee"] = _fv("否", snippet=perf_raw)
-        if perf_raw:
-            perf_fields["summary"] = _fv(perf_raw, snippet=perf_raw)
+        perf_fields["has_performance_fee"] = _fv("否", snippet=analysis_text)
+        if analysis_text:
+            perf_fields["summary"] = _fv(analysis_text, snippet=analysis_text)
     elif perf_flag in ("是", "条件性不计提"):
-        perf_fields["has_performance_fee"] = _fv(perf_flag, snippet=perf_raw)
-        if perf_raw:
-            perf_fields["summary"] = _fv(perf_raw, snippet=perf_raw)
-    elif perf_raw:
-        perf_fields["has_performance_fee"] = _fv("是", snippet=perf_raw)
-        perf_fields["summary"] = _fv(perf_raw, snippet=perf_raw)
+        perf_fields["has_performance_fee"] = _fv(perf_flag, snippet=analysis_text)
+        if analysis_text:
+            perf_fields["summary"] = _fv(analysis_text, snippet=analysis_text)
+    elif analysis_text:
+        perf_fields["has_performance_fee"] = _fv("是", snippet=analysis_text)
+        perf_fields["summary"] = _fv(analysis_text, snippet=analysis_text)
     else:
         warnings.append(
             ExtractionWarning(
@@ -72,8 +75,9 @@ def build_path_b_from_llm(
         )
 
     raw_sections: dict[str, str] = {}
-    if perf_raw:
-        raw_sections["performance_fee"] = perf_raw
+    display_perf = (direct_perf_section or "").strip() or perf_raw
+    if display_perf:
+        raw_sections["performance_fee"] = display_perf
     if llm_open_day_raw_section and llm_open_day_raw_section.strip():
         raw_sections["open_day"] = llm_open_day_raw_section.strip()
 

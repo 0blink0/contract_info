@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { JobPreviewSectionResponse } from '@/api/types'
+
 import {
   listSectionData,
   listTableEditableColumns,
@@ -42,10 +43,23 @@ const emptyText = computed(() => {
     'product-elements': '暂无产品要素数据',
     'fee-rates': '暂无费率数据',
     'lock-periods': '暂无锁定期子表数据',
-    'share-classes': '暂无分级份额数据（非分级产品可能为空）',
+    'share-classes': '暂无分级份额数据',
     'subscription-fee-rates': '暂无申赎费率数据',
   }
   return map[props.tableKey]
+})
+
+const confirmedEmptyHint = computed(() => {
+  if (!props.preview) return null
+  const { rows } = listMeta.value
+  if (rows.length > 0) return null
+  if (props.tableKey === 'lock-periods' && props.preview.lock_empty_reason === 'confirmed_empty') {
+    return 'AI 分析后确认合同未约定份额锁定期（如有实际约定请手动补充）'
+  }
+  if (props.tableKey === 'share-classes' && props.preview.share_empty_reason === 'confirmed_empty') {
+    return 'AI 分析后确认合同未设置分级份额（非分级产品可忽略此项）'
+  }
+  return null
 })
 
 function onInput() {
@@ -66,7 +80,7 @@ function onInput() {
         max-height="400"
         :empty-text="emptyText"
       >
-        <el-table-column prop="field" label="字段" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="field" label="字段" min-width="160" />
         <el-table-column label="值" min-width="240">
           <template #default="{ row }">
             <el-input
@@ -80,15 +94,24 @@ function onInput() {
         </el-table-column>
       </el-table>
 
-      <el-table
-        v-else
-        :data="listMeta.rows"
-        size="small"
-        stripe
-        border
-        max-height="400"
-        :empty-text="emptyText"
-      >
+      <template v-else>
+        <el-alert
+          v-if="confirmedEmptyHint"
+          type="info"
+          :closable="false"
+          show-icon
+          :title="confirmedEmptyHint"
+          style="margin-bottom: 8px"
+        />
+        <el-table
+          v-else
+          :data="listMeta.rows"
+          size="small"
+          stripe
+          border
+          max-height="400"
+          :empty-text="emptyText"
+        >
         <el-table-column
           v-for="col in editableCols"
           :key="col"
@@ -105,7 +128,8 @@ function onInput() {
             <span v-else>{{ row[col] }}</span>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </template>
     </template>
   </div>
 </template>
@@ -114,4 +138,5 @@ function onInput() {
 .table-preview-editor {
   margin-bottom: 20px;
 }
+
 </style>

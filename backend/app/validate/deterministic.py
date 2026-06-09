@@ -59,15 +59,23 @@ def deterministic_validation_items(
 
     structure_val = _field_value(elements, "份额结构")
     structure_snip = _field_snippet(elements, "份额结构")
-    if structure_val == "分级结构" and structure_snip:
-        if "份额分类" in structure_snip or len(share_letters_in_text(structure_snip)) >= 2:
+    if structure_val in ("分级", "分级结构") and structure_snip:
+        if "份额分类" in structure_snip or "类份额" in structure_snip or len(share_letters_in_text(structure_snip)) >= 1:
             out["份额结构"] = ValidationItem(
                 field="份额结构",
                 status="pass",
                 value=structure_val,
-                reason="基本情况或份额分类表列明 A–D 类份额，与「分级结构」一致。",
+                reason="份额分类章节原文列明多类份额，与「分级」一致。",
                 suggestion=None,
             )
+    elif structure_val == "不分级" and structure_snip and "不分级" in structure_snip:
+        out["份额结构"] = ValidationItem(
+            field="份额结构",
+            status="pass",
+            value=structure_val,
+            reason="合同明确写明「不分级」，与抽取值一致。",
+            suggestion=None,
+        )
 
     warn_snip = _field_snippet(elements, "预警线")
     stop_snip = _field_snippet(elements, "止损线")

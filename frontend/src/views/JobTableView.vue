@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { downloadBlob, saveJobPreviewSection } from '@/api/client'
+import { downloadBlob, reextractProduct, saveJobPreviewSection } from '@/api/client'
 import type { VerificationRow } from '@/api/types'
 import { useJobDetailInject } from '@/composables/useJobDetailContext'
 import { useSectionPreview } from '@/composables/useSectionPreview'
@@ -36,6 +36,7 @@ const {
   preview,
   loading,
   canShowPreview,
+  load: reloadPreview,
 } = useSectionPreview(tableKeyParam)
 
 const verificationRef = ref<{
@@ -59,6 +60,26 @@ const canEditVerification = computed(
 )
 
 const showDownload = computed(() => detail.value?.status === 'exported')
+const showReextract = computed(
+  () => tableKey.value === 'product-elements' && Boolean(canShowPreview.value),
+)
+const reextracting = ref(false)
+
+async function onReextract() {
+  const id = jobId.value
+  if (!id) return
+  reextracting.value = true
+  try {
+    await reextractProduct(id)
+    await reloadPreview()
+    await verificationRef.value?.reload()
+    ElMessage.success('产品要素重新抽取成功')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '重新抽取失败')
+  } finally {
+    reextracting.value = false
+  }
+}
 
 async function onDownload() {
   const id = jobId.value
@@ -115,6 +136,14 @@ async function onVerificationSave(rows: VerificationRow[]) {
     <div class="table-toolbar">
       <h3 class="section-title">{{ label }}</h3>
       <div class="toolbar-actions">
+        <el-button
+          v-if="showReextract"
+          :loading="reextracting"
+          size="default"
+          @click="onReextract"
+        >
+          重新抽取
+        </el-button>
         <el-button
           v-if="showDownload"
           type="success"

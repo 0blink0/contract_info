@@ -158,6 +158,8 @@ class ExtractionMeta(BaseModel):
     extracted_at: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+    lock_confirmed_empty: bool = False
+    share_confirmed_empty: bool = False
 
 
 class ExtractionResult(BaseModel):

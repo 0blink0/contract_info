@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { List, Setting, Upload } from '@element-plus/icons-vue'
+import { CopyDocument, List, Setting, Upload } from '@element-plus/icons-vue'
 import { JOB_FIELD_B, JOB_TABLE_SECTIONS } from '@/constants/jobSections'
 import { useKbStatus } from '@/composables/useKbStatus'
 
@@ -62,6 +62,10 @@ const defaultOpeneds = computed(() => (jobId.value ? ['job-detail-nav'] : []))
             }"
             :title="modelLoaded === null ? '' : modelLoaded ? 'RAG 模型已就绪' : 'RAG 模型加载中…'"
           />
+        </el-menu-item>
+        <el-menu-item index="/merge-tables">
+          <el-icon><CopyDocument /></el-icon>
+          <span>表格合并</span>
         </el-menu-item>
         <el-sub-menu v-if="jobId" index="job-detail-nav">
           <template #title>

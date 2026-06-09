@@ -97,8 +97,10 @@ class JobPreviewSectionResponse(BaseModel):
     fee_rows: list[dict[str, str | None]] | None = None
     lock_columns: list[str] | None = None
     lock_rows: list[dict[str, str | None]] | None = None
+    lock_empty_reason: str | None = None
     share_columns: list[str] | None = None
     share_rows: list[dict[str, str | None]] | None = None
+    share_empty_reason: str | None = None
     subscription_columns: list[str] | None = None
     subscription_rows: list[dict[str, str | None]] | None = None
 
@@ -214,6 +216,19 @@ class JobDetailResponse(BaseModel):
     extraction_warnings: list[WarningItem] = Field(default_factory=list)
     extraction_warnings_count: int = 0
     outline_preview_count: int | None = None
+
+
+class DocumentParagraph(BaseModel):
+    index: int
+    type: str  # "paragraph" | "table"
+    text: str
+    rows: list[list[str]] | None = None  # 仅 type=="table" 时有值，用于前端渲染 HTML 表格
+
+
+class DocumentTextResponse(BaseModel):
+    job_id: uuid.UUID
+    paragraph_count: int
+    paragraphs: list[DocumentParagraph]
 
 
 def warnings_from_jsonb(raw: Any) -> list[WarningItem]:

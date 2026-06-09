@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api.routes import health, jobs, kb, upload
+from backend.app.api.routes import health, jobs, kb, merge, upload
 from backend.app.config import cors_origin_list
 from backend.app.services.job_runner_service import get_runner, shutdown_runner
 from backend.app.services.kb_service import init_kb_service
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CTRX Contract Extraction API",
     description="上传 docx → 解析 → 抽取 → 导出 Excel",
-    version="0.1.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -54,4 +54,5 @@ v1.include_router(health.router)
 v1.include_router(upload.router)
 v1.include_router(jobs.router)
 v1.include_router(kb.router)
+v1.include_router(merge.router)
 app.include_router(v1)

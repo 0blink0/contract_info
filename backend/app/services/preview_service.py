@@ -406,6 +406,12 @@ def _load_lock_section(record) -> tuple[str, list[str], list[dict[str, str | Non
     return source, lock_columns, lock_rows
 
 
+def _section_empty_reason(extraction: dict, confirmed_key: str) -> str | None:
+    """Return 'confirmed_empty' when LLM ran and confirmed no rows; None otherwise."""
+    meta = extraction.get("_meta") or {}
+    return "confirmed_empty" if meta.get(confirmed_key) else None
+
+
 _SHARE_HIDE_COLUMNS = frozenset({"分级份额简称"})
 
 
@@ -477,21 +483,31 @@ def build_section_preview(record, section: str) -> dict[str, Any]:
 
     if section == "lock-periods":
         source, lock_columns, lock_rows = _load_lock_section(record)
-        return {
+        result: dict[str, Any] = {
             **base,
             "source": source,
             "lock_columns": lock_columns,
             "lock_rows": lock_rows,
         }
+        if not lock_rows and record.extraction_result:
+            reason = _section_empty_reason(record.extraction_result, "lock_confirmed_empty")
+            if reason:
+                result["lock_empty_reason"] = reason
+        return result
 
     if section == "share-classes":
         source, share_columns, share_rows = _load_share_section(record)
-        return {
+        result = {
             **base,
             "source": source,
             "share_columns": share_columns,
             "share_rows": share_rows,
         }
+        if not share_rows and record.extraction_result:
+            reason = _section_empty_reason(record.extraction_result, "share_confirmed_empty")
+            if reason:
+                result["share_empty_reason"] = reason
+        return result
 
     if section == "subscription-fee-rates":
         source, subscription_columns, subscription_rows = _load_subscription_section(record)

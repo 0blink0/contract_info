@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from backend.app.extract.section_windows import gather_outline_chapter_text
