@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -31,6 +31,31 @@ let retryAttempt = 0
 let lastError: BackendRuntimeError | null = null
 let quitting = false
 let manualRetryRequested = false
+let keepaliveTimer: ReturnType<typeof setInterval> | null = null
+
+function startKeepalive(port: number): void {
+  if (keepaliveTimer) return
+  let failCount = 0
+  keepaliveTimer = setInterval(() => {
+    if (quitting) return
+    fetch(`http://127.0.0.1:${port}${HEALTH_PATH}`)
+      .then(() => { failCount = 0 })
+      .catch(() => {
+        failCount += 1
+        if (failCount >= 2 && backendState === 'healthy') {
+          failCount = 0
+          void scheduleRestart(port)
+        }
+      })
+  }, 30_000)
+}
+
+function stopKeepalive(): void {
+  if (keepaliveTimer) {
+    clearInterval(keepaliveTimer)
+    keepaliveTimer = null
+  }
+}
 
 function setBackendState(next: BackendState): void {
   backendState = next
@@ -198,6 +223,7 @@ async function spawnBackend(port: number): Promise<void> {
 
   retryAttempt = 0
   setBackendState('healthy')
+  startKeepalive(port)
 }
 
 async function scheduleRestart(port: number): Promise<void> {
@@ -220,6 +246,7 @@ async function scheduleRestart(port: number): Promise<void> {
 }
 
 async function stopBackend(): Promise<void> {
+  stopKeepalive()
   if (!backendProcess) {
     setBackendState('stopped')
     return
@@ -415,6 +442,15 @@ async function bootstrap(): Promise<void> {
 
 app.whenReady().then(() => {
   void bootstrap()
+
+  // 系统从睡眠/休眠唤醒后，检查后端是否还在响应；若无响应则触发重启
+  powerMonitor.on('resume', () => {
+    if (quitting || backendState !== 'healthy') return
+    fetch(`http://127.0.0.1:${DEFAULT_PORT}${HEALTH_PATH}`)
+      .catch(() => {
+        void scheduleRestart(DEFAULT_PORT)
+      })
+  })
 })
 
 app.on('before-quit', () => {

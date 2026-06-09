@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { CopyDocument, List, Setting, Upload } from '@element-plus/icons-vue'
 import { JOB_FIELD_B, JOB_TABLE_SECTIONS } from '@/constants/jobSections'
 import { useKbStatus } from '@/composables/useKbStatus'
@@ -8,6 +8,42 @@ import { useKbStatus } from '@/composables/useKbStatus'
 const { modelLoaded } = useKbStatus()
 
 const route = useRoute()
+const router = useRouter()
+
+const backendRestarting = ref(false)
+const restartSeconds = ref(0)
+let removeBackendListener: (() => void) | null = null
+let restartTimer: ReturnType<typeof setInterval> | null = null
+
+function startRestartTimer() {
+  restartSeconds.value = 0
+  restartTimer = setInterval(() => { restartSeconds.value += 1 }, 1000)
+}
+
+function stopRestartTimer() {
+  if (restartTimer) { clearInterval(restartTimer); restartTimer = null }
+}
+
+onMounted(() => {
+  if (!window.api?.onBackendStatus) return
+  removeBackendListener = window.api.onBackendStatus(({ state }) => {
+    if (state === 'restarting' || state === 'starting') {
+      if (!backendRestarting.value) {
+        backendRestarting.value = true
+        startRestartTimer()
+      }
+    } else if (state === 'healthy' && backendRestarting.value) {
+      stopRestartTimer()
+      backendRestarting.value = false
+      router.go(0)
+    }
+  })
+})
+
+onUnmounted(() => {
+  removeBackendListener?.()
+  stopRestartTimer()
+})
 
 const activeMenu = computed(() => {
   if (route.path.startsWith('/jobs/') && route.params.id) return '/jobs'
@@ -89,6 +125,10 @@ const defaultOpeneds = computed(() => (jobId.value ? ['job-detail-nav'] : []))
       </el-menu>
     </el-aside>
     <el-main class="app-main">
+      <div v-if="backendRestarting" class="backend-banner">
+        <span class="backend-banner-dot" />
+        后端重连中（已等待 {{ restartSeconds }} 秒，通常需要 30–90 秒），恢复后将自动刷新
+      </div>
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
@@ -179,6 +219,26 @@ const defaultOpeneds = computed(() => (jobId.value ? ['job-detail-nav'] : []))
   padding: 0;
   background: var(--app-bg);
   overflow: auto;
+}
+
+.backend-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+  border-bottom: 1px solid #fde68a;
+}
+
+.backend-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+  animation: kb-pulse 1.2s ease-in-out infinite;
 }
 
 .fade-enter-active,

@@ -36,7 +36,23 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
   for (const [k, v] of Object.entries(apiHeaders())) {
     headers.set(k, v as string)
   }
-  const response = await fetch(`${getApiBase()}${path}`, { ...options, headers })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30_000)
+  let response: Response
+  try {
+    response = await fetch(`${getApiBase()}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error('后端暂未响应，正在自动重连，请稍候…')
+    }
+    throw e
+  } finally {
+    clearTimeout(timeoutId)
+  }
   if (!response.ok) {
     let detail = response.statusText
     try {
