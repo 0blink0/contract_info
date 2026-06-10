@@ -49,9 +49,6 @@ def section_title_map(document: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def _section_title_map(document: dict[str, Any]) -> dict[str, str]:
-    return section_title_map(document)
-
 
 _RISK_DISCLOSURE_SUB = re.compile(r"引起的风险|可能.*?风险|带来.*?风险")
 
@@ -300,7 +297,7 @@ def gather_outline_chapter_text(
 
 def build_section_windows(document: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
     """Build full chapter windows for LLM prompts; no head truncation."""
-    title_map = _section_title_map(document)
+    title_map = section_title_map(document)
     buckets: dict[str, list[str]] = {k: [] for k in WINDOW_KEYS}
 
     blocks = document.get("blocks") or []
