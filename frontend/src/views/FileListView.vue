@@ -90,7 +90,9 @@ async function deleteAll() {
 
 function formatTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString('zh-CN')
+    // Backend returns naive UTC strings without timezone suffix; append Z to force UTC parsing
+    const utcIso = /[Z+]/.test(iso) ? iso : iso + 'Z'
+    return new Date(utcIso).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
   } catch {
     return iso
   }
