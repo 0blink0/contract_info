@@ -34,6 +34,7 @@ def test_path_b_success(api_client, api_headers):
         status="extracted",
         path_b_json=payload,
         filename="a.docx",
+        extraction_warnings=[],
     )
 
     with patch("backend.app.api.routes.jobs._get_record", return_value=record):
