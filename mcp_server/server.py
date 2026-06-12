@@ -95,13 +95,20 @@ def upload_contract(filename: str, file_path: str = "", file_content_base64: str
     Copy a DOCX contract file into temporary server storage.
     Must be called before process_contract.
 
-    Provide either file_path (local server path) or file_content_base64 (base64-encoded
-    file bytes, for remote/HTTP deployments where the file is on the client side).
+    IMPORTANT: This server runs remotely. You MUST use file_content_base64 — read
+    the file from disk on the client side, base64-encode the bytes, and pass them
+    here. Do NOT use file_path (it only works when client and server share the same
+    filesystem, which is not the case for remote/HTTP deployments).
+
+    Steps to call this tool:
+      1. Read the .docx file bytes from the local client filesystem.
+      2. Base64-encode the bytes (standard base64, no line breaks).
+      3. Call upload_contract(filename=<name>, file_content_base64=<encoded bytes>).
 
     Args:
         filename:             Display name of the file (must end in .docx).
-        file_path:            Absolute path to the .docx file on disk (local mode).
-        file_content_base64:  Base64-encoded .docx file bytes (remote mode).
+        file_content_base64:  Base64-encoded .docx file bytes (REQUIRED for remote mode).
+        file_path:            Absolute path on the SERVER's filesystem (local stdio mode only).
 
     Returns:
         JSON: {"job_id": str, "status": "uploaded"}
