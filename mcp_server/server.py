@@ -278,9 +278,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.http:
-        from mcp.server.fastmcp import FastMCP as _FastMCP
+        from mcp.server.transport_security import TransportSecuritySettings
         mcp.settings.host = args.host
         mcp.settings.port = args.port
+        # Disable DNS rebinding protection so reverse proxies (AutoDL, nginx, etc.)
+        # can forward requests with external Host headers.
+        mcp.settings.transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=False
+        )
         mcp.run(transport="sse")
     else:
         mcp.run()
