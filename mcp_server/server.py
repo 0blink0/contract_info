@@ -152,6 +152,84 @@ def upload_contract(filename: str, file_path: str = "", file_content_base64: str
 
 
 @mcp.tool()
+def upload_contract_chunked(
+    filename: str,
+    chunk_base64: str,
+    job_id: str = "",
+    is_last_chunk: bool = False,
+) -> str:
+    """
+    Upload a large .docx file in multiple base64-encoded chunks.
+    Use this for files larger than ~200KB (when file_content_base64 in upload_contract
+    would exceed MCP parameter size limits).
+
+    How to call:
+      1. Split the file's base64 string into chunks of ≤150,000 characters each.
+      2. First call: omit job_id. The response returns a job_id — save it.
+      3. Each subsequent call: pass the same job_id and the next chunk.
+      4. Final call: set is_last_chunk=True. Status becomes "uploaded".
+      5. Then call process_contract(job_id=...).
+
+    Example for a 600KB file (790KB base64, split into 6 chunks of 132K chars):
+      chunk 1: upload_contract_chunked(filename="x.docx", chunk_base64=<chars 0-131999>)
+               → {"job_id": "abc", "status": "uploading", "bytes_received": 98766}
+      chunk 2: upload_contract_chunked(filename="x.docx", chunk_base64=<chars 132000-263999>, job_id="abc")
+      ...
+      chunk 6: upload_contract_chunked(..., job_id="abc", is_last_chunk=True)
+               → {"job_id": "abc", "status": "uploaded", "bytes_received": 592568}
+
+    Args:
+        filename:      Display name (must end in .docx).
+        chunk_base64:  One chunk of the base64-encoded file (≤150,000 chars recommended).
+        job_id:        Omit on first call; pass returned value on all subsequent calls.
+        is_last_chunk: Set True on the final chunk to finalize the upload.
+
+    Returns:
+        JSON: {"job_id": str, "status": "uploading"|"uploaded", "bytes_received": int}
+    """
+    import base64 as _base64
+
+    if not filename.lower().endswith(".docx"):
+        return json.dumps({"error": "Only .docx files are supported"})
+
+    # First chunk — create job directory
+    if not job_id:
+        job_id = str(uuid.uuid4())
+        job_dir = _TEMP_BASE / job_id
+        job_dir.mkdir()
+        _write_job(job_id, {
+            "job_id": job_id,
+            "filename": filename,
+            "file_path": str(job_dir / "input.docx"),
+            "status": "uploading",
+            "created_at": datetime.now().isoformat(),
+        })
+
+    job_dir = _TEMP_BASE / job_id
+    if not job_dir.exists():
+        return json.dumps({"error": f"Job not found: {job_id}"})
+
+    dest = job_dir / "input.docx"
+    try:
+        chunk_bytes = _base64.b64decode(chunk_base64)
+    except Exception as e:
+        return json.dumps({"error": f"Failed to decode chunk: {e}", "job_id": job_id})
+
+    with dest.open("ab") as f:
+        f.write(chunk_bytes)
+
+    bytes_received = dest.stat().st_size
+
+    if is_last_chunk:
+        meta = _read_job(job_id)
+        meta["status"] = "uploaded"
+        _write_job(job_id, meta)
+        return json.dumps({"job_id": job_id, "filename": filename, "status": "uploaded", "bytes_received": bytes_received})
+
+    return json.dumps({"job_id": job_id, "filename": filename, "status": "uploading", "bytes_received": bytes_received})
+
+
+@mcp.tool()
 async def process_contract(
     job_id: str,
     openai_api_key: str = "",
