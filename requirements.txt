@@ -13,3 +13,4 @@ uvicorn[standard]>=0.27
 python-multipart>=0.0.9
 lancedb>=0.33.0
 sentence-transformers>=5.5.1
+mcp>=1.0.0
