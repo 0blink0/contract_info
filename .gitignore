@@ -23,6 +23,19 @@ llm_debug.log
 _shiyun_perf_fee.txt
 test_check.db
 
+# 一次性 PDF / 抽取调试脚本与输出快照（根目录散落，不入库）
+check_fee_blocks.py
+find_redemption_blocks.py
+test_blockid*.py
+test_compare_text.py
+test_pdf_extract.py
+test_pdf_parse.py
+test_youx1.py
+test_pdf_parse_output.json
+test_pdf_parse_report.txt
+compare_text_output.txt
+fee_paragraphs.txt
+
 # example 目录中的合同文档和分析快照（不入库）
 example/
 
