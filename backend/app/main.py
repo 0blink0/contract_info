@@ -11,9 +11,34 @@ from backend.app.services.job_runner_service import get_runner, shutdown_runner
 from backend.app.services.kb_service import init_kb_service
 
 
-def _resume_queued_jobs() -> None:
-    """On startup, re-submit any jobs left in 'queued' state from a previous run."""
+_INTERRUPTED_STATUS_MAP = {
+    "parsing": "failed",
+    "extracting": "extraction_failed",
+    "exporting": "export_failed",
+}
+
+
+def _reset_and_resume_jobs() -> None:
+    """On startup: reset in-flight jobs from a previous crash, then resume queued ones."""
+    from backend.app.db.session import SessionLocal
+    from backend.app.models.contract_file import ContractFile
     from backend.app.services.pipeline_service import count_in_progress, get_next_queued_id
+    from sqlalchemy import select
+
+    session = SessionLocal()
+    try:
+        stmt = select(ContractFile).where(ContractFile.status.in_(list(_INTERRUPTED_STATUS_MAP)))
+        rows = list(session.scalars(stmt))
+        for row in rows:
+            row.status = _INTERRUPTED_STATUS_MAP[row.status]
+            row.error_message = "backend restarted while job was in progress"
+        if rows:
+            session.commit()
+    except Exception:
+        session.rollback()
+    finally:
+        session.close()
+
     runner = get_runner()
     while count_in_progress() < 3:
         next_id = get_next_queued_id()
@@ -24,8 +49,9 @@ def _resume_queued_jobs() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.get_running_loop().run_in_executor(None, init_kb_service)
-    asyncio.get_running_loop().run_in_executor(None, _resume_queued_jobs)
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, init_kb_service)
+    loop.run_in_executor(None, _reset_and_resume_jobs)
     yield
     shutdown_runner(wait=False)
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { CopyDocument, List, Setting, Upload } from '@element-plus/icons-vue'
 import { JOB_FIELD_B, JOB_TABLE_SECTIONS } from '@/constants/jobSections'
 import { useKbStatus } from '@/composables/useKbStatus'
@@ -8,7 +9,6 @@ import { useKbStatus } from '@/composables/useKbStatus'
 const { modelLoaded } = useKbStatus()
 
 const route = useRoute()
-const router = useRouter()
 
 const backendRestarting = ref(false)
 const restartSeconds = ref(0)
@@ -35,7 +35,7 @@ onMounted(() => {
     } else if (state === 'healthy' && backendRestarting.value) {
       stopRestartTimer()
       backendRestarting.value = false
-      router.go(0)
+      ElMessage.success('后端已自动恢复')
     }
   })
 })

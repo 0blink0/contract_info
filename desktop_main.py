@@ -13,9 +13,14 @@ deferred to function scope so that DATABASE_URL is already in os.environ when
 SQLAlchemy loads Settings.
 """
 
+import multiprocessing
 import os
 import sys
 from pathlib import Path
+
+# Required for PyInstaller on Windows: prevents torch/sentence-transformers worker
+# subprocesses from re-executing main() when they are spawned inside the frozen bundle.
+multiprocessing.freeze_support()
 
 
 def _get_bundle_base() -> Path:

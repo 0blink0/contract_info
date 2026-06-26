@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onActivated, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
@@ -32,6 +32,9 @@ const stats = computed(() => {
   return { total, done, inProg, failed, pending }
 })
 
+const POLL_MS = 3000
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
 async function refresh() {
   loading.value = true
   try {
@@ -42,7 +45,33 @@ async function refresh() {
     ElMessage.error(e instanceof Error ? e.message : '加载文件列表失败')
   } finally {
     loading.value = false
+    syncPoll()
   }
+}
+
+async function silentRefresh() {
+  try {
+    const res = await listJobs(100)
+    items.value = res.items ?? []
+  } catch {
+    // 后台轮询失败静默忽略
+  } finally {
+    syncPoll()
+  }
+}
+
+function syncPoll() {
+  const hasInProgress = items.value.some((i) => isInProgress(i.status))
+  if (hasInProgress && !pollTimer) {
+    pollTimer = setInterval(() => void silentRefresh(), POLL_MS)
+  } else if (!hasInProgress && pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function stopPoll() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
 }
 
 function openDetail(jobId: string) {
@@ -111,6 +140,10 @@ onMounted(() => {
 
 onActivated(() => {
   void refresh()
+})
+
+onUnmounted(() => {
+  stopPoll()
 })
 </script>
 

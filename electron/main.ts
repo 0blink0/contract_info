@@ -33,12 +33,18 @@ let quitting = false
 let manualRetryRequested = false
 let keepaliveTimer: ReturnType<typeof setInterval> | null = null
 
+function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController()
+  const tid = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(tid))
+}
+
 function startKeepalive(port: number): void {
   if (keepaliveTimer) return
   let failCount = 0
   keepaliveTimer = setInterval(() => {
     if (quitting) return
-    fetch(`http://127.0.0.1:${port}${HEALTH_PATH}`)
+    fetchWithTimeout(`http://127.0.0.1:${port}${HEALTH_PATH}`, 10_000)
       .then(() => { failCount = 0 })
       .catch(() => {
         failCount += 1
@@ -110,11 +116,49 @@ async function waitForHealth(port: number): Promise<void> {
   throw new Error('Backend health check timed out after 30 seconds')
 }
 
+function openBackendLog(): fs.WriteStream | null {
+  try {
+    const logPath = backendLogPath()
+    fs.mkdirSync(path.dirname(logPath), { recursive: true })
+    return fs.createWriteStream(logPath, { flags: 'a' })
+  } catch {
+    return null
+  }
+}
+
+let _backendLogStream: fs.WriteStream | null = null
+
+function writeBackendLog(line: string): void {
+  const ts = new Date().toISOString()
+  const entry = `[${ts}] ${line}\n`
+  process.stdout.write(entry)
+  _backendLogStream?.write(entry)
+}
+
 function attachBackendListeners(port: number): void {
   if (!backendProcess) return
   const logPath = backendLogPath()
 
+  if (!_backendLogStream) {
+    _backendLogStream = openBackendLog()
+    writeBackendLog(`--- backend started (pid=${backendProcess.pid ?? '?'}) ---`)
+  }
+
+  backendProcess.stdout.on('data', (chunk) => {
+    String(chunk).split('\n').filter(Boolean).forEach((l) => writeBackendLog(`[stdout] ${l}`))
+  })
+
+  backendProcess.stderr.on('data', (chunk) => {
+    const text = String(chunk).trim()
+    lastError = {
+      summary: text.slice(-300),
+      logPath,
+    }
+    text.split('\n').filter(Boolean).forEach((l) => writeBackendLog(`[stderr] ${l}`))
+  })
+
   backendProcess.once('exit', (code, signal) => {
+    writeBackendLog(`--- backend exited (code=${code ?? 'null'}, signal=${signal ?? 'null'}) ---`)
     if (quitting || manualRetryRequested) return
     if (backendState === 'healthy' || backendState === 'starting' || backendState === 'restarting') {
       lastError = {
@@ -122,13 +166,6 @@ function attachBackendListeners(port: number): void {
         logPath,
       }
       void scheduleRestart(port)
-    }
-  })
-
-  backendProcess.stderr.on('data', (chunk) => {
-    lastError = {
-      summary: String(chunk).trim().slice(0, 300),
-      logPath,
     }
   })
 }
@@ -254,6 +291,7 @@ async function stopBackend(): Promise<void> {
 
   const child = backendProcess
   backendProcess = null
+  setBackendState('stopped')  // must precede kill so exit-listener won't trigger scheduleRestart
   child.kill('SIGTERM')
 
   const exited = await new Promise<boolean>((resolve) => {
@@ -272,7 +310,7 @@ async function stopBackend(): Promise<void> {
   })
 
   if (!exited) child.kill('SIGKILL')
-  setBackendState('stopped')
+  // state already set to 'stopped' before kill; no-op here
 }
 
 async function restartBackendWithRollback(previous: AppSettings): Promise<{
@@ -445,10 +483,14 @@ app.whenReady().then(() => {
 
   // 系统从睡眠/休眠唤醒后，检查后端是否还在响应；若无响应则触发重启
   powerMonitor.on('resume', () => {
-    if (quitting || backendState !== 'healthy') return
-    fetch(`http://127.0.0.1:${DEFAULT_PORT}${HEALTH_PATH}`)
+    if (quitting) return
+    // 睡眠期间后端可能已崩溃；无论当前状态都做一次探测
+    if (backendState === 'failed') return
+    fetchWithTimeout(`http://127.0.0.1:${DEFAULT_PORT}${HEALTH_PATH}`, 10_000)
       .catch(() => {
-        void scheduleRestart(DEFAULT_PORT)
+        if (!quitting && backendState !== 'failed') {
+          void scheduleRestart(DEFAULT_PORT)
+        }
       })
   })
 })
