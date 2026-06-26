@@ -8,10 +8,18 @@ from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
 
 
+_ALLOWED_EXTENSIONS = {".docx", ".pdf"}
+
+
 def validate_docx_filename(filename: str) -> None:
+    validate_filename(filename)
+
+
+def validate_filename(filename: str) -> None:
     name = (filename or "").strip()
-    if not name.lower().endswith(".docx"):
-        raise ValueError("Only .docx files are accepted")
+    suffix = Path(name).suffix.lower()
+    if suffix not in _ALLOWED_EXTENSIONS:
+        raise ValueError(f"Only {', '.join(sorted(_ALLOWED_EXTENSIONS))} files are accepted")
 
 
 def persist_upload(content: bytes, filename: str) -> uuid.UUID:

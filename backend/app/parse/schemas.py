@@ -17,7 +17,7 @@ class Block(TypedDict, total=False):
 
 class Document(TypedDict):
     source_file: str
-    format: Literal["docx"]
+    format: Literal["docx", "pdf"]
     metadata: dict[str, Any]
     outline: list[OutlineItem]
     blocks: list[Block]

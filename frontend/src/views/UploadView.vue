@@ -107,8 +107,9 @@ async function uploadOne(file: File, uid: string | number) {
 async function onFileChange(uploadFile: UploadFile) {
   const raw = uploadFile.raw
   if (!raw) return
-  if (!raw.name.toLowerCase().endsWith('.docx')) {
-    ElMessage.error('仅支持 .docx 文件')
+  const name = raw.name.toLowerCase()
+  if (!name.endsWith('.docx') && !name.endsWith('.pdf')) {
+    ElMessage.error('仅支持 .docx / .pdf 文件')
     return
   }
   await uploadOne(raw, uploadFile.uid)
@@ -186,7 +187,7 @@ onUnmounted(() => {
   <div class="page-shell">
     <h1 class="page-title">文件上传解析</h1>
     <p class="page-desc">
-      一次最多上传 {{ MAX_UPLOAD_FILES }} 份 docx，系统同时处理 {{ MAX_PARALLEL_JOBS }} 个任务，其余自动排队依次跟上。
+      一次最多上传 {{ MAX_UPLOAD_FILES }} 份合同，系统同时处理 {{ MAX_PARALLEL_JOBS }} 个任务，其余自动排队依次跟上。
     </p>
 
     <el-alert
@@ -224,7 +225,7 @@ onUnmounted(() => {
         :limit="MAX_UPLOAD_FILES"
         :auto-upload="false"
         :show-file-list="true"
-        accept=".docx"
+        accept=".docx,.pdf"
         :disabled="uploadDisabled"
         class="upload-drop"
         @change="onFileChange"
@@ -240,7 +241,7 @@ onUnmounted(() => {
         </svg>
         <div class="el-upload__text">
           拖拽或点击上传合同（最多 {{ MAX_UPLOAD_FILES }} 个）
-          <em>.docx</em>
+          <em>.docx / .pdf</em>
         </div>
       </el-upload>
     </div>

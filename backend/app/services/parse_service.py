@@ -4,7 +4,7 @@ from pathlib import Path
 from backend.app.config import data_dir
 from backend.app.db.session import SessionLocal
 from backend.app.models.contract_file import ContractFile
-from backend.app.parse import parse_docx
+from backend.app.parse import parse_docx, parse_pdf
 from backend.app.parse.schemas import document_to_dict, outline_preview_from_document
 from backend.app.services.upload_service import persist_upload
 
@@ -27,7 +27,11 @@ def parse_file_id(file_id: uuid.UUID) -> uuid.UUID:
         session.commit()
 
         try:
-            document = parse_docx(str(dest_file))
+            suffix = dest_file.suffix.lower()
+            if suffix == ".pdf":
+                document = parse_pdf(str(dest_file))
+            else:
+                document = parse_docx(str(dest_file))
             record.parse_json = document_to_dict(document)
             record.outline_preview = outline_preview_from_document(document)
             record.status = "parsed"

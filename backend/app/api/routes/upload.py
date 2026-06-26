@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from backend.app.api.deps import verify_api_key
 from backend.app.api.schemas import UploadResponse
-from backend.app.services.upload_service import persist_upload, validate_docx_filename
+from backend.app.services.upload_service import persist_upload, validate_filename
 
 router = APIRouter(tags=["upload"], dependencies=[Depends(verify_api_key)])
 
@@ -14,7 +14,7 @@ async def upload_contract(file: UploadFile = File(...)) -> UploadResponse:
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename required")
     try:
-        validate_docx_filename(file.filename)
+        validate_filename(file.filename)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

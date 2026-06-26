@@ -13,8 +13,9 @@ const uploading = ref(false)
 async function onFileChange(file: { raw?: File }) {
   const raw = file.raw
   if (!raw) return
-  if (!raw.name.toLowerCase().endsWith('.docx')) {
-    ElMessage.error('仅支持 .docx 文件')
+  const name = raw.name.toLowerCase()
+  if (!name.endsWith('.docx') && !name.endsWith('.pdf')) {
+    ElMessage.error('仅支持 .docx / .pdf 文件')
     return
   }
   uploading.value = true
@@ -36,12 +37,12 @@ async function onFileChange(file: { raw?: File }) {
       drag
       :auto-upload="false"
       :show-file-list="false"
-      accept=".docx"
+      accept=".docx,.pdf"
       :disabled="uploading"
       @change="onFileChange"
     >
       <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-      <div class="el-upload__text">拖拽或点击上传合同 <em>.docx</em></div>
+      <div class="el-upload__text">拖拽或点击上传合同 <em>.docx / .pdf</em></div>
     </el-upload>
   </div>
 </template>
