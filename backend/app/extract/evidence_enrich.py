@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from backend.app.extract.field_catalog import FIXED_PRODUCT_VALUES
@@ -130,11 +131,17 @@ def document_plain_text(document: dict[str, Any]) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def _norm(s: str) -> str:
+    """Remove whitespace — collapses PDF-artifact spaces like 'A 类' → 'A类'."""
+    return re.sub(r"\s+", "", s)
+
+
 def find_block_id_for_text(document: dict[str, Any], needle: str) -> str | None:
     needle = needle.strip()
     if len(needle) < 2:
         return None
     probe = needle[: min(80, len(needle))]
+    probe_norm = _norm(probe)
     for block in document.get("blocks") or []:
         if not isinstance(block, dict):
             continue
@@ -146,11 +153,19 @@ def find_block_id_for_text(document: dict[str, Any], needle: str) -> str | None:
             joined = "\n".join(
                 " ".join(str(c) for c in row) for row in rows if isinstance(row, list)
             )
-            if probe in joined:
+            joined_norm = _norm(joined)
+            if probe in joined or probe_norm in joined_norm:
+                return str(bid)
+            # Reverse: block content is a prefix of probe (probe spans multiple blocks)
+            if len(joined_norm) >= 15 and joined_norm[:40] in probe_norm:
                 return str(bid)
         else:
             text = str(block.get("text") or "")
-            if probe in text:
+            text_norm = _norm(text)
+            if probe in text or probe_norm in text_norm:
+                return str(bid)
+            # Reverse: block text is a leading substring of probe (probe spans multiple blocks)
+            if len(text_norm) >= 15 and text_norm[:40] in probe_norm:
                 return str(bid)
     return None
 
@@ -320,6 +335,33 @@ def enrich_extraction_dict(
             enrich_list_row(r, table_key, windows, doc) if isinstance(r, dict) else r
             for r in rows
         ]
+
+    # Backfill block_id for fee rows: LLM already provides 原文/snippet, just locate the block.
+    for table_key in ("fee_rates", "subscription_fees"):
+        rows = extraction.get(table_key)
+        if not isinstance(rows, list):
+            continue
+        new_rows = []
+        for r in rows:
+            if not isinstance(r, dict) or r.get("block_id"):
+                new_rows.append(r)
+                continue
+            anchor = r.get("原文") or r.get("snippet") or r.get("_snippet") or ""
+            if anchor:
+                bid = find_block_id_for_text(doc, anchor)
+                if not bid:
+                    # 原文 may span multiple blocks; try each sentence separately
+                    for seg in re.split(r"[。；\n]", anchor):
+                        seg = seg.strip()
+                        if len(seg) >= 10:
+                            bid = find_block_id_for_text(doc, seg)
+                            if bid:
+                                break
+                if bid:
+                    r = {**r, "block_id": bid}
+            new_rows.append(r)
+        extraction[table_key] = new_rows
+
     return extraction
 
 

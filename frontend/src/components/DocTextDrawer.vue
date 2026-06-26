@@ -40,14 +40,17 @@ function excerptChunks(excerpt: string | null): string[] {
 }
 
 /**
- * 归一化：将 " | " 管道符与 \t 制表符统一成单空格。
- * 后端给 LLM 的源文用 \t 分隔表格列，全文 API 用 " | " 分隔，
- * 两者都归一化才能跨来源匹配。
+ * 归一化：将 " | " 管道符与 \t 制表符统一成单空格，并消除 PDF 解析伪空格。
+ * PDF 文字提取会在拉丁字母/数字与汉字之间插入多余空格（如"A 类份额"→"A类份额"），
+ * 而 LLM 输出的 snippet 通常去掉了这些空格，导致精确匹配失败。
  */
 function normForMatch(s: string): string {
   return s
     .replace(/\s*[|｜]\s*/g, ' ')
     .replace(/\s+/g, ' ')
+    // Remove PDF-artifact spaces between CJK and Latin/digit characters
+    .replace(/([一-鿿＀-￯]) ([A-Za-z0-9【】])/g, '$1$2')
+    .replace(/([A-Za-z0-9【】]) ([一-鿿＀-￯])/g, '$1$2')
     .trim()
 }
 

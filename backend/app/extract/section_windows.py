@@ -164,12 +164,6 @@ _MAIN_CHAPTER_PATTERNS: dict[str, re.Pattern[str]] = {
     "subscription": re.compile(
         _CHAPTER_NUM_PREFIX + r"(?:私募)?基金的申购[、,]\s*赎回"
     ),
-    "fees": re.compile(
-        _CHAPTER_NUM_PREFIX + r"(?:私募)?基金的费用|费用与税收"
-    ),
-    "investment": re.compile(
-        _CHAPTER_NUM_PREFIX + r"(?:私募)?基金的投资\s*$"
-    ),
 }
 
 # Next major part after 申赎章（目录表述不一，用常见后继章名截断）

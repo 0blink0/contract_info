@@ -112,14 +112,22 @@ async def extract_document(
     full_text = gather_full_document_text(document)
     sub_fees_text = gather_subscription_rules_text(document, windows)
 
-    # Product first so fees LLM can use 基金全称
+    # Wave 1: product fields + verbatim perf-fee section in parallel.
+    # perf-fee section is extracted here so its text can serve as the RAG query
+    # in Wave 2, replacing the coarser regex-based fees window.
     (
-        llm_product_fields,
-        lock_periods,
-        share_classes,
-        llm_open_day_raw,
-        w_prod,
-    ) = await extract_product_combined_llm(client, full_text, fund_name=None)
+        (
+            llm_product_fields,
+            lock_periods,
+            share_classes,
+            llm_open_day_raw,
+            w_prod,
+        ),
+        direct_perf_section,
+    ) = await asyncio.gather(
+        extract_product_combined_llm(client, full_text, fund_name=None),
+        extract_perf_fee_section_llm(client, full_text),
+    )
     warnings.extend(w_prod)
 
     fund_name = field_str(llm_product_fields, "基金全称")
@@ -132,9 +140,12 @@ async def extract_document(
     if llm_open_day_raw:
         chapters_called.append("open_day")
 
+    # Wave 2: RAG search — use extracted verbatim perf-fee section as query;
+    # fall back to the regex-based fees window when the section came back empty.
     rag_cases: list[dict[str, str]] = []
     fees_win = (windows.get("fees") or "").strip()
-    if fees_win:
+    rag_query = (direct_perf_section or "").strip() or fees_win
+    if rag_query:
         kb_service = get_kb_service()
         if kb_service and not kb_service.model_available:
             logger.warning("KB RAG: model not ready, skipping RAG for this extraction")
@@ -151,7 +162,7 @@ async def extract_document(
             try:
                 field_results = await asyncio.gather(
                     *[
-                        kb_service.search_similar_entries(fees_win, rag_top_k, field_name=f)
+                        kb_service.search_similar_entries(rag_query, rag_top_k, field_name=f)
                         for f in CRM_PERFORMANCE_FEE_FIELDS
                     ]
                 )
@@ -192,16 +203,14 @@ async def extract_document(
         if _lbl and _lbl not in _share_labels:
             _share_labels.append(_lbl)
 
-    (fees_result, direct_perf_section) = await asyncio.gather(
-        extract_fees_combined_llm(
-            client,
-            full_text,
-            sub_fees_text,
-            fund_name=fund_name,
-            share_class_labels=_share_labels or None,
-            rag_cases=rag_cases,
-        ),
-        extract_perf_fee_section_llm(client, full_text),
+    # Wave 3: fees extraction with precise RAG cases injected.
+    fees_result = await extract_fees_combined_llm(
+        client,
+        full_text,
+        sub_fees_text,
+        fund_name=fund_name,
+        share_class_labels=_share_labels or None,
+        rag_cases=rag_cases,
     )
     (
         llm_fee_rows,
@@ -291,4 +300,17 @@ def extract_document_sync(
     *,
     llm_client: LlmClient | None = None,
 ) -> tuple[ExtractionResult, list[ExtractionWarning], dict[str, Any]]:
-    return asyncio.run(extract_document(document, llm_client=llm_client))
+    import sys
+    # On Windows, ProactorEventLoop (the default) can conflict when asyncio.run() is
+    # called from multiple ThreadPoolExecutor workers simultaneously. SelectorEventLoop
+    # is safe in threads and supports all the networking primitives we need (httpx async).
+    if sys.platform == "win32":
+        loop = asyncio.SelectorEventLoop()
+    else:
+        loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(extract_document(document, llm_client=llm_client))
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
